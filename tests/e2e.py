@@ -34,10 +34,34 @@ class Esp(BaseHTTPRequestHandler):
 
 
 class Tg(BaseHTTPRequestHandler):
+    def do_GET(self):
+        calls["tg"].append((self.path, ""))
+        self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+        self.wfile.write(b'{"ok":true,"result":[{"message":{"chat":{"id":4242,"first_name":"Nico"}}}]}')
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0)); body = self.rfile.read(n)
         calls["tg"].append((self.path, body.decode("latin1")))
         self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(b'{"ok":true}')
+    def log_message(self, *a): pass
+
+
+class Dvr(BaseHTTPRequestHandler):
+    """CGI del grabador: eventos (movimiento canal 2), PTZ e info."""
+    protocol_version = "HTTP/1.0"
+    def do_GET(self):
+        calls.setdefault("dvr", []).append(self.path)
+        if "eventManager" in self.path:
+            self.send_response(200); self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=myboundary"); self.end_headers()
+            try:
+                while True:
+                    time.sleep(2)
+                    e = b"Code=VideoMotion;action=Start;index=1"
+                    self.wfile.write(b"--myboundary\r\nContent-Type: text/plain\r\n\r\n" + e + b"\r\n\r\n"); self.wfile.flush()
+            except Exception:
+                return
+        body = {"getDeviceType": b"type=DH-XVR1A04\r\n", "getSoftwareVersion": b"version=4.001\r\n", "ptz.cgi": b"OK\r\n", "getSerialNo": b"sn=X\r\n"}
+        out = next((v for k, v in body.items() if k in self.path), b"")
+        self.send_response(200); self.send_header("Content-Type", "text/plain"); self.end_headers(); self.wfile.write(out)
     def log_message(self, *a): pass
 
 
@@ -73,7 +97,7 @@ def main():
         procs.append(subprocess.Popen(["ffmpeg", "-loglevel", "error", "-re", "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=15",
             "-vf", f"drawtext=text='CANAL {c}':fontsize=48:fontcolor=white:x=20:y=20", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency",
             "-g", "15", "-pix_fmt", "yuv420p", "-f", "rtsp", "-rtsp_transport", "tcp", f"rtsp://127.0.0.1:{rtsp}/fake{c}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
-    esp, tg = serve(Esp), serve(Tg)
+    esp, tg, dvr = serve(Esp), serve(Tg), serve(Dvr)
     time.sleep(2)
     for c in range(1, 5):
         for _ in range(5):
@@ -83,7 +107,9 @@ def main():
     env = dict(os.environ, PORT=str(web), HOST="127.0.0.1", CAM_HOST="127.0.0.1", CAM_PASS="x", CAM_CHANNELS="4", CAM_RTSP_PORT=str(rtsp),
                CAM_RTSP_TEMPLATE="rtsp://{user}:{pass}@{host}:{port}/fake{channel}", GO2RTC_BIN=GO2RTC, GO2RTC_API=f"127.0.0.1:{g_api}",
                GO2RTC_WEBRTC_PORT=str(webrtc), DATA_DIR=tmp, ESP32_URL=f"http://127.0.0.1:{esp.server_port}", ESP32_TOKEN="tok",
-               TELEGRAM_BOT_TOKEN="T", TELEGRAM_CHAT_ID="1", TELEGRAM_API=f"http://127.0.0.1:{tg.server_port}")
+               TELEGRAM_BOT_TOKEN="T", TELEGRAM_CHAT_ID="1", TELEGRAM_API=f"http://127.0.0.1:{tg.server_port}",
+               CAM_HTTP_PORT=str(dvr.server_port), CAM_PLAYBACK_TEMPLATE="rtsp://{host}:{port}/fake{channel}?t={start}",
+               SVB_ENV_FILE=os.path.join(tmp, ".env"), DVR_ALERT_COOLDOWN="0")
     srv_log = open(os.path.join(tmp, "server.log"), "w")
     procs.append(subprocess.Popen(["node", os.path.join(ROOT, "server", "server.js")], env=env, stdout=srv_log, stderr=subprocess.STDOUT))
     url = f"http://127.0.0.1:{web}/"
@@ -160,33 +186,114 @@ def main():
             time.sleep(1.5)
             check("Alerta SOS con foto a Telegram", any(path.endswith("sendPhoto") and "SOS" in body for path, body in calls["tg"]))
 
-            print("[6] CCTV Dahua 2x2")
+            print("[6] Monitor de cámaras (estilo DMSS)")
             page.goto(url)
             page.wait_for_function("window.SVB && SVB.net.online", timeout=15000)
             page.click(".tab[data-view='cctv']")
+            check("Teclado oculto en vista cámaras (pantalla ancha)", not page.is_visible("#keypad"))
             page.wait_for_function("document.querySelectorAll('#cctvGrid .cell svb-stream').length === 4", timeout=10000)
             check("4 canales en la grilla", True)
+            w = page.evaluate("document.querySelector('#cctvGrid').getBoundingClientRect().width")
+            check("Grilla ocupa todo el ancho", w > 1250, str(w))
             try:
                 page.wait_for_function("[...document.querySelectorAll('#cctvGrid svb-stream video')].filter(v => v.readyState >= 2 && v.videoWidth > 0).length === 4", timeout=45000)
                 check("Los 4 canales reproducen video", True)
             except Exception:
-                st = page.evaluate("[...document.querySelectorAll('#cctvGrid .cell')].map(c => { const v = c.querySelector('video'); return [c.querySelector('.st').textContent, v && v.readyState, v && v.videoWidth, v && v.paused, v && v.error && v.error.message, c.querySelector('svb-stream') && c.querySelector('svb-stream').querySelector('video') === v] })")
-                import urllib.request
-                gs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{g_api}/api/streams"))
-                summary = {k: [(pp.get("state"), pp.get("url", "")[-30:], len(pp.get("receivers") or [])) for pp in (v.get("producers") or [])] + [len(v.get("consumers") or [])] for k, v in gs.items()}
-                check("Los 4 canales reproducen video", False, json.dumps(st) + " GO2RTC " + json.dumps(summary))
+                st = page.evaluate("[...document.querySelectorAll('#cctvGrid .cell')].map(c => { const v = c.querySelector('video'); return [c.querySelector('.st') && c.querySelector('.st').textContent, v && v.readyState] })")
+                check("Los 4 canales reproducen video", False, json.dumps(st))
             t1 = page.evaluate("document.querySelector('#cctvGrid svb-stream video').currentTime")
             page.wait_for_timeout(1500)
             t2 = page.evaluate("document.querySelector('#cctvGrid svb-stream video').currentTime")
             check("Video en vivo avanza", t2 > t1, f"{t1}->{t2}")
+            page.screenshot(path=os.path.join(SHOTS, "02-camaras.png"))
+
+            # divisiones 9 y 16
+            page.click("#splitSeg [data-split='9']")
+            page.wait_for_function("document.querySelectorAll('#cctvGrid .cell').length === 9", timeout=5000)
+            page.click("#splitSeg [data-split='16']")
+            page.wait_for_function("document.querySelectorAll('#cctvGrid .cell').length === 16", timeout=5000)
+            check("Divisiones 9 y 16 (vista previa múltiple)", True)
+            page.click("#splitSeg [data-split='4']")
+            page.wait_for_function("document.querySelectorAll('#cctvGrid .cell svb-stream').length === 4", timeout=5000)
+
+            # ordenar arrastrando (canal 1 sobre canal 2)
+            vis = "[...document.querySelectorAll('#cctvGrid .cell')].sort((a, b) => a.style.order - b.style.order).map(c => c.dataset.ch).join(',')"
+            before = page.evaluate(vis)
+            h = page.locator("#cctvGrid .cell[data-ch='1'] .drag").bounding_box()
+            t = page.locator("#cctvGrid .cell[data-ch='2']").bounding_box()
+            page.mouse.move(h["x"] + h["width"] / 2, h["y"] + h["height"] / 2); page.mouse.down()
+            page.mouse.move(t["x"] + t["width"] / 2, t["y"] + t["height"] / 2, steps=8); page.mouse.up()
+            after = page.evaluate(vis)
+            check("Arrastrar ordena las cámaras", before == "1,2,3,4" and after == "2,1,3,4", f"{before} -> {after}")
+            check("Orden guardado", page.evaluate("JSON.parse(localStorage.getItem('svb.settings')).camOrder.join(',')") == "2,1,3,4")
+            page.wait_for_timeout(1000)
+            vs = page.evaluate("[...document.querySelectorAll('#cctvGrid svb-stream video')].map(v => [v.readyState, v.paused, Math.round(v.currentTime)])")
+            check("Video sigue en vivo tras ordenar", all(r >= 2 and not p for r, p, _ in vs), json.dumps(vs))
+
+            # herramientas por cámara: foto
+            page.click("#cctvGrid .cell[data-ch='2']")
+            with page.expect_download() as dl:
+                page.locator("#cctvGrid .cell[data-ch='2'] [data-act=snap]").click()
+            check("Foto de cámara descargada", dl.value.suggested_filename.endswith(".jpg"))
+            # PTZ
+            page.locator("#cctvGrid .cell[data-ch='2'] [data-act=ptz]").click()
+            btn = page.locator("#cctvGrid .cell[data-ch='2'] [data-ptz=Left]")
+            btn.dispatch_event("pointerdown"); page.wait_for_timeout(300); btn.dispatch_event("pointerup"); page.wait_for_timeout(500)
+            check("PTZ envía comandos al grabador", any("ptz.cgi?action=start&channel=2&code=Left" in u for u in calls.get("dvr", [])) and any("action=stop" in u for u in calls.get("dvr", [])))
+            page.locator("#cctvGrid .cell[data-ch='2'] [data-act=ptz]").click()
+
+            # IR
             page.click("#tgIr")
             check("Modo IR / noche aplicado", page.evaluate("document.body.classList.contains('ir')"))
-            page.screenshot(path=os.path.join(SHOTS, "02-camaras.png"))
-            page.click("#cctvGrid .cell >> nth=0")
-            page.wait_for_function("document.querySelector('#cctvGrid').classList.contains('single')", timeout=3000)
-            page.wait_for_function("(() => { const v = document.querySelector('#cctvGrid .cell.big svb-stream video'); return v && v.readyState >= 2; })()", timeout=20000)
-            check("Canal ampliado en HD", True)
             page.click("#tgIr")
+
+            # ampliar (doble clic) y volver
+            page.dblclick("#cctvGrid .cell[data-ch='3']")
+            page.wait_for_function("document.querySelectorAll('#cctvGrid .cell').length === 1", timeout=3000)
+            page.wait_for_function("(() => { const v = document.querySelector('#cctvGrid svb-stream video'); return v && v.readyState >= 2; })()", timeout=20000)
+            check("Doble clic amplía la cámara en HD", "_hd" in page.evaluate("document.querySelector('#cctvGrid svb-stream').wsURL"))
+            page.dblclick("#cctvGrid .cell >> nth=0")
+            page.wait_for_function("document.querySelectorAll('#cctvGrid .cell').length === 4", timeout=3000)
+            check("Doble clic vuelve a la grilla", True)
+
+            # eventos push del grabador
+            page.wait_for_function("document.querySelectorAll('#evList .evi').length > 0", timeout=10000)
+            check("Eventos del grabador en vivo", "Movimiento" in page.inner_text("#evList"))
+            check("Contador de eventos", page.is_visible("#evBadge"))
+            page.wait_for_selector("#cctvGrid .cell.motion", timeout=6000)
+            check("La cámara con movimiento se resalta", page.evaluate("document.querySelector('#cctvGrid .cell.motion').dataset.ch") == "2")
+            page.click("#btnEvents")
+            check("Panel de eventos se abre", page.is_visible("#evDrawer"))
+            page.screenshot(path=os.path.join(SHOTS, "02b-monitor-eventos.png"))
+            page.click("#btnEvents")
+
+            # armar con PIN
+            page.click("#btnArm")
+            for d in "2580":
+                page.click(f"#adminKeys .key[data-k='{d}']")
+            page.click("#adminKeys .key[data-k='OK']")
+            page.wait_for_function("document.querySelector('#armLbl').textContent === 'ARMADO'", timeout=5000)
+            check("Armar con PIN", True)
+            n_tg = len(calls["tg"]); time.sleep(3)
+            check("Armado: movimiento avisa a Telegram con foto", any("sendPhoto" in pth and "Movimiento" in body for pth, body in calls["tg"][n_tg:]))
+            page.wait_for_timeout(2300)
+            page.click("#btnArm")
+            for d in "2580":
+                page.click(f"#adminKeys .key[data-k='{d}']")
+            page.click("#adminKeys .key[data-k='OK']")
+            page.wait_for_function("document.querySelector('#armLbl').textContent === 'Desarmado'", timeout=5000)
+            check("Desarmar con PIN", True)
+            page.wait_for_timeout(2300)
+
+            # grabaciones
+            page.click("#btnPlayback")
+            page.select_option("#pbCh", "3")
+            page.click("#pbPlay")
+            page.wait_for_function("(() => { const v = document.querySelector('#pbStage svb-stream video'); return v && v.readyState >= 2; })()", timeout=25000)
+            check("Reproducción de grabaciones", True)
+            page.screenshot(path=os.path.join(SHOTS, "02c-grabaciones.png"))
+            page.click("#pbClose")
+            check("Cerrar reproducción", not page.is_visible("#pbOv"))
 
             print("[7] Voz (comandos)")
             page.evaluate("SVB.handleVoice('ver puerta')")
@@ -209,7 +316,7 @@ def main():
             page.click("#adminKeys .key[data-k='OK']")
             page.wait_for_selector("#adminOv.show", timeout=5000)
             check("PIN 1234 abre el panel de ingeniería", True)
-            check("11 secciones de administración", page.locator("#adminNav .nb").count() == 11)
+            check("12 secciones de administración", page.locator("#adminNav .nb").count() == 12)
             page.click("[data-go='firmware']")
             check("Firmware ESP32 visible", "WebServer server(80)" in page.inner_text("#fwView"))
             page.click("[data-go='camaras']")
@@ -236,10 +343,35 @@ def main():
             page.wait_for_timeout(800)
             check("Prueba de relé desde admin", len(calls["esp"]) >= 4)
             page.screenshot(path=os.path.join(SHOTS, "04-admin-auditoria.png"))
+            # Configuración rápida: Telegram con token + PINs nuevos (escribe .env)
+            page.click("[data-go='setup']")
+            check("Aviso de PINs de fábrica", "PINs de fábrica" in page.inner_text("#setupWarn"))
+            page.fill("#suTgToken", "123456:ABCdefGHIjklMNOpqrSTUvwxYZ12345")
+            page.click("#suTgDetect")
+            page.wait_for_function("document.querySelector('#suTgOut').textContent.includes('Conectado')", timeout=10000)
+            check("Telegram se conecta solo con el token", "Nico" in page.inner_text("#suTgOut"))
+            page.fill("#suDoor", "4455"); page.fill("#suDuress", "4455")
+            page.click("#suSave")
+            page.wait_for_function("document.querySelector('#suOut').textContent.length > 3", timeout=5000)
+            check("Valida PIN de puerta ≠ coacción", "distintos" in page.inner_text("#suOut"))
+            page.fill("#suDuress", "7788")
+            page.fill("#suNames input[data-ch='1'] >> nth=0", "Entrada")
+            page.click("#suSave")
+            page.wait_for_function("document.querySelector('#suOut').textContent.includes('Guardado')", timeout=5000)
+            envtxt = open(env["SVB_ENV_FILE"]).read()
+            check("PINs, nombres y Telegram guardados en .env", "DOOR_PIN=4455" in envtxt and "DURESS_PIN=7788" in envtxt and "TELEGRAM_CHAT_ID=4242" in envtxt and "CAM_NAMES=Entrada," in envtxt)
+            page.screenshot(path=os.path.join(SHOTS, "04b-config-rapida.png"))
+            page.click("[data-go='camaras']")
+            page.wait_for_function("document.querySelector('#devInfo').textContent.includes('XVR1A04')", timeout=6000)
+            check("Info del grabador (modelo/firmware)", True)
             page.click("#adminClose")
+            page.click(".tab[data-view='door']")
+            type_pin("4455")
+            page.wait_for_selector("#flashOv.show", timeout=5000)
+            check("PIN nuevo funciona al instante", page.inner_text("#flashTitle") == "ACCESO CONCEDIDO")
+            page.wait_for_timeout(2400)
 
             print("[9] Pase de visita en la puerta")
-            page.click(".tab[data-view='door']")
             type_pin(code)
             page.wait_for_selector("#flashOv.show", timeout=5000)
             check("Código de visita abre y saluda", "Proveedor Coca" in page.inner_text("#flashSub"), page.inner_text("#flashSub"))
@@ -296,7 +428,7 @@ def main():
     # 403 esperados: las pruebas de PIN incorrecto y de archivos bloqueados.
     # "[VideoRTC] Video error": fallo transitorio del decodificador por software de Chromium headless;
     # el vigilante del panel reconecta el canal (cubierto por las pruebas de video).
-    real_errors = [e for e in errors if "favicon" not in e and "403" not in e and "[VideoRTC] Video error" not in e]
+    real_errors = [e for e in errors if "favicon" not in e and "403" not in e and not ("400" in e and "/api/setup" in e) and "[VideoRTC] Video error" not in e]
     check("Sin errores de JavaScript en consola", not real_errors, " | ".join(real_errors[:5]))
     ok = sum(1 for _, r in results if r)
     print(f"\nRESULTADO: {ok}/{len(results)} pruebas OK")

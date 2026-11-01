@@ -39,6 +39,9 @@ function readConfig(env = process.env) {
       httpPort: int('CAM_HTTP_PORT', 80),
       rtspTemplate: env.CAM_RTSP_TEMPLATE || '',
       scan: env.CAM_SCAN || '',
+      lastHost: env.CAM_LAST_HOST || '',
+      playbackTemplate: env.CAM_PLAYBACK_TEMPLATE || '',
+      events: env.CAM_EVENTS !== '0',
     },
     go2rtc: {
       bin: env.GO2RTC_BIN || '',
@@ -52,6 +55,7 @@ function readConfig(env = process.env) {
       api: (env.TELEGRAM_API || 'https://api.telegram.org').replace(/\/$/, ''),
     },
     dataDir: env.DATA_DIR || '',
+    dvrCooldown: int('DVR_ALERT_COOLDOWN', 60),
   };
 }
 

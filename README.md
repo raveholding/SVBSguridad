@@ -2,7 +2,7 @@
 
 **Sistema Vincular Business — Soluciones de Seguridad.** Panel de seguridad táctil (web, celular y Windows) con cámaras Dahua en vivo, control de cerradura, PIN de coacción, botón SOS 911, asistente de voz, pases QR/NFC para proveedores, detección de merodeo y sabotaje con IA en el borde, y alertas con foto al celular del dueño.
 
-![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-56%20OK-000?style=flat-square)
+![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-83%20OK-000?style=flat-square)
 
 ---
 
@@ -56,12 +56,17 @@ flowchart LR
 | **SOS 911** | Cuenta regresiva de 3 s (cancelable), foto automática, alerta al dueño y llamada `tel:911`. |
 | **Familiar** | Llamada al contacto de confianza + WhatsApp de auxilio con ubicación. |
 | **Timbre** | 5 timbres sintetizados; manda la foto del visitante al celular del dueño. |
-| **Cámaras Dahua** | Grilla 2×2 (hasta 3×3) en vivo, toque para ampliar en HD, modo IR/noche, reconexión automática. |
+| **Monitor de cámaras (estilo DMSS)** | Pantalla completa sin teclado, divisiones **1 / 4 / 9 / 16**, páginas, **arrastrar para ordenar** (se recuerda), doble clic para ampliar en HD, ajustar/llenar imagen, modo IR/noche, reconexión automática. |
+| **Herramientas por cámara** | Foto, **grabar clip**, escuchar audio, **hablar** (cámaras con parlante), **ventana flotante**, **PTZ** (cámaras motorizadas), ampliar. |
+| **Eventos del grabador (push)** | Movimiento, persona/vehículo, intrusión, cruce de línea, cámara tapada, pérdida de video, alarmas y disco, en vivo en el panel (la cámara se resalta) + avisos del navegador. |
+| **Armar / Desarmar** | Con el sistema **armado** (local cerrado), cada movimiento manda **foto a Telegram**. Desarmado: solo sabotaje, pérdida de video, alarmas y disco. |
+| **Grabaciones** | Reproducción del disco del grabador por cámara, fecha y hora. |
+| **Configuración rápida** | PINs, contraseña del grabador, Telegram (solo pegando el token) y nombres de cámaras desde el panel, sin tocar archivos. |
 | **Edge AI** | Movimiento, **merodeo** (presencia > 10 s sin interactuar), **sabotaje** (lente tapado/cegado), detección de rostro (nativa si el navegador la tiene, simulada si no). Cualquier cámara Dahua puede ser la "cámara de puerta". |
 | **Voz** | «abrir puerta 2 5 8 0», «emergencia», «llamar a 911», «ver cámaras», «tocar timbre», «cancelar». Sin servicios pagos. |
 | **Pases QR / NFC** | Códigos de 6 dígitos con vencimiento para proveedores; QR para escanear, tag NFC (Android) o tipeados. Envío por WhatsApp. |
 | **Auditoría** | Log en el servidor (`data/events.jsonl`) + en el panel; exportación JSON; bóveda de fotos de evidencia. |
-| **Admin** (PIN `1234`) | Marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
+| **Admin** (PIN `1234`) | Configuración rápida, info del grabador (modelo, firmware, disco), marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
 
 ## Cerradura (ESP32)
 
@@ -78,9 +83,13 @@ Completar `WIFI_SSID`, `WIFI_PASS` y `TOKEN` en el sketch, grabar con Arduino ID
 
 ## Alertas al celular (Telegram, gratis)
 
-1. En Telegram, abrir **@BotFather** → `/newbot` → copiar el token a `TELEGRAM_BOT_TOKEN`.
-2. Mandarle un mensaje al bot nuevo y abrir `https://api.telegram.org/bot<TOKEN>/getUpdates` → copiar el número de `"chat":{"id":…}` a `TELEGRAM_CHAT_ID`.
-3. Admin → Contactos → **Probar alerta Telegram**.
+1. En Telegram, abrir **@BotFather** → `/newbot` → nombre y usuario terminado en `bot` → copiar el **token**.
+2. Abrir el bot nuevo y tocar **INICIAR**.
+3. Panel → ⚙ → **Configuración rápida** → pegar el token → **Conectar Telegram**. Detecta tu chat solo y manda un mensaje de prueba.
+
+## Actualizar
+
+Doble clic en **`actualizar-windows.bat`**: baja la última versión de GitHub y la instala conservando `.env`, registros y fotos.
 
 ## Ver desde fuera del almacén
 
@@ -116,9 +125,9 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 ## Pruebas
 
 ```bash
-cd server && npm run setup && npm test     # 6 pruebas: Digest Dahua, autodescubrimiento, API, coacción, bloqueo, video real
+cd server && npm run setup && npm test     # 8 pruebas: Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
-python3 tests/e2e.py                       # 50 pruebas de punta a punta con navegador real
+python3 tests/e2e.py                       # 74 pruebas de punta a punta con navegador real
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
 
@@ -134,6 +143,7 @@ server/                    Servidor puente (Node.js sin dependencias)
   server.js                API, proxy de video, PINs, relé, alertas, auditoría
   lib/dahua.js             Digest auth, número de serie, URLs RTSP Dahua
   lib/discover.js          Búsqueda del grabador por número de serie
+  lib/dahua-events.js      Eventos en vivo del grabador (movimiento, intrusión, sabotaje…)
   scripts/                 Descarga de go2rtc, búsqueda por consola
 firmware/esp32_cerradura/  Firmware de la cerradura
 desktop/                   App Windows (Electron) + instalador

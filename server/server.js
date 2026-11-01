@@ -20,6 +20,8 @@ const { spawn } = require('child_process');
 const { loadEnv, readConfig } = require('./lib/env');
 const { rtspUrl, redact, DEFAULT_RTSP_TEMPLATE } = require('./lib/dahua');
 const { discover } = require('./lib/discover');
+const { DahuaEvents } = require('./lib/dahua-events');
+const { digestGet, parseKV } = require('./lib/dahua');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -48,7 +50,19 @@ function createApp(cfg, opts = {}) {
     go2rtc: { running: false, pid: null, restarts: 0, lastError: '' },
     failures: new Map(), // ip -> {count, until}
     startedAt: Date.now(),
+    armed: false,
+    dvrEvents: [],      // últimos eventos del grabador
+    dvrConnected: false,
+    cooldown: new Map(), // code:canal -> último aviso
   };
+  const sse = new Set();
+  const stateFile = path.join(dataDir, 'state.json');
+  try { state.armed = !!JSON.parse(fs.readFileSync(stateFile, 'utf8')).armed; } catch { /* primera vez */ }
+  const saveState = () => fs.writeFileSync(stateFile, JSON.stringify({ armed: state.armed }));
+  function broadcast(type, data) {
+    const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
+    sse.forEach((res) => { try { res.write(msg); } catch { sse.delete(res); } });
+  }
 
   // ───────────── Persistencia ─────────────
   function addEvent(ev) {
@@ -127,19 +141,76 @@ function createApp(cfg, opts = {}) {
       setTimeout(startGo2rtc, Math.min(30000, 2000 * state.go2rtc.restarts));
     });
   }
+  // ───────────── Eventos del grabador (como las notificaciones push de DMSS) ─────────────
+  let dvr = null;
+  function startDvrEvents() {
+    if (dvr) { dvr.stop(); dvr = null; }
+    state.dvrConnected = false;
+    if (!state.camHost || !cfg.cam.pass || cfg.cam.events === false) return;
+    dvr = new DahuaEvents({ host: state.camHost, port: cfg.cam.httpPort, user: cfg.cam.user, pass: cfg.cam.pass, log: (m) => log('[grabador]', m) });
+    dvr.on('connected', () => { state.dvrConnected = true; log('[grabador] recibiendo eventos (movimiento, intrusión, sabotaje)'); broadcast('status', { dvrConnected: true }); });
+    dvr.on('event', onDvrEvent);
+    dvr.start();
+  }
+  function onDvrEvent(e) {
+    if (e.action !== 'Start' && e.action !== 'Pulse') return;
+    const name = cfg.cam.names[e.channel - 1] || `Canal ${e.channel}`;
+    const ev = { ts: new Date().toISOString(), code: e.code, label: e.label, channel: e.channel, camera: name, armed: state.armed };
+    state.dvrEvents.unshift(ev);
+    if (state.dvrEvents.length > 200) state.dvrEvents.length = 200;
+    broadcast('dvr', ev);
+    const notifyIt = e.always || state.armed;
+    const key = `${e.code}:${e.channel}`;
+    const last = state.cooldown.get(key) || 0;
+    if (Date.now() - last < cfg.dvrCooldown * 1000) return;
+    state.cooldown.set(key, Date.now());
+    addEvent({ type: 'DVR_' + e.code.toUpperCase(), level: notifyIt ? 'HIGH' : 'INFO', message: `${e.label} · ${name}${state.armed ? ' (armado)' : ''}` });
+    if (!notifyIt) return;
+    (async () => {
+      let photo = null;
+      try { photo = await snapshot(e.channel, true); } catch { /* sin foto */ }
+      await notify(`${e.always ? '⚠️' : '🚨'} ${e.label} en ${name} — ${cfg.businessName}${state.armed ? ' (sistema ARMADO)' : ''}`, photo);
+    })();
+  }
+
   function restartGo2rtc() {
     if (child) { child.removeAllListeners('exit'); child.kill(); child = null; }
     state.go2rtc.running = false;
     startGo2rtc();
   }
 
+  // ───────────── .env (configuración desde el panel) ─────────────
+  const envFile = opts.envFile || process.env.SVB_ENV_FILE || path.join(ROOT, '.env');
+  function writeEnv(changes) {
+    let text = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
+    const nl = text.includes('\r\n') ? '\r\n' : '\n';
+    Object.entries(changes).forEach(([k, v]) => {
+      const line = `${k}=${String(v).replace(/[\r\n]/g, '')}`;
+      const re = new RegExp(`^${k}=.*$`, 'm');
+      text = re.test(text) ? text.replace(re, line) : text + (text && !text.endsWith('\n') ? nl : '') + line + nl;
+    });
+    fs.writeFileSync(envFile, text);
+  }
+  function rememberHost(host) {
+    // Guarda la última IP encontrada para arrancar más rápido (sigue en modo auto si cambia)
+    try { writeEnv({ CAM_LAST_HOST: host }); } catch { /* sin permisos */ }
+  }
+
   async function resolveCameraHost() {
+    if (!state.camHost && cfg.cam.lastHost && cfg.cam.serial && cfg.cam.pass) {
+      try {
+        const { getSerial } = require('./lib/dahua');
+        const r = await getSerial({ host: cfg.cam.lastHost, port: cfg.cam.httpPort, user: cfg.cam.user, pass: cfg.cam.pass, timeout: 2500 });
+        if (r.ok && r.serial && r.serial.toUpperCase() === cfg.cam.serial.toUpperCase()) { state.camHost = cfg.cam.lastHost; log('[cámaras] grabador en', state.camHost); return state.camHost; }
+      } catch { /* cambió de IP: buscar */ }
+    }
     if (state.camHost || !cfg.cam.serial || !cfg.cam.pass) return state.camHost;
     log('[cámaras] CAM_HOST=auto → buscando grabador Dahua con serie', cfg.cam.serial.slice(0, 4) + '…');
     const r = await discover({ scan: cfg.cam.scan, httpPort: cfg.cam.httpPort, rtspPort: cfg.cam.rtspPort, user: cfg.cam.user, pass: cfg.cam.pass, serial: cfg.cam.serial, log: (m) => log('[cámaras]', m) });
     state.discovery = { at: new Date().toISOString(), scanned: r.scanned, devices: r.devices.map((d) => ({ host: d.host, type: d.type, match: !!d.match, rtsp: d.rtsp, note: d.auth || d.error })) };
     if (r.found) {
       state.camHost = r.found.host;
+      if (cfg.cam.host === 'auto') rememberHost(r.found.host);
       addEvent({ type: 'CAMERA_DISCOVERED', message: `Grabador Dahua encontrado en ${r.found.host}` });
     } else {
       log('[cámaras] No se encontró el grabador. Definí CAM_HOST con la IP local del equipo.');
@@ -290,6 +361,9 @@ function createApp(cfg, opts = {}) {
         server: true,
         door: { relay: cfg.esp32Url ? 'esp32' : 'simulado', relayMs: cfg.relayMs },
         telegram: !!(cfg.telegram.token && cfg.telegram.chatId),
+        armed: state.armed,
+        dvrEvents: state.dvrConnected,
+        ptz: true,
         cameras: {
           configured: !!state.camHost,
           host: state.camHost ? state.camHost.replace(/\.\d+$/, '.x') : null,
@@ -428,8 +502,157 @@ function createApp(cfg, opts = {}) {
       state.camHost = '';
       await resolveCameraHost();
       if (!state.camHost) state.camHost = prev;
-      else if (state.camHost !== prev) restartGo2rtc();
+      else if (state.camHost !== prev) { restartGo2rtc(); startDvrEvents(); }
       return send(res, 200, { found: !!state.discovery && state.discovery.devices.some((d) => d.match), discovery: state.discovery });
+    }
+
+    // ── Eventos en vivo para el panel (Server-Sent Events) ──
+    if (pathname === '/api/live' && m === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+      res.write(`event: hello\ndata: ${JSON.stringify({ armed: state.armed, dvrConnected: state.dvrConnected })}\n\n`);
+      sse.add(res);
+      const hb = setInterval(() => res.write(': ping\n\n'), 20000);
+      req.on('close', () => { clearInterval(hb); sse.delete(res); });
+      return;
+    }
+    if (pathname === '/api/dvr/events' && m === 'GET') return send(res, 200, state.dvrEvents.slice(0, 100));
+
+    // ── Armar / desarmar (alertas de movimiento al celular) ──
+    if (pathname === '/api/arm' && m === 'POST') {
+      const lock = lockStatus(ip);
+      if (lock) return send(res, 429, { ok: false, retryIn: lock });
+      const b = await readBody(req);
+      const pin = String(b.pin || '');
+      if (!(isAdmin(req) || (pin && (safeEq(pin, cfg.doorPin) || safeEq(pin, cfg.adminPin))))) {
+        registerFailure(ip);
+        return send(res, 403, { ok: false });
+      }
+      state.armed = !!b.armed; saveState();
+      addEvent({ type: state.armed ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: state.armed ? 'Sistema ARMADO: avisos de movimiento activos' : 'Sistema desarmado' });
+      broadcast('arm', { armed: state.armed });
+      notify(state.armed ? `🔒 ${cfg.businessName}: sistema ARMADO` : `🔓 ${cfg.businessName}: sistema desarmado`);
+      return send(res, 200, { ok: true, armed: state.armed });
+    }
+
+    // ── Información del grabador ──
+    if (pathname === '/api/device' && m === 'GET') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      if (!state.camHost) return send(res, 200, { connected: false });
+      const g = async (p) => { try { const r = await digestGet({ host: state.camHost, port: cfg.cam.httpPort, user: cfg.cam.user, pass: cfg.cam.pass, path: p, timeout: 4000 }); return r.status === 200 ? parseKV(r.body.toString()) : {}; } catch { return {}; } };
+      const [type, sw, hdd] = await Promise.all([g('/cgi-bin/magicBox.cgi?action=getDeviceType'), g('/cgi-bin/magicBox.cgi?action=getSoftwareVersion'), g('/cgi-bin/storageDevice.cgi?action=getDeviceAllInfo')]);
+      const disks = [];
+      Object.entries(hdd).forEach(([k, v]) => {
+        const mm = k.match(/^list\.info\[(\d+)\]\.Detail\[(\d+)\]\.(TotalBytes|UsedBytes|IsError)$/);
+        if (!mm) return;
+        const id = `${mm[1]}.${mm[2]}`;
+        let d = disks.find((x) => x.id === id); if (!d) { d = { id }; disks.push(d); }
+        d[mm[3]] = mm[3] === 'IsError' ? v === 'true' : parseFloat(v);
+      });
+      return send(res, 200, { connected: true, model: type.type || null, firmware: sw.version || null, serialHint: cfg.cam.serial ? cfg.cam.serial.slice(0, 4) + '…' + cfg.cam.serial.slice(-3) : null, host: state.camHost, channels: cfg.cam.channels, events: state.dvrConnected, disks: disks.map((d) => ({ totalGB: d.TotalBytes ? +(d.TotalBytes / 1e9).toFixed(1) : null, usedGB: d.UsedBytes ? +(d.UsedBytes / 1e9).toFixed(1) : null, error: !!d.IsError })) });
+    }
+
+    // ── PTZ (cámaras motorizadas) ──
+    if (pathname === '/api/ptz' && m === 'POST') {
+      if (!state.camHost) return send(res, 400, { error: 'Grabador no conectado' });
+      const b = await readBody(req);
+      const codes = ['Up', 'Down', 'Left', 'Right', 'LeftUp', 'RightUp', 'LeftDown', 'RightDown', 'ZoomTele', 'ZoomWide', 'FocusNear', 'FocusFar'];
+      const code = codes.includes(b.code) ? b.code : null;
+      const ch = Math.max(1, Math.min(cfg.cam.channels, parseInt(b.ch, 10) || 1));
+      if (!code) return send(res, 400, { error: 'Comando PTZ inválido' });
+      const action = b.action === 'stop' ? 'stop' : 'start';
+      const speed = Math.max(1, Math.min(8, parseInt(b.speed, 10) || 4));
+      try {
+        const r = await digestGet({ host: state.camHost, port: cfg.cam.httpPort, user: cfg.cam.user, pass: cfg.cam.pass, timeout: 4000, path: `/cgi-bin/ptz.cgi?action=${action}&channel=${ch}&code=${code}&arg1=0&arg2=${speed}&arg3=0` });
+        return send(res, 200, { ok: r.status === 200 && /OK/i.test(r.body.toString()), status: r.status });
+      } catch (e) { return send(res, 502, { ok: false, error: e.message }); }
+    }
+
+    // ── Reproducción de grabaciones del disco del grabador ──
+    if (pathname === '/api/playback' && (m === 'POST' || m === 'DELETE')) {
+      if (!state.camHost) return send(res, 400, { error: 'Grabador no conectado' });
+      if (m === 'DELETE') { await go2rtcRequest('/api/streams?src=rave_pb', 'DELETE').catch(() => {}); return send(res, 200, { ok: true }); }
+      const b = await readBody(req);
+      const ch = Math.max(1, Math.min(cfg.cam.channels, parseInt(b.ch, 10) || 1));
+      const start = new Date(String(b.start || ''));
+      if (isNaN(start)) return send(res, 400, { error: 'Fecha inválida' });
+      const mins = Math.max(1, Math.min(240, parseInt(b.minutes, 10) || 60));
+      const end = new Date(start.getTime() + mins * 60000);
+      const f = (d) => `${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, '0')}_${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}_${String(d.getMinutes()).padStart(2, '0')}_${String(d.getSeconds()).padStart(2, '0')}`;
+      const tpl = cfg.cam.playbackTemplate || 'rtsp://{user}:{pass}@{host}:{port}/cam/playback?channel={channel}&subtype=0&starttime={start}&endtime={end}';
+      const url = tpl.replace('{user}', encodeURIComponent(cfg.cam.user)).replace('{pass}', encodeURIComponent(cfg.cam.pass)).replace('{host}', state.camHost)
+        .replace('{port}', String(cfg.cam.rtspPort)).replace('{channel}', String(ch)).replace('{start}', f(start)).replace('{end}', f(end));
+      await go2rtcRequest('/api/streams?src=rave_pb', 'DELETE').catch(() => {});
+      const r = await go2rtcRequest(`/api/streams?name=rave_pb&src=${encodeURIComponent(url)}`, 'PUT').catch((e) => ({ status: 502, body: Buffer.from(e.message) }));
+      if (r.status !== 200) return send(res, 502, { error: 'go2rtc no disponible' });
+      addEvent({ type: 'PLAYBACK', message: `Reproducción canal ${ch} desde ${start.toLocaleString('es-AR')}` });
+      return send(res, 200, { ok: true, stream: 'rave_pb', channel: ch });
+    }
+
+    // ── Configuración desde el panel (escribe .env) ──
+    if (pathname === '/api/setup' && m === 'GET') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      return send(res, 200, {
+        BUSINESS_NAME: cfg.businessName, CAM_NAMES: cfg.cam.names.join(','), CAM_CHANNELS: cfg.cam.channels, ESP32_URL: cfg.esp32Url, RELAY_MS: cfg.relayMs,
+        PANEL_USER: cfg.panelUser, telegram: !!(cfg.telegram.token && cfg.telegram.chatId), camPassSet: !!cfg.cam.pass, panelPassSet: !!cfg.panelPass,
+        defaultPins: { door: cfg.doorPin === '2580', duress: cfg.duressPin === '9999', admin: cfg.adminPin === '1234' }, envFile,
+      });
+    }
+    if (pathname === '/api/setup' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      const b = await readBody(req);
+      const allowed = ['BUSINESS_NAME', 'DOOR_PIN', 'DURESS_PIN', 'ADMIN_PIN', 'CAM_PASS', 'CAM_NAMES', 'CAM_CHANNELS', 'ESP32_URL', 'ESP32_TOKEN', 'RELAY_MS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'PANEL_USER', 'PANEL_PASS'];
+      const ch = {};
+      for (const [k, v] of Object.entries(b)) {
+        if (!allowed.includes(k) || v === undefined || v === null || v === '') continue;
+        const val = String(v).trim();
+        if (/PIN$/.test(k) && !/^\d{4,8}$/.test(val)) return send(res, 400, { error: `${k}: de 4 a 8 números` });
+        ch[k] = val;
+      }
+      const pins = { door: ch.DOOR_PIN || cfg.doorPin, duress: ch.DURESS_PIN || cfg.duressPin, admin: ch.ADMIN_PIN || cfg.adminPin };
+      if (pins.door === pins.duress) return send(res, 400, { error: 'El PIN de puerta y el de coacción deben ser distintos' });
+      if (!Object.keys(ch).length) return send(res, 400, { error: 'Sin cambios' });
+      try { writeEnv(ch); } catch (e) { return send(res, 500, { error: 'No se pudo guardar .env: ' + e.message }); }
+      // aplicar en caliente
+      if (ch.BUSINESS_NAME) cfg.businessName = ch.BUSINESS_NAME;
+      if (ch.DOOR_PIN) cfg.doorPin = ch.DOOR_PIN;
+      if (ch.DURESS_PIN) cfg.duressPin = ch.DURESS_PIN;
+      if (ch.ADMIN_PIN) cfg.adminPin = ch.ADMIN_PIN;
+      if (ch.ESP32_URL) cfg.esp32Url = ch.ESP32_URL.replace(/\/$/, '');
+      if (ch.ESP32_TOKEN) cfg.esp32Token = ch.ESP32_TOKEN;
+      if (ch.RELAY_MS) cfg.relayMs = parseInt(ch.RELAY_MS, 10) || cfg.relayMs;
+      if (ch.TELEGRAM_BOT_TOKEN) cfg.telegram.token = ch.TELEGRAM_BOT_TOKEN;
+      if (ch.TELEGRAM_CHAT_ID) cfg.telegram.chatId = ch.TELEGRAM_CHAT_ID;
+      if (ch.PANEL_USER) cfg.panelUser = ch.PANEL_USER;
+      if (ch.PANEL_PASS) cfg.panelPass = ch.PANEL_PASS;
+      let camChanged = false;
+      if (ch.CAM_NAMES) cfg.cam.names = ch.CAM_NAMES.split(',').map((x) => x.trim()); // solo etiquetas: sin cortar el video
+      if (ch.CAM_CHANNELS) { cfg.cam.channels = Math.max(1, Math.min(16, parseInt(ch.CAM_CHANNELS, 10) || 4)); camChanged = true; }
+      if (ch.CAM_PASS) { cfg.cam.pass = ch.CAM_PASS; camChanged = true; }
+      if (camChanged) {
+        if (!state.camHost && cfg.cam.pass) await resolveCameraHost().catch(() => {});
+        restartGo2rtc(); startDvrEvents();
+      }
+      addEvent({ type: 'CONFIG_CHANGED', level: 'HIGH', message: `Configuración modificada: ${Object.keys(ch).map((k) => (/(PIN|PASS|TOKEN)$/.test(k) ? k + '=****' : k)).join(', ')}` });
+      return send(res, 200, { ok: true, saved: Object.keys(ch) });
+    }
+    if (pathname === '/api/setup/telegram' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      const b = await readBody(req);
+      const token = String(b.token || '').trim();
+      if (!/^\d+:[\w-]{20,}$/.test(token)) return send(res, 400, { error: 'El token no tiene el formato correcto (números:letras)' });
+      try {
+        const r = await fetch(`${cfg.telegram.api}/bot${token}/getUpdates`);
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) return send(res, 400, { error: 'Telegram rechazó el token. Copialo de nuevo desde @BotFather.' });
+        const chats = (j.result || []).map((u) => (u.message || u.my_chat_member || u.channel_post || {}).chat).filter(Boolean);
+        const chat = chats[chats.length - 1];
+        if (!chat) return send(res, 409, { error: 'Token correcto. Ahora abrí tu bot en Telegram, tocá INICIAR (o mandale "hola") y volvé a tocar Detectar.' });
+        cfg.telegram.token = token; cfg.telegram.chatId = String(chat.id);
+        writeEnv({ TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: String(chat.id) });
+        const n = await notify(`✅ ${cfg.businessName}: alertas de seguridad conectadas. Vas a recibir aquí avisos de coacción, SOS, timbre y eventos de cámaras.`);
+        addEvent({ type: 'TELEGRAM_LINKED', message: `Telegram vinculado (${chat.first_name || chat.title || 'chat'})` });
+        return send(res, 200, { ok: true, name: chat.first_name || chat.title || '', sent: n.sent });
+      } catch (e) { return send(res, 502, { error: 'Sin conexión con Telegram: ' + e.message }); }
     }
 
     return send(res, 404, { error: 'No existe' });
@@ -466,6 +689,7 @@ function createApp(cfg, opts = {}) {
   async function start() {
     await resolveCameraHost().catch((e) => log('[cámaras]', e.message));
     startGo2rtc();
+    startDvrEvents();
     await new Promise((r) => server.listen(cfg.port, cfg.host, r));
     log(`SVB Seguridad · ${cfg.businessName} → http://localhost:${server.address().port}`);
     return server;
@@ -473,6 +697,8 @@ function createApp(cfg, opts = {}) {
   async function stop() {
     stopping = true;
     if (child) child.kill();
+    if (dvr) dvr.stop();
+    sse.forEach((r) => r.end());
     await new Promise((r) => server.close(r));
   }
 
@@ -480,7 +706,7 @@ function createApp(cfg, opts = {}) {
 }
 
 if (require.main === module) {
-  loadEnv(path.join(ROOT, '.env'));
+  loadEnv(process.env.SVB_ENV_FILE || path.join(ROOT, '.env'));
   const app = createApp(readConfig());
   app.start();
   const bye = () => app.stop().finally(() => process.exit(0));

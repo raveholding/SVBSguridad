@@ -101,7 +101,7 @@ test('API: puerta, coacción, visitas, bloqueo, seguridad de archivos', async (t
     ESP32_URL: `http://127.0.0.1:${espPort}`, ESP32_TOKEN: 'tok', TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '42', TELEGRAM_API: `http://127.0.0.1:${tgPort}`,
     GO2RTC_DISABLED: '1', DATA_DIR: dataDir,
   });
-  const app = createApp(cfg, { log: () => {} });
+  const app = createApp(cfg, { log: () => {}, envFile: path.join(dataDir, '.env') });
   const srv = await app.start();
   const port = srv.address().port;
   t.after(async () => { await app.stop(); esp.close(); tg.close(); d.close(); });
@@ -208,7 +208,7 @@ test('Video: grabador RTSP falso → go2rtc → snapshot y WebSocket por el serv
   const apiPort = rtspPort + 2000;
   const app = createApp(readConfig({
     PORT: '0', HOST: '127.0.0.1', CAM_HOST: '127.0.0.1', CAM_PASS: 'x', CAM_CHANNELS: '2', CAM_RTSP_PORT: String(rtspPort),
-    CAM_RTSP_TEMPLATE: 'rtsp://{user}:{pass}@{host}:{port}/fake{channel}', GO2RTC_BIN: GO2RTC, GO2RTC_API: `127.0.0.1:${apiPort}`, GO2RTC_WEBRTC_PORT: String(apiPort + 1), DATA_DIR: tmp,
+    CAM_RTSP_TEMPLATE: 'rtsp://{user}:{pass}@{host}:{port}/fake{channel}', CAM_PLAYBACK_TEMPLATE: 'rtsp://{host}:{port}/fake{channel}?s={start}', GO2RTC_BIN: GO2RTC, GO2RTC_API: `127.0.0.1:${apiPort}`, GO2RTC_WEBRTC_PORT: String(apiPort + 1), DATA_DIR: tmp,
   }), { log: () => {} });
   const port = (await app.start()).address().port;
   t.after(async () => { await app.stop(); fake.kill(); });
@@ -240,4 +240,12 @@ test('Video: grabador RTSP falso → go2rtc → snapshot y WebSocket por el serv
 
   const st = await req(port, 'GET', '/api/status');
   assert.strictEqual(st.body.cameras.go2rtc.running, true);
+
+  // Reproducción de grabaciones: stream dinámico rave_pb
+  const pb = await req(port, 'POST', '/api/playback', { ch: 2, start: '2026-11-01T10:00', minutes: 30 });
+  assert.strictEqual(pb.body.stream, 'rave_pb');
+  let frame;
+  for (let i = 0; i < 8; i++) { frame = await req(port, 'GET', '/go2rtc/api/frame.jpeg?src=rave_pb'); if (frame.status === 200) break; await new Promise((r) => setTimeout(r, 1000)); }
+  assert.strictEqual(frame.status, 200, 'imagen de la reproducción');
+  assert.strictEqual((await req(port, 'DELETE', '/api/playback')).body.ok, true);
 });

@@ -63,14 +63,70 @@ main{display:grid;grid-template-columns:1fr minmax(330px,400px);gap:var(--gap);p
 .rec{position:absolute;top:10px;left:10px;display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--white);background:#000a;padding:4px 8px;border-radius:6px}
 .rec i{width:8px;height:8px;border-radius:50%;background:var(--white);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
-.grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;flex:1;min-height:0}
-.grid.single{grid-template-columns:1fr!important;grid-template-rows:1fr!important}
-.grid.single .cell:not(.big){display:none}
-.cell{position:relative;background:#050505;border:1px solid var(--b1);border-radius:12px;overflow:hidden;cursor:pointer;min-height:0}
+/* ── Monitor de cámaras (estilo DMSS) ── */
+main.wide{grid-template-columns:minmax(0,1fr)}
+main.wide .side{display:none}
+.monitor{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
+.mtool{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mtool .seg{display:flex;border:1px solid var(--b2);border-radius:12px;overflow:hidden}
+.mtool .seg button{min-width:48px;height:44px;border:0;border-right:1px solid var(--b2);background:var(--p1);color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:13px;display:grid;place-items:center}
+.mtool .seg button:last-child{border-right:0}
+.mtool .seg button.on{background:var(--silver);color:#000}
+.mtool .mb{height:44px;padding:0 12px;border:1px solid var(--b2);border-radius:12px;background:var(--p1);color:var(--silver);cursor:pointer;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;position:relative}
+.mtool .mb.on{background:var(--white);color:#000;border-color:var(--white)}
+.mtool .mb .badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:var(--white);color:#000;font-size:11px;display:none;place-items:center;padding:0 5px;font-family:var(--mono)}
+.mtool .mb .badge.show{display:grid}
+.mtool .pg{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:44px;text-align:center}
+.mbody{flex:1;display:flex;gap:8px;min-height:0}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:6px;flex:1;min-height:0;min-width:0;background:#000}
+.cell{position:relative;background:#050505;border:1px solid var(--b1);border-radius:10px;overflow:hidden;cursor:pointer;min-height:0;min-width:0;transition:border-color .2s}
+.cell.sel{border-color:var(--silver);box-shadow:inset 0 0 0 1px var(--silver)}
+.cell.drop{border-color:var(--white);box-shadow:inset 0 0 0 3px var(--white)}
+.cell.dragging{opacity:.35}
+.cell.motion{border-color:var(--white);animation:mflash 1s ease-in-out 3}
+@keyframes mflash{50%{box-shadow:inset 0 0 0 4px #fff}}
+.cell.empty{display:grid;place-items:center;color:var(--dim);font-family:var(--mono);font-size:12px;cursor:default}
 .cell svb-stream{position:absolute;inset:0;display:block}
-.cell svb-stream video{width:100%;height:100%;object-fit:cover;background:#000}
-.cell .name{position:absolute;top:8px;left:8px;font-size:12px;font-family:var(--mono);background:#000b;padding:3px 8px;border-radius:6px;color:var(--white);z-index:2}
-.cell .st{position:absolute;top:8px;right:8px;font-size:10px;font-family:var(--mono);background:#000b;padding:3px 7px;border-radius:6px;color:var(--muted);z-index:2;text-transform:uppercase}
+.cell svb-stream video{width:100%;height:100%;object-fit:contain;background:#000}
+.grid.fill .cell svb-stream video{object-fit:cover}
+.chead{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:6px;padding:6px;z-index:3;background:linear-gradient(#000b,#0000);pointer-events:none}
+.chead>*{pointer-events:auto}
+.chead .drag{width:34px;height:30px;display:grid;place-items:center;border-radius:8px;background:#000a;color:var(--silver);cursor:grab;touch-action:none}
+.chead .drag svg{width:18px;height:18px}
+.chead .name{font-size:12px;font-family:var(--mono);color:var(--white);background:#000b;padding:4px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.chead .st{margin-left:auto;font-size:10px;font-family:var(--mono);background:#000b;padding:3px 7px;border-radius:6px;color:var(--muted);text-transform:uppercase}
+.chead .mbadge{display:none;font-size:10px;font-family:var(--mono);background:var(--white);color:#000;padding:3px 7px;border-radius:6px;font-weight:700}
+.cell.motion .mbadge,.cell.rec .mbadge{display:block}
+.ctools{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:6px;padding:8px;z-index:3;background:linear-gradient(#0000,#000c);opacity:0;transform:translateY(8px);transition:.15s}
+.cell:hover .ctools,.cell.sel .ctools{opacity:1;transform:none}
+.ctools button{width:42px;height:42px;border-radius:10px;border:1px solid var(--b3);background:#000c;color:var(--white);cursor:pointer;display:grid;place-items:center}
+.ctools button.on{background:var(--white);color:#000}
+.ctools button svg{width:20px;height:20px}
+.ptzpad{position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:4;display:none;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(4,46px);gap:4px;padding:8px;border-radius:14px;background:#000d;border:1px solid var(--b2)}
+.cell.ptz .ptzpad{display:grid}
+.ptzpad button{border:1px solid var(--b2);border-radius:10px;background:var(--p2);color:var(--white);font-size:18px;cursor:pointer;touch-action:none}
+.ptzpad button:active{background:var(--silver);color:#000}
+.dragghost{position:fixed;z-index:90;pointer-events:none;padding:8px 12px;border-radius:10px;background:var(--white);color:#000;font-family:var(--mono);font-size:12px;font-weight:700;transform:translate(-50%,-50%)}
+.evdrawer{width:300px;flex:none;display:none;flex-direction:column;background:var(--p1);border:1px solid var(--b1);border-radius:12px;min-height:0}
+.evdrawer.show{display:flex}
+.evdrawer h3{margin:0;padding:12px 14px;font-size:12px;letter-spacing:2px;color:var(--muted);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:8px}
+.evlist{flex:1;overflow:auto;padding:6px}
+.evi{display:flex;gap:10px;padding:10px;border-bottom:1px solid var(--b1);cursor:pointer;border-radius:8px}
+.evi:hover{background:var(--p3)}
+.evi .t{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.evi b{display:block;color:var(--white);font-size:13px;font-weight:600}
+.evi small{color:var(--muted);font-size:12px}
+.evi.hot b::before{content:"● ";color:var(--white)}
+.monitor:fullscreen{background:#000;padding:8px}
+.pbstage{position:relative;width:min(1100px,94vw);aspect-ratio:16/9;background:#000;border:1px solid var(--b2);border-radius:14px;overflow:hidden}
+.pbstage svb-stream{position:absolute;inset:0;display:block}
+.pbstage svb-stream video{width:100%;height:100%;object-fit:contain}
+.pbbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;justify-content:center;width:min(1100px,94vw)}
+.pbbar label{min-width:150px}
+.setup h3{color:var(--white);font-weight:500;margin:26px 0 8px;font-size:16px}
+.setup ol{color:var(--silver);line-height:1.8;font-size:14px;padding-left:20px;user-select:text;-webkit-user-select:text}
+.warn{border:1px solid var(--silver);border-radius:12px;padding:12px 14px;color:var(--white);background:#111;margin-bottom:12px;font-size:14px}
+.ok-msg{color:var(--white);font-weight:600}
 
 /* ── Lateral: teclado y acciones ── */
 .side{display:flex;flex-direction:column;gap:var(--gap);min-height:0;overflow:auto}
@@ -173,8 +229,8 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
   .tab{padding:0 12px;min-height:46px;font-size:14px}
   .spacer{display:none}
   .key{height:58px}
-  .grid{grid-template-columns:1fr!important;grid-template-rows:none!important;grid-auto-rows:56vw}
-  .grid.single{grid-auto-rows:70vh}
+  .evdrawer{position:fixed;inset:auto 0 0 0;width:auto;height:60vh;z-index:40}
+  .mbody{min-height:60vh}
   .ticker{font-size:11px}
 }
 </style>
@@ -196,6 +252,18 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
   <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="ic-drag" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></symbol>
+  <symbol id="ic-shot" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="ic-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></symbol>
+  <symbol id="ic-spk" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="ic-pip" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="8" height="7" rx="1"/></symbol>
+  <symbol id="ic-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="ic-ptz" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></symbol>
+  <symbol id="ic-hist" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></symbol>
+  <symbol id="ic-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="ic-full" viewBox="0 0 24 24"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></symbol>
+  <symbol id="ic-talk" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
   <symbol id="ic-wa" viewBox="0 0 24 24"><path d="M3 21l1.7-5A9 9 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/></symbol>
 </svg>
 
@@ -242,7 +310,28 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       </div>
 
       <div class="view" id="view-cctv">
-        <div class="grid" id="cctvGrid"></div>
+        <div class="monitor" id="monitor">
+          <div class="mtool">
+            <div class="seg" id="splitSeg">
+              <button data-split="1" title="1 cámara">1</button><button data-split="4" title="4 cámaras">4</button><button data-split="9" title="9 cámaras">9</button><button data-split="16" title="16 cámaras">16</button>
+            </div>
+            <div class="seg"><button id="pgPrev" title="Anterior">‹</button><button id="pgNext" title="Siguiente">›</button></div>
+            <span class="pg" id="pgLbl">1/1</span>
+            <button class="mb" id="btnFill" title="Llenar / ajustar imagen"><svg class="i"><use href="#ic-max"/></svg><span>Llenar</span></button>
+            <span class="spacer"></span>
+            <button class="mb" id="btnArm"><svg class="i"><use href="#ic-shield"/></svg><span id="armLbl">Desarmado</span></button>
+            <button class="mb" id="btnPlayback"><svg class="i"><use href="#ic-hist"/></svg><span>Grabaciones</span></button>
+            <button class="mb" id="btnEvents"><svg class="i"><use href="#ic-list"/></svg><span>Eventos</span><i class="badge" id="evBadge">0</i></button>
+            <button class="mb" id="btnMonFull" title="Pantalla completa"><svg class="i"><use href="#ic-full"/></svg></button>
+          </div>
+          <div class="mbody">
+            <div class="grid" id="cctvGrid"></div>
+            <aside class="evdrawer" id="evDrawer">
+              <h3>EVENTOS DEL GRABADOR <span class="spacer"></span><button class="btn sm ghost" id="btnNotif" style="min-height:34px;padding:4px 10px;font-size:12px">Avisos</button></h3>
+              <div class="evlist" id="evList"><p class="muted small" style="padding:10px">Sin eventos todavía. Acá aparecen movimiento, intrusión, sabotaje y alarmas del grabador.</p></div>
+            </aside>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -286,7 +375,7 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
 <!-- PIN admin -->
 <div class="ov-full center" id="pinOv">
   <div class="modal">
-    <h3 style="margin:0 0 10px;color:var(--white);font-weight:500">Administración</h3>
+    <h3 style="margin:0 0 10px;color:var(--white);font-weight:500" id="pinTitle">Administración</h3>
     <div class="display" id="adminDisplay"><span>PIN de ingeniería</span></div>
     <div class="keys" id="adminKeys"></div>
     <button class="btn ghost" style="width:100%;margin-top:10px" id="pinCancel">Cancelar</button>
@@ -306,6 +395,39 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
   <nav id="adminNav"></nav>
   <div class="pane-wrap">
     <button class="btn close-admin" id="adminClose"><svg class="i"><use href="#ic-x"/></svg>Salir</button>
+
+    <section class="pane setup" data-pane="setup" data-n="★" data-title="Configuración rápida">
+      <h2>Configuración rápida</h2>
+      <p class="lead">Terminá de configurar el sistema desde acá, sin tocar archivos. Se guarda en el servidor (.env) y se aplica al instante.</p>
+      <div id="setupWarn"></div>
+      <h3>1 · PINs de acceso</h3>
+      <div class="row">
+        <label class="f">PIN de puerta<input class="inp" id="suDoor" type="password" inputmode="numeric" maxlength="8" placeholder="sin cambios"></label>
+        <label class="f">PIN de coacción<input class="inp" id="suDuress" type="password" inputmode="numeric" maxlength="8" placeholder="sin cambios"></label>
+        <label class="f">PIN de administración<input class="inp" id="suAdmin" type="password" inputmode="numeric" maxlength="8" placeholder="sin cambios"></label>
+      </div>
+      <h3>2 · Contraseña del grabador</h3>
+      <p class="small muted">Primero cambiala en DMSS (dispositivo → Cambiar la contraseña del dispositivo). Después escribí la nueva acá para que el sistema siga viendo las cámaras.</p>
+      <div class="row"><label class="f">Nueva contraseña del grabador<input class="inp" id="suCamPass" type="password" autocomplete="new-password" placeholder="sin cambios"></label></div>
+      <h3>3 · Alertas a tu celular (Telegram)</h3>
+      <div id="tgState" class="small muted"></div>
+      <ol>
+        <li>En Telegram, buscá <b>@BotFather</b> y tocá <b>Iniciar</b>.</li>
+        <li>Escribí <code>/newbot</code>. Nombre: <b>Alarma Rave</b>. Usuario: algo que termine en <b>bot</b>, por ejemplo <code>alarmarave_bot</code>.</li>
+        <li>BotFather te responde con un <b>token</b> (números:letras). Copialo y pegalo abajo.</li>
+        <li>Tocá el link de tu bot nuevo (t.me/…) y tocá <b>INICIAR</b>.</li>
+        <li>Volvé acá y tocá <b>Conectar Telegram</b>.</li>
+      </ol>
+      <div class="row">
+        <label class="f">Token del bot<input class="inp" id="suTgToken" placeholder="123456789:AA..." autocomplete="off"></label>
+        <div style="display:flex;align-items:end"><button class="btn primary" id="suTgDetect" style="width:100%">Conectar Telegram</button></div>
+      </div>
+      <div id="suTgOut" class="small"></div>
+      <h3>4 · Nombres de las cámaras</h3>
+      <div class="row" id="suNames"></div>
+      <button class="btn primary" id="suSave" style="margin-top:14px;min-width:220px">Guardar cambios</button>
+      <div id="suOut" class="small" style="margin-top:10px"></div>
+    </section>
 
     <section class="pane" data-pane="marca" data-n="0" data-title="Marca y perfil">
       <h2>Marca y perfil de operación</h2>
@@ -422,6 +544,8 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       <label class="chk"><input type="checkbox" id="sFace">Reconocimiento facial manos libres (simulado: detecta rostro y saluda; no abre la puerta)</label>
       <label class="chk"><input type="checkbox" id="sAiNotify">Enviar alertas de IA al dueño (merodeo / sabotaje)</label>
       <div id="discOut" class="small muted" style="margin-top:12px;user-select:text"></div>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:22px">GRABADOR</h3>
+      <div id="devInfo" class="small muted">—</div>
     </section>
 
     <section class="pane" data-pane="firmware" data-n="7" data-title="Firmware ESP32">
@@ -480,6 +604,19 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       <p class="small muted" style="margin-top:16px">SVB Seguridad v1.0 · Sistema Vincular Business</p>
     </section>
   </div>
+</div>
+
+<!-- Reproducción de grabaciones -->
+<div class="ov-full center" id="pbOv">
+  <div class="big-t" style="font-size:22px">GRABACIONES DEL DISCO</div>
+  <div class="pbbar">
+    <label class="f">Cámara<select class="inp" id="pbCh"></select></label>
+    <label class="f">Desde<input class="inp" type="datetime-local" id="pbStart"></label>
+    <label class="f">Duración<select class="inp" id="pbMin"><option value="15">15 min</option><option value="30">30 min</option><option value="60" selected>1 hora</option><option value="120">2 horas</option></select></label>
+    <button class="btn primary" id="pbPlay" style="min-width:140px">Reproducir</button>
+    <button class="btn" id="pbClose">Cerrar</button>
+  </div>
+  <div class="pbstage" id="pbStage"><div class="msg">Elegí cámara, fecha y hora, y tocá Reproducir.</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -845,7 +982,7 @@ async function refreshStatus() {
     if (st._status !== 200) throw new Error();
     const first = !net.online;
     net.online = true; net.status = st;
-    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); }
+    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); connectLive(); MON.armed = !!st.armed; paintArm(); }
   } catch {
     if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
     net.online = false; net.status = null;
@@ -923,6 +1060,7 @@ function applyBrand() {
 function setView(v) {
   $$('.tab[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
   $$('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + v));
+  document.querySelector('main').classList.toggle('wide', v === 'cctv');
   if (v === 'cctv' && !$('#cctvGrid').children.length) buildGrid();
 }
 setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); }, 1000);
@@ -945,7 +1083,7 @@ function onDoorKey(k) {
   renderDots($('#pinDisplay'), pin.length, 'Ingrese PIN');
 }
 addEventListener('keydown', (e) => {
-  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show')) return;
+  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show') || $('#pbOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
   if (/^\d$/.test(e.key)) onDoorKey(e.key);
   else if (e.key === 'Enter') onDoorKey('OK');
   else if (e.key === 'Backspace' || e.key === 'Escape') onDoorKey('C');
@@ -1147,46 +1285,236 @@ setInterval(() => {
     logEvent('CAMERA_RECONNECT', 'WARN', `Reconectando ${el._name}`, { sync: false });
   });
 }, 4000);
+/* ═══════════════════════════ MONITOR (estilo DMSS) ═══════════════════════════ */
+const MON = { split: [1, 4, 9, 16].includes(S.split) ? S.split : 4, page: 0, sel: null, prev: null, recs: new Map(), events: [], unseen: 0, armed: false, motionT: {} };
+function chanList() {
+  const ch = net.status && net.status.cameras.configured ? net.status.cameras.channels : [];
+  const by = new Map(ch.map((c) => [c.ch, c]));
+  const order = (S.camOrder || []).filter((n) => by.has(n));
+  ch.forEach((c) => { if (!order.includes(c.ch)) order.push(c.ch); });
+  S.camOrder = order;
+  return order.map((n) => by.get(n));
+}
+const camName = (c) => S.camNames[c.ch] || c.name;
 let gridGen = 0;
 async function buildGrid() {
   const gen = ++gridGen;
   const grid = $('#cctvGrid');
-  const st = net.status;
-  const chans = st && st.cameras.configured ? st.cameras.channels : [];
-  if (chans.length) { try { await loadPlayer(); } catch { toast('No se pudo cargar el reproductor de video'); } }
-  if (gen !== gridGen) return; // otra reconstrucción más nueva en curso
-  grid.classList.remove('single');
+  const list = chanList();
+  if (list.length) { try { await loadPlayer(); } catch { toast('No se pudo cargar el reproductor de video'); } }
+  if (gen !== gridGen) return;
+  MON.recs.forEach((r) => { try { r.stop(); } catch { /* ya detenido */ } });
+  const split = MON.split;
+  const pages = Math.max(1, Math.ceil(list.length / split));
+  MON.page = Math.max(0, Math.min(MON.page, pages - 1));
+  const slice = list.slice(MON.page * split, MON.page * split + split);
+  const cols = Math.sqrt(split);
+  grid.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  grid.style.gridTemplateRows = `repeat(${cols},minmax(0,1fr))`;
+  grid.classList.toggle('fill', !!S.fill);
   grid.innerHTML = '';
-  const n = Math.min(9, Math.max(4, chans.length));
-  const cols = n > 4 ? 3 : 2;
-  grid.style.gridTemplateColumns = `repeat(${cols},1fr)`; grid.style.gridTemplateRows = `repeat(${Math.ceil(n / cols)},1fr)`;
-  for (let i = 0; i < n; i++) {
-    const c = chans[i];
-    const cell = document.createElement('div');
-    cell.className = 'cell'; cell.dataset.ch = c ? c.ch : '';
-    const nm = c ? (S.camNames[c.ch] || c.name) : `Canal ${i + 1}`;
-    cell.innerHTML = `<span class="name">${esc(nm)}</span><span class="st">${c ? 'conectando' : 'sin señal'}</span>`;
-    if (c && customElements.get('svb-stream')) {
-      cell.prepend(streamEl(S.gridQ === 'hd' ? c.hd : c.sd, (d) => { cell.querySelector('.st').textContent = d; }));
-    } else if (!c) {
-      cell.insertAdjacentHTML('beforeend', `<div class="msg">${net.online ? 'Grabador Dahua no configurado' : 'Instale el servidor SVB para ver las cámaras Dahua'}</div>`);
+  $$('#splitSeg button').forEach((b) => b.classList.toggle('on', +b.dataset.split === split));
+  $('#pgLbl').textContent = `${MON.page + 1}/${pages}`;
+  $('#btnFill').classList.toggle('on', !!S.fill);
+  for (let i = 0; i < split; i++) {
+    const c = slice[i];
+    if (!c) {
+      const e = document.createElement('div'); e.className = 'cell empty'; e.style.order = i;
+      e.textContent = list.length ? '—' : (net.online ? 'Grabador Dahua no configurado' : 'Instale el servidor SVB para ver las cámaras Dahua');
+      grid.appendChild(e); continue;
     }
-    cell.addEventListener('click', () => toggleBig(cell, c));
-    grid.appendChild(cell);
+    const cell = makeCell(c, split); cell.style.order = i; grid.appendChild(cell);
   }
   fillDoorSrcOptions();
   if (S.doorSrc !== 'local') attachDoorChannel();
 }
-function toggleBig(cell, c) {
-  const grid = $('#cctvGrid');
-  const big = !cell.classList.contains('big');
-  $$('.cell', grid).forEach((x) => x.classList.remove('big'));
-  grid.classList.toggle('single', big);
-  if (big) cell.classList.add('big');
-  if (c && customElements.get('svb-stream')) { // HD al ampliar, liviano en grilla
-    const old = cell.querySelector('svb-stream'); if (old) old.remove();
-    cell.prepend(streamEl(big ? c.hd : (S.gridQ === 'hd' ? c.hd : c.sd), (d) => { cell.querySelector('.st').textContent = d; }));
+function makeCell(c, split) {
+  const cell = document.createElement('div');
+  cell.className = 'cell' + (MON.sel === c.ch ? ' sel' : '');
+  cell.dataset.ch = c.ch;
+  const tools = [['snap', 'ic-shot', 'Foto'], ['rec', 'ic-rec', 'Grabar clip'], ['audio', 'ic-spk', 'Escuchar'], ['talk', 'ic-talk', 'Hablar'], ['pip', 'ic-pip', 'Ventana flotante'], ['ptz', 'ic-ptz', 'Mover cámara (PTZ)'], ['max', 'ic-max', split === 1 ? 'Volver a la grilla' : 'Ampliar']];
+  cell.innerHTML = `<div class="chead"><span class="drag" title="Arrastrar para ordenar"><svg class="i"><use href="#ic-drag"/></svg></span><span class="name">${esc(camName(c))}</span><span class="mbadge">MOV</span><span class="st">conectando</span></div>
+    <div class="ctools">${tools.map(([a, ic, t]) => `<button data-act="${a}" title="${t}" aria-label="${t}"><svg class="i"><use href="#${ic}"/></svg></button>`).join('')}</div>
+    <div class="ptzpad">${[['LeftUp', '↖'], ['Up', '↑'], ['RightUp', '↗'], ['Left', '←'], ['', ''], ['Right', '→'], ['LeftDown', '↙'], ['Down', '↓'], ['RightDown', '↘'], ['ZoomWide', '−'], ['', ''], ['ZoomTele', '+']].map(([code, l]) => code ? `<button data-ptz="${code}">${l}</button>` : '<span></span>').join('')}</div>`;
+  const hd = split === 1 || (split === 4 && S.gridQ === 'hd');
+  cell.prepend(streamEl(hd ? c.hd : c.sd, (d) => { const st = cell.querySelector('.st'); if (st) st.textContent = d; }));
+  return cell;
+}
+function cellVideo(cell) { const el = cell && cell.querySelector('svb-stream'); return el && el.video; }
+function setSplit(n, keepCh) {
+  MON.split = n; S.split = n; save();
+  if (keepCh) { const idx = S.camOrder.indexOf(keepCh); MON.page = Math.max(0, Math.floor(idx / n)); }
+  buildGrid();
+}
+function toggleMax(ch) {
+  if (MON.split === 1 && MON.prev) { const p = MON.prev; MON.prev = null; setSplit(p, ch); }
+  else { MON.prev = MON.split; setSplit(1, ch); }
+}
+async function cellAction(cell, act) {
+  const ch = +cell.dataset.ch; const v = cellVideo(cell);
+  const name = cell.querySelector('.name').textContent;
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  if (act === 'max') return toggleMax(ch);
+  if (act === 'snap') {
+    const d = frameFrom(v, 0.92); if (!d) return toast('Todavía no hay imagen');
+    await Vault.add({ id: `${Date.now()}-c${ch}`, ts: new Date().toISOString(), reason: `FOTO ${name}`, data: d }).catch(() => {});
+    download(`rave-${name}-${stamp}.jpg`, d); tone(1800, 0.05);
+    return logEvent('CAMERA_SNAPSHOT', 'INFO', `Foto de ${name}`, { sync: false });
   }
+  if (act === 'rec') {
+    const btn = cell.querySelector('[data-act=rec]');
+    if (MON.recs.has(ch)) { MON.recs.get(ch).stop(); return; }
+    if (!v || !v.captureStream || !window.MediaRecorder) return toast('Este navegador no puede grabar clips');
+    const chunks = []; const mr = new MediaRecorder(v.captureStream(), { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' });
+    mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    mr.onstop = () => { MON.recs.delete(ch); cell.classList.remove('rec'); btn.classList.remove('on'); cell.querySelector('.mbadge').textContent = 'MOV'; if (chunks.length) { download(`rave-${name}-${stamp}.webm`, new Blob(chunks, { type: 'video/webm' })); logEvent('CLIP_SAVED', 'INFO', `Clip de ${name}`, { sync: false }); } };
+    mr.start(1000); MON.recs.set(ch, mr); cell.classList.add('rec'); btn.classList.add('on'); cell.querySelector('.mbadge').textContent = 'REC';
+    return toast(`Grabando ${name}… tocá de nuevo para terminar`);
+  }
+  if (act === 'audio') {
+    if (!v) return;
+    const on = v.muted; $$('svb-stream video').forEach((x) => { x.muted = true; }); $$('[data-act=audio]').forEach((b) => b.classList.remove('on'));
+    v.muted = !on; cell.querySelector('[data-act=audio]').classList.toggle('on', on);
+    if (on) v.play().catch(() => {});
+    return toast(on ? `Escuchando ${name} (si la cámara tiene micrófono)` : 'Audio apagado');
+  }
+  if (act === 'talk') {
+    if (!window.isSecureContext) return toast('Hablar requiere abrir el panel en esta PC (localhost) o por https');
+    const old = cell.querySelector('svb-stream'); const talking = cell.classList.toggle('talk');
+    const c = chanList().find((x) => x.ch === ch);
+    const el = streamEl(c.hd, (d) => { cell.querySelector('.st').textContent = d; });
+    if (talking) { el.mode = 'webrtc'; el.media = 'video,audio,microphone'; }
+    old.replaceWith(el); cell.querySelector('[data-act=talk]').classList.toggle('on', talking);
+    return toast(talking ? 'Micrófono abierto: hablá (solo cámaras con parlante)' : 'Micrófono cerrado');
+  }
+  if (act === 'pip') {
+    if (!v || !document.pictureInPictureEnabled) return toast('Ventana flotante no disponible');
+    try { if (document.pictureInPictureElement === v) await document.exitPictureInPicture(); else await v.requestPictureInPicture(); } catch (e) { toast('Ventana flotante: ' + e.message); }
+    return;
+  }
+  if (act === 'ptz') { cell.classList.toggle('ptz'); cell.querySelector('[data-act=ptz]').classList.toggle('on'); }
+}
+function ptz(ch, code, action) {
+  if (!net.online) return;
+  api('/api/ptz', { method: 'POST', body: { ch, code, action, speed: 4 } }).then((r) => { if (action === 'start' && r && r.ok === false) toast('Esta cámara no es motorizada (PTZ)'); }).catch(() => {});
+}
+function wireMonitor() {
+  const grid = $('#cctvGrid');
+  grid.addEventListener('click', (e) => {
+    const cell = e.target.closest('.cell[data-ch]'); if (!cell) return;
+    const b = e.target.closest('[data-act]');
+    if (b) { e.stopPropagation(); cellAction(cell, b.dataset.act); return; }
+    if (e.target.closest('[data-ptz]')) return;
+    MON.sel = +cell.dataset.ch; $$('.cell', grid).forEach((c) => c.classList.toggle('sel', c === cell));
+  });
+  grid.addEventListener('dblclick', (e) => { const cell = e.target.closest('.cell[data-ch]'); if (cell && !e.target.closest('.ctools,.ptzpad,.drag')) toggleMax(+cell.dataset.ch); });
+  // PTZ: mantener presionado
+  grid.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('[data-ptz]'); if (!b) return;
+    const ch = +b.closest('.cell').dataset.ch; ptz(ch, b.dataset.ptz, 'start');
+    const stop = () => { ptz(ch, b.dataset.ptz, 'stop'); b.removeEventListener('pointerup', stop); b.removeEventListener('pointerleave', stop); };
+    b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop);
+  });
+  // Arrastrar para ordenar (mouse y táctil)
+  grid.addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('.drag'); if (!h) return;
+    e.preventDefault();
+    const from = h.closest('.cell'); const fromCh = +from.dataset.ch;
+    const ghost = document.createElement('div'); ghost.className = 'dragghost'; ghost.textContent = from.querySelector('.name').textContent;
+    document.body.appendChild(ghost); from.classList.add('dragging');
+    let target = null;
+    const move = (ev) => {
+      ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px';
+      const t = document.elementFromPoint(ev.clientX, ev.clientY); const c = t && t.closest('#cctvGrid .cell[data-ch]');
+      if (target && target !== c) target.classList.remove('drop');
+      target = c && c !== from ? c : null; if (target) target.classList.add('drop');
+    };
+    const up = () => {
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      ghost.remove(); from.classList.remove('dragging');
+      if (target) {
+        target.classList.remove('drop');
+        const o = S.camOrder; const a = o.indexOf(fromCh); const b = o.indexOf(+target.dataset.ch);
+        [o[a], o[b]] = [o[b], o[a]]; save();
+        // intercambio visual (CSS order): el video no se corta
+        const oa = from.style.order; from.style.order = target.style.order; target.style.order = oa;
+        logEvent('CAMERA_ORDER', 'INFO', 'Orden de cámaras actualizado', { sync: false });
+      }
+    };
+    move(e);
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  });
+  $('#splitSeg').addEventListener('click', (e) => { const b = e.target.closest('[data-split]'); if (b) { MON.prev = null; setSplit(+b.dataset.split, MON.sel); } });
+  $('#pgPrev').addEventListener('click', () => { MON.page--; buildGrid(); });
+  $('#pgNext').addEventListener('click', () => { MON.page++; buildGrid(); });
+  $('#btnFill').addEventListener('click', () => { S.fill = !S.fill; save(); $('#cctvGrid').classList.toggle('fill', S.fill); $('#btnFill').classList.toggle('on', S.fill); });
+  $('#btnMonFull').addEventListener('click', () => { const m = $('#monitor'); if (document.fullscreenElement) document.exitFullscreen(); else m.requestFullscreen().catch(() => toast('Pantalla completa no disponible')); });
+  $('#btnEvents').addEventListener('click', () => { const d = $('#evDrawer'); d.classList.toggle('show'); $('#btnEvents').classList.toggle('on', d.classList.contains('show')); MON.unseen = 0; paintBadge(); });
+  $('#btnNotif').addEventListener('click', async () => {
+    if (!('Notification' in window)) return toast('Este navegador no soporta avisos');
+    const r = await Notification.requestPermission(); toast(r === 'granted' ? 'Avisos del navegador activados' : 'Avisos bloqueados por el navegador');
+  });
+  $('#evList').addEventListener('click', (e) => { const it = e.target.closest('[data-ch]'); if (it) { MON.prev = MON.split === 1 ? MON.prev : MON.split; setSplit(1, +it.dataset.ch); } });
+  $('#btnArm').addEventListener('click', toggleArm);
+  $('#btnPlayback').addEventListener('click', openPlayback);
+  $('#pbPlay').addEventListener('click', playPlayback);
+  $('#pbClose').addEventListener('click', closePlayback);
+}
+function paintBadge() { const b = $('#evBadge'); b.textContent = MON.unseen > 99 ? '99+' : MON.unseen; b.classList.toggle('show', MON.unseen > 0); }
+function paintArm() { $('#armLbl').textContent = MON.armed ? 'ARMADO' : 'Desarmado'; $('#btnArm').classList.toggle('on', MON.armed); }
+async function toggleArm() {
+  if (!net.online) return toast('Armar requiere el servidor');
+  const pin = await askPin(MON.armed ? 'PIN para DESARMAR' : 'PIN para ARMAR');
+  if (!pin) return;
+  const r = await api('/api/arm', { method: 'POST', body: { armed: !MON.armed, pin } }).catch(() => ({}));
+  if (r.ok) { MON.armed = r.armed; paintArm(); flash(true, r.armed ? 'SISTEMA ARMADO' : 'SISTEMA DESARMADO', r.armed ? 'Movimiento en cámaras → aviso al celular' : 'Solo avisos de sabotaje y alarmas'); }
+  else { Sfx.err(); toast(r._status === 429 ? 'Bloqueado por intentos' : 'PIN incorrecto'); }
+}
+function addDvrEvent(ev, fresh = true) {
+  MON.events.unshift(ev); if (MON.events.length > 200) MON.events.length = 200;
+  const list = $('#evList');
+  if (list.querySelector('p')) list.innerHTML = '';
+  const it = document.createElement('div');
+  it.className = 'evi' + (ev.armed || /sabotaje|Pérdida|Alarma|Disco|Intrusión|línea/i.test(ev.label) ? ' hot' : '');
+  it.dataset.ch = ev.channel;
+  it.innerHTML = `<span class="t">${new Date(ev.ts).toLocaleTimeString('es-AR', { hour12: false })}</span><div><b>${esc(ev.label)}</b><small>${esc(ev.camera)}</small></div>`;
+  list.prepend(it); while (list.children.length > 100) list.lastChild.remove();
+  if (!fresh) return;
+  if (!$('#evDrawer').classList.contains('show')) { MON.unseen++; paintBadge(); }
+  const cell = $(`#cctvGrid .cell[data-ch="${ev.channel}"]`);
+  if (cell) { cell.classList.remove('motion'); void cell.offsetWidth; cell.classList.add('motion'); clearTimeout(MON.motionT[ev.channel]); MON.motionT[ev.channel] = setTimeout(() => cell.classList.remove('motion'), 6000); }
+  if ('Notification' in window && Notification.permission === 'granted' && (document.hidden || !document.hasFocus())) {
+    try { new Notification(`${ev.label} · ${ev.camera}`, { body: S.biz, icon: 'assets/icon-192.png', tag: `dvr-${ev.channel}-${ev.code}` }); } catch { /* sin avisos */ }
+  }
+}
+let liveES = null;
+function connectLive() {
+  if (liveES || !base() || !window.EventSource) return;
+  liveES = new EventSource(base() + '/api/live', { withCredentials: true });
+  liveES.addEventListener('hello', (e) => { const d = JSON.parse(e.data); MON.armed = d.armed; paintArm(); });
+  liveES.addEventListener('arm', (e) => { MON.armed = JSON.parse(e.data).armed; paintArm(); });
+  liveES.addEventListener('dvr', (e) => addDvrEvent(JSON.parse(e.data)));
+  liveES.onerror = () => { if (liveES && liveES.readyState === 2) { liveES = null; setTimeout(connectLive, 5000); } };
+  api('/api/dvr/events').then((l) => { if (Array.isArray(l)) l.slice().reverse().forEach((e) => addDvrEvent(e, false)); }).catch(() => {});
+}
+function openPlayback() {
+  if (!net.online) return toast('Grabaciones requiere el servidor');
+  const list = chanList(); if (!list.length) return toast('Grabador no conectado');
+  $('#pbCh').innerHTML = list.map((c) => `<option value="${c.ch}" ${c.ch === MON.sel ? 'selected' : ''}>${esc(camName(c))}</option>`).join('');
+  const d = new Date(Date.now() - 3600e3); d.setSeconds(0, 0);
+  if (!$('#pbStart').value) $('#pbStart').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  $('#pbOv').classList.add('show');
+}
+async function playPlayback() {
+  const r = await api('/api/playback', { method: 'POST', body: { ch: +$('#pbCh').value, start: $('#pbStart').value, minutes: +$('#pbMin').value } }).catch((e) => ({ error: e.message }));
+  if (!r.ok) return toast('No se pudo reproducir: ' + (r.error || 'error'));
+  const stage = $('#pbStage'); stage.innerHTML = '';
+  const el = streamEl(r.stream, () => {}); el.background = true; stage.appendChild(el);
+  setTimeout(() => { const v = el.video; if (v) v.muted = false; }, 500);
+}
+function closePlayback() {
+  $('#pbOv').classList.remove('show'); $('#pbStage').innerHTML = '<div class="msg">Elegí cámara, fecha y hora, y tocá Reproducir.</div>';
+  if (net.online) api('/api/playback', { method: 'DELETE' }).catch(() => {});
 }
 function fillDoorSrcOptions() {
   const sel = $('#sDoorSrc'); if (!sel) return;
@@ -1404,17 +1732,21 @@ async function readNfc() {
 }
 
 /* ═══════════════════════════ PANEL DE ADMINISTRACIÓN ═══════════════════════════ */
-let adminPinBuf = '';
-function askAdmin() {
-  adminPinBuf = ''; renderDots($('#adminDisplay'), 0, 'PIN de ingeniería');
-  $('#pinOv').classList.add('show');
+let adminPinBuf = '', pinMode = 'admin', pinResolve = null, pinHint = 'PIN de ingeniería';
+function openPinOv(title, hint) {
+  adminPinBuf = ''; pinHint = hint; $('#pinTitle').textContent = title;
+  renderDots($('#adminDisplay'), 0, hint); $('#pinOv').classList.add('show');
 }
+function askAdmin() { pinMode = 'admin'; openPinOv('Administración', 'PIN de ingeniería'); }
+function askPin(title) { return new Promise((res) => { pinMode = 'ask'; pinResolve = res; openPinOv(title, 'Ingrese PIN'); }); }
+function closePinOv() { $('#pinOv').classList.remove('show'); if (pinResolve) { const r = pinResolve; pinResolve = null; r(null); } }
 async function onAdminKey(k) {
   if (k === 'C') adminPinBuf = '';
   else if (k !== 'OK' && adminPinBuf.length < 8) adminPinBuf += k;
-  renderDots($('#adminDisplay'), adminPinBuf.length, 'PIN de ingeniería');
+  renderDots($('#adminDisplay'), adminPinBuf.length, pinHint);
   if (k !== 'OK') return;
   const p = adminPinBuf; adminPinBuf = '';
+  if (pinMode === 'ask') { const r = pinResolve; pinResolve = null; $('#pinOv').classList.remove('show'); if (r) r(p); return; }
   let ok = false;
   if (net.online) {
     try { net.adminPin = p; const r = await api('/api/admin/check', { method: 'POST', admin: true }); ok = r.ok === true; if (r._status === 429) toast(`Bloqueado ${r.retryIn}s`); } catch { ok = p === S.adminPin; }
@@ -1426,16 +1758,69 @@ async function onAdminKey(k) {
 function openAdmin() {
   $('#adminOv').classList.add('show');
   logEvent('ADMIN_OPEN', 'INFO', 'Ingreso a administración', { sync: true });
-  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions();
+  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions(); loadSetup(); loadDevice();
   drawQr($('#linkQr'), base() || location.href);
   $('#linkTxt').textContent = (base() || location.href) + ' — escanear con el celular del dueño (misma red WiFi o Tailscale).';
+}
+/* ── Configuración rápida (escribe .env en el servidor) ── */
+async function loadSetup() {
+  const names = chanList();
+  $('#suNames').innerHTML = (names.length ? names.slice().sort((a, b) => a.ch - b.ch) : [1, 2, 3, 4].map((ch) => ({ ch, name: `Canal ${ch}` })))
+    .map((c) => `<label class="f">Canal ${c.ch}<input class="inp" data-ch="${c.ch}" value="${esc(c.name)}"></label>`).join('');
+  if (!net.online) { $('#setupWarn').innerHTML = '<div class="warn">Sin servidor: la configuración rápida necesita el servidor SVB encendido.</div>'; return; }
+  const r = await api('/api/setup', { admin: true }).catch(() => ({}));
+  const w = [];
+  if (r.defaultPins) {
+    const d = Object.entries(r.defaultPins).filter(([, v]) => v).map(([k]) => ({ door: 'puerta', duress: 'coacción', admin: 'administración' }[k]));
+    if (d.length) w.push(`Todavía usás los PINs de fábrica de: <b>${d.join(', ')}</b>. Cambialos abajo.`);
+  }
+  if (!r.telegram) w.push('Las alertas a tu celular (Telegram) no están conectadas. Paso 3.');
+  $('#setupWarn').innerHTML = w.map((x) => `<div class="warn">${x}</div>`).join('');
+  $('#tgState').innerHTML = r.telegram ? '<span class="ok-msg">✔ Telegram conectado.</span> Podés reconectarlo con otro bot si querés.' : '';
+}
+async function saveSetup() {
+  const body = {};
+  const pin = (id, k) => { const v = $(id).value.trim(); if (v) body[k] = v; };
+  pin('#suDoor', 'DOOR_PIN'); pin('#suDuress', 'DURESS_PIN'); pin('#suAdmin', 'ADMIN_PIN'); pin('#suCamPass', 'CAM_PASS');
+  const names = $$('#suNames input').sort((a, b) => a.dataset.ch - b.dataset.ch).map((i) => i.value.trim().replace(/,/g, ' ') || `Canal ${i.dataset.ch}`);
+  const cur = chanList().slice().sort((a, b) => a.ch - b.ch).map((c) => c.name);
+  if (names.join(',') !== cur.join(',')) body.CAM_NAMES = names.join(',');
+  if (!Object.keys(body).length) { $('#suOut').textContent = 'No hay cambios para guardar.'; return; }
+  const r = await api('/api/setup', { method: 'POST', admin: true, body }).catch((e) => ({ error: e.message }));
+  if (!r.ok) { $('#suOut').innerHTML = `<span class="warn" style="display:inline-block">${esc(r.error || 'No se pudo guardar')}</span>`; Sfx.err(); return; }
+  if (body.ADMIN_PIN) { net.adminPin = body.ADMIN_PIN; S.adminPin = body.ADMIN_PIN; }
+  if (body.DOOR_PIN) S.doorPin = body.DOOR_PIN;
+  if (body.DURESS_PIN) S.duressPin = body.DURESS_PIN;
+  if (body.CAM_NAMES) S.camNames = {};
+  save();
+  ['#suDoor', '#suDuress', '#suAdmin', '#suCamPass'].forEach((id) => { $(id).value = ''; });
+  $('#suOut').innerHTML = `<span class="ok-msg">✔ Guardado y aplicado: ${r.saved.map((k) => ({ DOOR_PIN: 'PIN de puerta', DURESS_PIN: 'PIN de coacción', ADMIN_PIN: 'PIN de administración', CAM_PASS: 'contraseña del grabador', CAM_NAMES: 'nombres de cámaras' }[k] || k)).join(', ')}.</span>`;
+  Sfx.ok();
+  await refreshStatus(); buildGrid(); loadSetup();
+}
+async function detectTelegram() {
+  const token = $('#suTgToken').value.trim();
+  if (!token) { $('#suTgOut').textContent = 'Pegá primero el token que te dio @BotFather.'; return; }
+  if (!net.online) { $('#suTgOut').textContent = 'Requiere el servidor encendido.'; return; }
+  $('#suTgOut').textContent = 'Conectando con Telegram…';
+  const r = await api('/api/setup/telegram', { method: 'POST', admin: true, body: { token }, timeout: 20000 }).catch((e) => ({ error: e.message }));
+  if (r.ok) { $('#suTgOut').innerHTML = `<span class="ok-msg">✔ Conectado${r.name ? ' con ' + esc(r.name) : ''}. Te llegó un mensaje de prueba a Telegram.</span>`; $('#suTgToken').value = ''; Sfx.ok(); loadSetup(); }
+  else $('#suTgOut').innerHTML = `<div class="warn">${esc(r.error || 'No se pudo conectar')}</div>`;
+}
+async function loadDevice() {
+  const el = $('#devInfo'); if (!el) return;
+  if (!net.online) { el.textContent = 'Sin servidor.'; return; }
+  const d = await api('/api/device', { admin: true }).catch(() => null);
+  if (!d || !d.connected) { el.textContent = 'Grabador no conectado.'; return; }
+  const disk = (d.disks || []).map((x) => x.error ? 'disco con ERROR' : `disco ${x.usedGB ?? '?'} / ${x.totalGB ?? '?'} GB usados`).join(' · ') || 'sin datos de disco';
+  el.innerHTML = `Modelo <b style="color:#fff">${esc(d.model || '—')}</b> · firmware ${esc(d.firmware || '—')} · serie ${esc(d.serialHint || '—')} · IP ${esc(d.host)} · ${d.channels} canales · ${disk} · eventos ${d.events ? 'conectados' : 'sin conexión'}`;
 }
 function closeAdmin() { $('#adminOv').classList.remove('show'); net.adminPin = ''; applyBrand(); }
 function buildAdminNav() {
   const nav = $('#adminNav');
   nav.innerHTML = $$('.pane').map((p) => `<button class="nb" data-go="${p.dataset.pane}"><span class="n">${p.dataset.n}</span>${p.dataset.title}</button>`).join('');
   nav.addEventListener('click', (e) => { const b = e.target.closest('.nb'); if (b) showPane(b.dataset.go); });
-  showPane('marca');
+  showPane('setup');
 }
 function showPane(id) {
   $$('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === id));
@@ -1554,7 +1939,10 @@ function wire() {
   $('#scanCancel').addEventListener('click', closeScanner);
   $('#btnMic').addEventListener('click', () => toggleVoice());
   $('#btnAdmin').addEventListener('click', askAdmin);
-  $('#pinCancel').addEventListener('click', () => $('#pinOv').classList.remove('show'));
+  $('#pinCancel').addEventListener('click', closePinOv);
+  wireMonitor();
+  $('#suSave').addEventListener('click', saveSetup);
+  $('#suTgDetect').addEventListener('click', detectTelegram);
   $('#adminClose').addEventListener('click', closeAdmin);
   let lp; const brand = $('#brand');
   brand.addEventListener('pointerdown', () => { lp = setTimeout(askAdmin, 3000); });

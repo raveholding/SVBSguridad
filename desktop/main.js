@@ -21,10 +21,11 @@ async function startServer() {
     const { createApp } = require(path.join(ROOT, 'server', 'server.js'));
     // .env junto al ejecutable (instalado) o en la raíz del repo (desarrollo)
     const envCandidates = [path.join(path.dirname(process.execPath), '.env'), path.join(app.getPath('userData'), '.env'), path.join(ROOT, '.env')];
-    envCandidates.some((f) => fs.existsSync(f) && loadEnv(f));
+    const envFile = envCandidates.find((f) => fs.existsSync(f)) || envCandidates[1];
+    loadEnv(envFile);
     const cfg = readConfig();
     if (!cfg.dataDir) cfg.dataDir = path.join(app.getPath('userData'), 'data');
-    serverApp = createApp(cfg);
+    serverApp = createApp(cfg, { envFile });
     await serverApp.start();
     return `http://127.0.0.1:${cfg.port}/`;
   } catch (e) {
