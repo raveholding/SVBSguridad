@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="description" content="Sistema Vincular Business — Soluciones de Seguridad">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<title>SVB Seguridad · Almacén Rave</title>
+<style>
+:root{
+  --bg:#000;--p1:#0A0A0A;--p2:#121212;--p3:#181818;--b1:#222;--b2:#333;--b3:#444;
+  --silver:#E0E0E0;--white:#FFF;--muted:#8a8a8a;--dim:#5a5a5a;
+  --r:14px;--tap:56px;--gap:12px;
+  --font:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"SFMono-Regular",Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--silver);font-family:var(--font);overflow:hidden;user-select:none;-webkit-user-select:none}
+button,input,select,textarea{font:inherit;color:inherit}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100%;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+
+/* ── Barra superior ── */
+.top{display:flex;align-items:center;gap:var(--gap);padding:10px 14px;background:var(--p1);border-bottom:1px solid var(--b1)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0;cursor:pointer}
+.brand img{height:44px;max-width:110px;object-fit:contain;border-radius:6px;background:#000}
+.brand b{display:block;color:var(--white);font-size:17px;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+.pills{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.pill{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--b2);border-radius:999px;font-size:12px;color:var(--muted);background:var(--p2);white-space:nowrap}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.pill.on{color:var(--silver)}.pill.on i{background:var(--white);box-shadow:0 0 6px #fff8}
+.pill.warn i{background:transparent;border:1.5px solid var(--silver)}
+.clock{font-family:var(--mono);font-size:20px;color:var(--white);min-width:88px;text-align:right}
+.ibtn{width:var(--tap);height:var(--tap);display:grid;place-items:center;border:1px solid var(--b2);border-radius:var(--r);background:var(--p2);cursor:pointer;transition:transform .08s,background .15s}
+.ibtn:active,.btn:active,.key:active{transform:scale(.95);background:var(--b2)}
+.ibtn.live{background:var(--white);color:#000;border-color:var(--white);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px #ffffff18}}
+
+/* ── Principal ── */
+main{display:grid;grid-template-columns:1fr minmax(330px,400px);gap:var(--gap);padding:var(--gap);min-height:0}
+.stage{display:flex;flex-direction:column;gap:10px;min-height:0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{min-height:48px;padding:0 18px;display:flex;align-items:center;gap:8px;border:1px solid var(--b2);border-radius:var(--r);background:var(--p1);color:var(--muted);cursor:pointer;font-weight:600;letter-spacing:.4px}
+.tab.active{background:var(--p3);color:var(--white);border-color:var(--b3)}
+.tab.toggle.on{color:#000;background:var(--silver);border-color:var(--silver)}
+.spacer{flex:1}
+.view{display:none;flex:1;min-height:0;position:relative}
+.view.active{display:flex}
+.screen{position:relative;flex:1;background:#050505;border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;min-height:0}
+.screen video,.screen canvas.ov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.screen video{background:#000}
+.ir video,.ir svb-stream video{filter:grayscale(1) contrast(1.45) brightness(1.35)}
+.msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:20px;font-size:14px;pointer-events:none}
+.hud{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+.tag{padding:5px 9px;border-radius:8px;background:#000c;border:1px solid var(--b2);font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
+.tag.hot{color:#000;background:var(--white);border-color:var(--white)}
+.rec{position:absolute;top:10px;left:10px;display:flex;gap:6px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--white);background:#000a;padding:4px 8px;border-radius:6px}
+.rec i{width:8px;height:8px;border-radius:50%;background:var(--white);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;flex:1;min-height:0}
+.grid.single{grid-template-columns:1fr!important;grid-template-rows:1fr!important}
+.grid.single .cell:not(.big){display:none}
+.cell{position:relative;background:#050505;border:1px solid var(--b1);border-radius:12px;overflow:hidden;cursor:pointer;min-height:0}
+.cell svb-stream{position:absolute;inset:0;display:block}
+.cell svb-stream video{width:100%;height:100%;object-fit:cover;background:#000}
+.cell .name{position:absolute;top:8px;left:8px;font-size:12px;font-family:var(--mono);background:#000b;padding:3px 8px;border-radius:6px;color:var(--white);z-index:2}
+.cell .st{position:absolute;top:8px;right:8px;font-size:10px;font-family:var(--mono);background:#000b;padding:3px 7px;border-radius:6px;color:var(--muted);z-index:2;text-transform:uppercase}
+
+/* ── Lateral: teclado y acciones ── */
+.side{display:flex;flex-direction:column;gap:var(--gap);min-height:0;overflow:auto}
+.card{background:var(--p1);border:1px solid var(--b1);border-radius:var(--r);padding:14px}
+.card h3{margin:0 0 10px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600}
+.display{height:58px;display:flex;align-items:center;justify-content:center;gap:12px;background:#000;border:1px solid var(--b2);border-radius:12px;margin-bottom:10px;font-family:var(--mono);font-size:15px;color:var(--muted)}
+.display .dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--b3)}
+.display .dot.f{background:var(--white);border-color:var(--white)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.key{height:62px;border:1px solid var(--b2);border-radius:12px;background:linear-gradient(#161616,#0d0d0d);font-size:26px;font-weight:300;color:var(--white);cursor:pointer;display:grid;place-items:center;transition:transform .06s}
+.key.fn{font-size:13px;letter-spacing:1px;color:var(--muted);font-weight:600}
+.key.ok{background:var(--silver);color:#000;border-color:var(--silver)}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{min-height:var(--tap);padding:10px 14px;border:1px solid var(--b2);border-radius:var(--r);background:var(--p2);color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;letter-spacing:.3px;text-align:center;transition:transform .08s}
+.btn.primary{background:var(--white);color:#000;border-color:var(--white)}
+.btn.sos{grid-column:1/-1;min-height:84px;font-size:22px;letter-spacing:3px;background:#000;border:2px solid var(--white)}
+.btn.sm{min-height:48px;font-size:14px}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.4;pointer-events:none}
+
+/* ── Ticker ── */
+.ticker{display:flex;gap:18px;align-items:center;padding:8px 14px;background:var(--p1);border-top:1px solid var(--b1);font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.ticker b{color:var(--white);font-weight:500}
+
+/* ── Overlays ── */
+.ov-full{position:fixed;inset:0;z-index:50;display:none;background:#000e;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.ov-full.show{display:flex}
+.center{align-items:center;justify-content:center;flex-direction:column;gap:22px;text-align:center;padding:20px}
+.count{font-size:min(38vw,240px);line-height:1;font-weight:200;color:var(--white);font-family:var(--mono)}
+.big-t{font-size:clamp(22px,4vw,40px);letter-spacing:6px;color:var(--white);font-weight:300}
+.sub-t{color:var(--muted);max-width:560px}
+.flash .ring{width:160px;height:160px;border-radius:50%;border:2px solid var(--white);display:grid;place-items:center}
+.flash .ring svg{width:80px;height:80px;stroke-width:1.2}
+.modal{background:var(--p1);border:1px solid var(--b2);border-radius:18px;padding:18px;width:min(380px,92vw)}
+.toast{position:fixed;left:50%;top:86px;transform:translateX(-50%) translateY(-20px);opacity:0;transition:.25s;z-index:80;background:var(--white);color:#000;padding:12px 18px;border-radius:12px;font-weight:600;max-width:90vw;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Admin ── */
+.admin{flex-direction:row;background:var(--bg);backdrop-filter:none}
+.admin nav{width:250px;background:var(--p1);border-right:1px solid var(--b1);display:flex;flex-direction:column;padding:12px;gap:6px;overflow:auto}
+.admin nav .nb{min-height:48px;text-align:left;padding:0 14px;border:1px solid transparent;border-radius:12px;background:none;color:var(--muted);cursor:pointer;font-size:14px;display:flex;align-items:center;gap:10px}
+.admin nav .nb.active{background:var(--p3);color:var(--white);border-color:var(--b2)}
+.admin nav .nb .n{font-family:var(--mono);font-size:11px;color:var(--dim);width:18px}
+.admin .pane-wrap{flex:1;overflow:auto;padding:22px 26px 80px}
+.pane{display:none;max-width:980px}
+.pane.active{display:block}
+.pane h2{margin:0 0 4px;color:var(--white);font-weight:500;letter-spacing:.5px}
+.pane .lead{color:var(--muted);margin:0 0 18px;font-size:14px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:12px}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.inp{min-height:50px;padding:10px 14px;border-radius:12px;border:1px solid var(--b2);background:#000;color:var(--white);font-size:16px;text-transform:none;letter-spacing:0;width:100%;user-select:text;-webkit-user-select:text}
+.inp:focus{outline:none;border-color:var(--silver)}
+input[type=range]{accent-color:#e0e0e0;width:100%;height:36px}
+.chk{display:flex;align-items:center;gap:12px;min-height:48px;cursor:pointer;color:var(--silver);font-size:15px}
+.chk input{width:26px;height:26px;accent-color:#e0e0e0}
+pre.code{background:#050505;border:1px solid var(--b1);border-radius:12px;padding:14px;max-height:56vh;overflow:auto;font-family:var(--mono);font-size:12px;color:var(--silver);white-space:pre;user-select:text;-webkit-user-select:text}
+.doc{line-height:1.6;color:var(--silver);font-size:14px;user-select:text;-webkit-user-select:text}
+.doc h3{color:var(--white);margin:22px 0 6px;font-weight:500}
+.doc code{font-family:var(--mono);background:#111;border:1px solid var(--b1);padding:1px 6px;border-radius:6px;font-size:12px}
+table.t{width:100%;border-collapse:collapse;font-size:13px;user-select:text;-webkit-user-select:text}
+table.t th,table.t td{padding:9px 8px;border-bottom:1px solid var(--b1);text-align:left;vertical-align:top}
+table.t th{color:var(--muted);font-weight:500;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+table.t td.lv{font-family:var(--mono);font-size:11px}
+tr.crit td{color:var(--white);font-weight:600;background:#111}
+.vault{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.vault figure{margin:0;background:#050505;border:1px solid var(--b1);border-radius:10px;overflow:hidden}
+.vault img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.vault figcaption{font-size:10px;font-family:var(--mono);padding:6px;color:var(--muted)}
+.qrbox{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:var(--p1);border:1px solid var(--b1);border-radius:14px;padding:14px}
+.qrbox canvas{background:#fff;border-radius:8px}
+.codebig{font-family:var(--mono);font-size:34px;letter-spacing:6px;color:var(--white)}
+.muted{color:var(--muted)}.small{font-size:12px}
+.close-admin{position:fixed;top:12px;right:14px;z-index:60}
+.list{display:flex;flex-direction:column;gap:8px}
+.li{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--b1);border-radius:12px;background:var(--p1)}
+.li .grow{flex:1;min-width:0}
+.scan-box{position:relative;width:min(520px,92vw);aspect-ratio:4/3;border:1px solid var(--b2);border-radius:16px;overflow:hidden;background:#000}
+.scan-box video{width:100%;height:100%;object-fit:cover}
+.scan-box::after{content:"";position:absolute;inset:18%;border:2px solid var(--white);border-radius:14px}
+
+@media (max-width:900px){
+  html,body{overflow:auto;height:auto}
+  .app{height:auto;min-height:100%}
+  main{grid-template-columns:minmax(0,1fr)}
+  .stage,.side{min-width:0}
+  .view{min-height:46vh}
+  .pills{display:none}
+  .admin{flex-direction:column}
+  .admin nav{width:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--b1);flex:none}
+  .admin nav .nb{white-space:nowrap}
+  .admin .pane-wrap{padding:16px 14px 80px}
+  .close-admin{top:auto;bottom:14px}
+}
+@media (max-width:560px){
+  .top{flex-wrap:wrap;gap:8px;padding:8px 10px}
+  .brand{flex:1}
+  .brand img{height:38px}
+  .clock{display:none}
+  .ibtn{width:48px;height:48px}
+  .tab{padding:0 12px;min-height:46px;font-size:14px}
+  .spacer{display:none}
+  .key{height:58px}
+  .grid{grid-template-columns:1fr!important;grid-template-rows:none!important;grid-auto-rows:56vw}
+  .grid.single{grid-auto-rows:70vh}
+  .ticker{font-size:11px}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="ic-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="ic-door" viewBox="0 0 24 24"><path d="M4 21h16M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><circle cx="14.5" cy="12.5" r=".8"/></symbol>
+  <symbol id="ic-cam" viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/></symbol>
+  <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></symbol>
+  <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="ic-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="ic-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M17 17h4v4h-4"/></symbol>
+  <symbol id="ic-nfc" viewBox="0 0 24 24"><path d="M6 8.3a8 8 0 0 1 0 7.4M10 6a12 12 0 0 1 0 12M14 4a16 16 0 0 1 0 16M18 2.5a20 20 0 0 1 0 19"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="ic-ai" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="ic-wa" viewBox="0 0 24 24"><path d="M3 21l1.7-5A9 9 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand" id="brand" title="Mantener presionado 3 s: administración">
+      <img id="logo" src="assets/rave-logo.jpg" alt="Logo">
+      <div><b id="bizName">Almacén Rave</b><small id="modeLabel">Modo corporativo · alta seguridad</small></div>
+    </div>
+    <div class="pills">
+      <span class="pill" id="stServer"><i></i>Servidor</span>
+      <span class="pill" id="stCams"><i></i>Cámaras</span>
+      <span class="pill" id="stDoor"><i></i>Cerradura</span>
+      <span class="pill" id="stAi"><i></i>IA</span>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+    <button class="ibtn" id="btnMic" aria-label="Asistente de voz"><svg class="i"><use href="#ic-mic"/></svg></button>
+    <button class="ibtn" id="btnAdmin" aria-label="Administración"><svg class="i"><use href="#ic-gear"/></svg></button>
+  </header>
+
+  <main>
+    <section class="stage">
+      <div class="tabs">
+        <button class="tab active" data-view="door"><svg class="i"><use href="#ic-door"/></svg>Puerta</button>
+        <button class="tab" data-view="cctv"><svg class="i"><use href="#ic-grid"/></svg>Cámaras</button>
+        <span class="spacer"></span>
+        <button class="tab toggle" id="tgIr"><svg class="i"><use href="#ic-eye"/></svg>IR / Noche</button>
+        <button class="tab toggle on" id="tgAi"><svg class="i"><use href="#ic-ai"/></svg>Edge AI</button>
+      </div>
+
+      <div class="view active" id="view-door">
+        <div class="screen" id="doorScreen">
+          <video id="localVideo" autoplay muted playsinline></video>
+          <canvas class="ov" id="overlay"></canvas>
+          <div class="msg" id="localMsg">Iniciando cámara de puerta…</div>
+          <div class="rec"><i></i><span id="aiSrcLabel">PUERTA · EN VIVO</span></div>
+          <div class="hud">
+            <span class="tag" id="tMotion">Movimiento 0%</span>
+            <span class="tag" id="tLoiter">Merodeo —</span>
+            <span class="tag" id="tTamper">Lente OK</span>
+            <span class="tag" id="tFace">Rostro —</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-cctv">
+        <div class="grid" id="cctvGrid"></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Acceso</h3>
+        <div class="display" id="pinDisplay"><span>Ingrese PIN</span></div>
+        <div class="keys" id="keypad"></div>
+      </div>
+      <div class="card">
+        <h3>Asistencia</h3>
+        <div class="acts">
+          <button class="btn sos" id="btnSos"><svg class="i"><use href="#ic-phone"/></svg>SOS · 911</button>
+          <button class="btn" id="btnRing"><svg class="i"><use href="#ic-bell"/></svg><span id="ringLabel">Tocar timbre</span></button>
+          <button class="btn" id="btnFamily"><svg class="i"><use href="#ic-user"/></svg><span id="familyLabel">Llamar familiar</span></button>
+          <button class="btn" id="btnScan"><svg class="i"><use href="#ic-qr"/></svg>Pase QR</button>
+          <button class="btn" id="btnNfc"><svg class="i"><use href="#ic-nfc"/></svg>Tarjeta NFC</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="ticker" id="ticker"><span>Sistema iniciado</span></footer>
+</div>
+
+<!-- SOS -->
+<div class="ov-full center" id="sosOv">
+  <div class="big-t">LLAMANDO AL 911 EN</div>
+  <div class="count" id="sosCount">3</div>
+  <button class="btn primary" id="sosCancel" style="min-width:260px;min-height:76px;font-size:20px">CANCELAR</button>
+  <div class="sub-t">Se capturará una foto, se enviará alerta al dueño y se iniciará la llamada.</div>
+</div>
+
+<!-- Resultado de acceso -->
+<div class="ov-full center flash" id="flashOv">
+  <div class="ring"><svg class="i" id="flashIcon"><use href="#ic-check"/></svg></div>
+  <div class="big-t" id="flashTitle">ACCESO CONCEDIDO</div>
+  <div class="sub-t" id="flashSub"></div>
+</div>
+
+<!-- PIN admin -->
+<div class="ov-full center" id="pinOv">
+  <div class="modal">
+    <h3 style="margin:0 0 10px;color:var(--white);font-weight:500">Administración</h3>
+    <div class="display" id="adminDisplay"><span>PIN de ingeniería</span></div>
+    <div class="keys" id="adminKeys"></div>
+    <button class="btn ghost" style="width:100%;margin-top:10px" id="pinCancel">Cancelar</button>
+  </div>
+</div>
+
+<!-- Escáner QR / NFC -->
+<div class="ov-full center" id="scanOv">
+  <div class="big-t" id="scanTitle">ESCANEE SU PASE QR</div>
+  <div class="scan-box" id="scanBox"><video id="scanVideo" autoplay muted playsinline></video></div>
+  <div class="sub-t" id="scanSub">Acerque el código QR a la cámara. También puede tipear el código de 6 dígitos en el teclado.</div>
+  <button class="btn" id="scanCancel" style="min-width:220px">Cerrar</button>
+</div>
+
+<!-- Panel admin -->
+<div class="ov-full admin" id="adminOv">
+  <nav id="adminNav"></nav>
+  <div class="pane-wrap">
+    <button class="btn close-admin" id="adminClose"><svg class="i"><use href="#ic-x"/></svg>Salir</button>
+
+    <section class="pane" data-pane="marca" data-n="0" data-title="Marca y perfil">
+      <h2>Marca y perfil de operación</h2>
+      <p class="lead">Logo, nombre del negocio y nivel de seguridad.</p>
+      <div class="row">
+        <label class="f">Nombre del negocio<input class="inp" id="sBiz"></label>
+        <label class="f">Perfil<select class="inp" id="sMode"><option value="corp">Corporativo / Alta seguridad</option><option value="home">Residencial / Doméstico</option></select></label>
+      </div>
+      <div class="row">
+        <label class="f">Logo (se guarda en este equipo)<input class="inp" type="file" id="sLogo" accept="image/*"></label>
+        <div style="display:flex;align-items:end;gap:8px"><button class="btn sm" id="sLogoReset">Logo Rave original</button></div>
+      </div>
+      <p class="small muted">Corporativo: alertas de IA con sonido y aviso automático al dueño. Residencial: alertas silenciosas en pantalla.</p>
+    </section>
+
+    <section class="pane" data-pane="contactos" data-n="1" data-title="Contactos de emergencia">
+      <h2>Contactos de emergencia</h2>
+      <p class="lead">Números para el botón SOS, familiar de confianza y timbre.</p>
+      <div class="row">
+        <label class="f">Número de emergencias<input class="inp" id="sEmergency" inputmode="tel"></label>
+        <label class="f">Nombre del contacto de confianza<input class="inp" id="sFamilyName"></label>
+        <label class="f">Teléfono contacto (con código país)<input class="inp" id="sFamilyPhone" inputmode="tel" placeholder="+54 9 387 ..."></label>
+      </div>
+      <div class="row">
+        <label class="f">Teléfono del timbre (dueño / oficina, opcional)<input class="inp" id="sOfficePhone" inputmode="tel"></label>
+      </div>
+      <label class="chk"><input type="checkbox" id="sFamilyWa">Enviar también mensaje de WhatsApp de auxilio al familiar</label>
+      <label class="chk"><input type="checkbox" id="sRingCall">El timbre además llama al teléfono del dueño</label>
+      <p class="small muted">Las alertas al celular del dueño (con foto) se envían por Telegram desde el servidor. Ver <code>.env</code> → TELEGRAM_BOT_TOKEN.</p>
+      <button class="btn sm" id="sTgTest">Probar alerta Telegram</button>
+    </section>
+
+    <section class="pane" data-pane="voz" data-n="2" data-title="Asistente de voz">
+      <h2>Asistente de voz</h2>
+      <p class="lead">Reconocimiento y síntesis nativos del navegador (sin servicios pagos). Comandos: «abrir puerta», «emergencia», «llamar a 911», «ver cámaras», «ver puerta», «tocar timbre», «llamar», «cancelar».</p>
+      <label class="chk"><input type="checkbox" id="sVoiceOn">Escucha continua al iniciar</label>
+      <label class="chk"><input type="checkbox" id="sWakeOn">Requiere palabra clave</label>
+      <div class="row">
+        <label class="f">Palabra clave<input class="inp" id="sWake"></label>
+        <label class="f">Idioma<select class="inp" id="sLang"><option value="es-AR">Español (Argentina)</option><option value="es-ES">Español (España)</option><option value="es-MX">Español (México)</option><option value="en-US">English (US)</option></select></label>
+        <label class="f">Voz<select class="inp" id="sVoice"></select></label>
+      </div>
+      <div class="row">
+        <label class="f">Sensibilidad (confianza mínima) <span id="sSensV"></span><input type="range" id="sSens" min="0" max="0.9" step="0.05"></label>
+        <label class="f">Velocidad de voz <span id="sRateV"></span><input type="range" id="sRate" min="0.6" max="1.5" step="0.05"></label>
+      </div>
+      <button class="btn sm" id="sVoiceTest">Probar voz</button>
+      <p class="small muted" id="voiceSupport"></p>
+    </section>
+
+    <section class="pane" data-pane="nfcqr" data-n="3" data-title="Pases NFC & QR">
+      <h2>Pases temporales: QR y NFC</h2>
+      <p class="lead">Generá un código de 6 dígitos con vencimiento para proveedores o visitas. Sirve tipeado, como QR o grabado en un tag NFC.</p>
+      <div class="row">
+        <label class="f">Nombre<input class="inp" id="vName" placeholder="Proveedor / visita"></label>
+        <label class="f">Validez (horas)<input class="inp" id="vHours" type="number" min="1" max="720" value="8"></label>
+        <div style="display:flex;align-items:end"><button class="btn primary" id="vCreate" style="width:100%">Crear pase</button></div>
+      </div>
+      <div class="qrbox" id="vOut" style="display:none">
+        <canvas id="vQr" width="220" height="220"></canvas>
+        <div><div class="muted small">Código</div><div class="codebig" id="vCode"></div><div class="muted small" id="vExp"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn sm" id="vShare">Enviar por WhatsApp</button>
+            <button class="btn sm" id="vNfcWrite">Grabar en tag NFC</button>
+            <button class="btn sm" id="vDownload">Descargar QR</button>
+          </div></div>
+      </div>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:22px">PASES ACTIVOS</h3>
+      <div class="list" id="vList"></div>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:22px">ENLACE CLIENTE (abrir este panel desde un celular)</h3>
+      <div class="qrbox"><canvas id="linkQr" width="180" height="180"></canvas><div class="small muted" id="linkTxt" style="user-select:text"></div></div>
+    </section>
+
+    <section class="pane" data-pane="timbres" data-n="4" data-title="Timbres">
+      <h2>Sintetizador de timbres</h2>
+      <p class="lead">Cinco perfiles generados en tiempo real con Web Audio.</p>
+      <div class="list" id="chimeList"></div>
+      <div class="row" style="margin-top:12px"><label class="f">Volumen <span id="sVolV"></span><input type="range" id="sVol" min="0" max="1" step="0.05"></label></div>
+    </section>
+
+    <section class="pane" data-pane="rele" data-n="5" data-title="Relé y PINs">
+      <h2>Cerradura, relé y PINs</h2>
+      <p class="lead">Tiempo de apertura y modo de accionamiento.</p>
+      <div class="row">
+        <label class="f">Tiempo de relé: <span id="sRelayV"></span><input type="range" id="sRelay" min="100" max="10000" step="100"></label>
+        <label class="f">Accionamiento<select class="inp" id="sRelayMode"><option value="server">Servidor → ESP32 por WiFi</option><option value="serial">Puerto serie USB (app de escritorio)</option></select></label>
+      </div>
+      <button class="btn sm" id="sRelayTest">Probar apertura</button>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:24px">PINs DE RESPALDO (solo si el servidor no está disponible)</h3>
+      <p class="small muted">Con servidor activo, los PINs válidos son los del archivo <code>.env</code> (DOOR_PIN, DURESS_PIN, ADMIN_PIN).</p>
+      <div class="row">
+        <label class="f">PIN de puerta<input class="inp" id="sDoorPin" inputmode="numeric" maxlength="8"></label>
+        <label class="f">PIN de coacción<input class="inp" id="sDuressPin" inputmode="numeric" maxlength="8"></label>
+        <label class="f">PIN de administración<input class="inp" id="sAdminPin" inputmode="numeric" maxlength="8"></label>
+      </div>
+    </section>
+
+    <section class="pane" data-pane="camaras" data-n="6" data-title="Cámaras e IA">
+      <h2>Cámaras Dahua (DMSS) e inteligencia artificial</h2>
+      <p class="lead" id="camStatusTxt">Consultando servidor…</p>
+      <div class="row">
+        <label class="f">URL del servidor (vacío = este mismo)<input class="inp" id="sServer" placeholder="http://192.168.1.50:8080"></label>
+        <div style="display:flex;align-items:end;gap:8px"><button class="btn sm" id="sDiscover">Buscar grabador en la red</button><button class="btn sm" id="sReloadCams">Reconectar</button></div>
+      </div>
+      <div class="row">
+        <label class="f">Fuente de la cámara de puerta<select class="inp" id="sDoorSrc"><option value="local">Cámara de esta tablet/PC</option></select></label>
+        <label class="f">Calidad grilla<select class="inp" id="sGridQ"><option value="sd">Liviana (sub-stream)</option><option value="hd">Alta (main-stream)</option></select></label>
+      </div>
+      <div class="row">
+        <label class="f">Sensibilidad movimiento <span id="sMotV"></span><input type="range" id="sMot" min="1" max="30" step="1"></label>
+        <label class="f">Merodeo: segundos <span id="sLoitV"></span><input type="range" id="sLoit" min="5" max="60" step="1"></label>
+      </div>
+      <label class="chk"><input type="checkbox" id="sLowLat">Baja latencia WebRTC (solo en la red del almacén; requiere puerto 8555 abierto en el firewall de la PC)</label>
+      <label class="chk"><input type="checkbox" id="sFace">Reconocimiento facial manos libres (simulado: detecta rostro y saluda; no abre la puerta)</label>
+      <label class="chk"><input type="checkbox" id="sAiNotify">Enviar alertas de IA al dueño (merodeo / sabotaje)</label>
+      <div id="discOut" class="small muted" style="margin-top:12px;user-select:text"></div>
+    </section>
+
+    <section class="pane" data-pane="firmware" data-n="7" data-title="Firmware ESP32">
+      <h2>Firmware ESP32 — cerradura</h2>
+      <p class="lead">Arduino IDE 2 · placa «ESP32 Dev Module». Completá WiFi y TOKEN (= ESP32_TOKEN del .env). Relé en GPIO 26, sensor de puerta GPIO 27, pulsador de salida GPIO 25.</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn sm" id="fwCopy">Copiar</button><button class="btn sm" id="fwDl">Descargar .ino</button></div>
+      <pre class="code" id="fwView"></pre>
+    </section>
+
+    <section class="pane" data-pane="manual" data-n="8" data-title="Manual de streaming">
+      <h2>Manual de integración de video</h2>
+      <div class="doc">
+        <h3>Cómo se ven las cámaras de DMSS en este panel</h3>
+        <p>DMSS usa P2P (la nube de Dahua) con el número de serie del grabador. Los navegadores no pueden abrir P2P ni RTSP directamente, por eso el <b>servidor SVB</b> (una PC o mini‑PC en el almacén) se conecta al grabador por la red local y convierte el video a WebRTC/MSE con <b>go2rtc</b>. DMSS sigue funcionando igual en paralelo.</p>
+        <h3>Datos que usa el servidor (archivo <code>.env</code>, nunca en GitHub)</h3>
+        <p><code>CAM_SERIAL</code> número de serie que muestra DMSS · <code>CAM_USER</code>/<code>CAM_PASS</code> usuario y contraseña del dispositivo · <code>CAM_HOST=auto</code> para que el servidor encuentre la IP solo, o la IP fija del grabador.</p>
+        <h3>URLs RTSP Dahua</h3>
+        <p>Principal: <code>rtsp://USUARIO:CLAVE@IP:554/cam/realmonitor?channel=1&amp;subtype=0</code><br>Secundaria (liviana): <code>…channel=1&amp;subtype=1</code><br>Canal 2, 3, 4…: cambiar <code>channel=</code>.</p>
+        <h3>Hikvision</h3>
+        <p><code>rtsp://USUARIO:CLAVE@IP:554/Streaming/Channels/101</code> (102 = secundaria). Configurable con <code>CAM_RTSP_TEMPLATE</code>.</p>
+        <h3>ONVIF</h3>
+        <p>go2rtc acepta <code>onvif://USUARIO:CLAVE@IP</code> para cualquier marca compatible.</p>
+        <h3>WebRTC / HLS / MSE</h3>
+        <p>El panel intenta WebRTC (latencia &lt; 0,5 s, puerto UDP/TCP 8555) y usa MSE por WebSocket como respaldo. HLS queda disponible para iPhone antiguos.</p>
+        <h3>Frigate (opcional, detección con IA real)</h3>
+        <p>Frigate puede leer las mismas URLs RTSP y publicar eventos por MQTT. Útil si más adelante se quiere detección de personas/vehículos con Coral TPU.</p>
+        <h3>Ver desde fuera del almacén</h3>
+        <p>No abrir puertos en el router. Instalar <b>Tailscale</b> en el servidor y en el celular del dueño, y entrar a <code>http://NOMBRE-TAILSCALE:8080</code>. DMSS también sigue disponible.</p>
+      </div>
+    </section>
+
+    <section class="pane" data-pane="auditoria" data-n="9" data-title="Auditoría y evidencia">
+      <h2>Log de auditoría y bóveda de evidencia</h2>
+      <p class="lead">Eventos de este panel y del servidor. Las fotos se guardan en este equipo (IndexedDB).</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn sm" id="logExport">Exportar log JSON</button>
+        <button class="btn sm" id="vaultExport">Exportar evidencia JSON</button>
+        <button class="btn sm" id="logRefresh">Actualizar</button>
+        <button class="btn sm ghost" id="vaultClear">Vaciar bóveda</button>
+      </div>
+      <table class="t"><thead><tr><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Detalle</th><th>Origen</th></tr></thead><tbody id="logBody"></tbody></table>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:24px">EVIDENCIA FOTOGRÁFICA</h3>
+      <div class="vault" id="vaultGrid"></div>
+    </section>
+
+    <section class="pane" data-pane="sistema" data-n="10" data-title="Sistema">
+      <h2>Sistema y plataforma</h2>
+      <p class="lead" id="platTxt"></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" id="sysFull">Pantalla completa / kiosco</button>
+        <button class="btn sm" id="sysInstall" disabled>Instalar app</button>
+        <button class="btn sm" id="sysMin" disabled>Minimizar</button>
+        <button class="btn sm" id="sysQuit" disabled>Cerrar app</button>
+        <button class="btn sm ghost" id="sysReset">Restablecer ajustes</button>
+      </div>
+      <p class="small muted" style="margin-top:16px">SVB Seguridad v1.0 · Sistema Vincular Business</p>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!--@@FW_BEGIN--><script type="text/plain" id="fw-src">/*
+ * SVB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
+ * ------------------------------------------------------------------
+ * Hardware:
+ *   - ESP32 DevKit (ESP32-WROOM-32)
+ *   - Módulo relé 1 canal 5V (optoacoplado) → GPIO 26
+ *   - Cerradura electromagnética / electroimán 12V (alimentación propia + diodo 1N4007 en paralelo)
+ *   - Sensor magnético de puerta (reed, NC) → GPIO 27 a GND (opcional)
+ *   - Pulsador de salida interior → GPIO 25 a GND (opcional)
+ *
+ * Control:
+ *   - WiFi:  POST http://svb-puerta.local/open?ms=3000   con header  X-Token: <ESP32_TOKEN>
+ *            GET  http://svb-puerta.local/status
+ *   - USB/Serie (115200): "OPEN 3000"  |  "STATUS"   (modo escritorio Electron)
+ *
+ * Compilar: Arduino IDE 2.x + "esp32 by Espressif Systems" (Placa: ESP32 Dev Module).
+ * Completar WIFI_SSID, WIFI_PASS y TOKEN antes de grabar. TOKEN debe coincidir con ESP32_TOKEN del .env.
+ */
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+
+// ====== CONFIGURACIÓN ======
+const char* WIFI_SSID = "TU_WIFI";
+const char* WIFI_PASS = "TU_CLAVE_WIFI";
+const char* TOKEN     = "cambiar-este-token-largo";
+const char* HOSTNAME  = "svb-puerta";
+
+const int  PIN_RELAY     = 26;
+const int  PIN_DOOR      = 27;     // reed switch (LOW = cerrada)
+const int  PIN_EXIT_BTN  = 25;     // pulsador de salida
+const bool RELAY_ACTIVE_LOW = true; // la mayoría de módulos relé chinos se activan con LOW
+// Cableado: cerradura eléctrica de pestillo (tipo Kallay/cerradero) → contacto NA (NO) del relé.
+//           Electroimán (traba con energía) → contacto NC: al activar el relé se corta y abre.
+const uint32_t MIN_MS = 100, MAX_MS = 10000, DEFAULT_MS = 3000;
+// ===========================
+
+WebServer server(80);
+volatile uint32_t relayUntil = 0;
+uint32_t opens = 0;
+
+void relayWrite(bool on) {
+  digitalWrite(PIN_RELAY, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
+}
+
+void openDoor(uint32_t ms) {
+  ms = constrain(ms, MIN_MS, MAX_MS);
+  relayWrite(true);
+  relayUntil = millis() + ms;
+  opens++;
+  Serial.printf("OPENED %lu\n", (unsigned long)ms);
+}
+
+bool doorClosed() { return digitalRead(PIN_DOOR) == LOW; }
+
+String statusJson() {
+  return String("{\"ok\":true,\"relay\":") + (relayUntil ? "true" : "false") +
+         ",\"door\":\"" + (doorClosed() ? "cerrada" : "abierta") + "\"" +
+         ",\"opens\":" + opens + ",\"rssi\":" + WiFi.RSSI() + ",\"ip\":\"" + WiFi.localIP().toString() + "\"}";
+}
+
+void sendCors(int code, const String& body) {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Headers", "X-Token, Content-Type");
+  server.send(code, "application/json", body);
+}
+
+void handleOpen() {
+  if (server.method() == HTTP_OPTIONS) { sendCors(204, ""); return; }
+  if (server.header("X-Token") != TOKEN) { sendCors(401, "{\"ok\":false,\"error\":\"token\"}"); return; }
+  uint32_t ms = server.hasArg("ms") ? server.arg("ms").toInt() : DEFAULT_MS;
+  openDoor(ms);
+  sendCors(200, statusJson());
+}
+
+void connectWifi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname(HOSTNAME);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.print("Conectando WiFi");
+  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print("."); }
+  Serial.println(WiFi.status() == WL_CONNECTED ? "\nWiFi OK: " + WiFi.localIP().toString() : "\nSin WiFi (sigue funcionando por USB)");
+}
+
+void setup() {
+  pinMode(PIN_RELAY, OUTPUT);
+  relayWrite(false);                 // arranca trabada
+  pinMode(PIN_DOOR, INPUT_PULLUP);
+  pinMode(PIN_EXIT_BTN, INPUT_PULLUP);
+  Serial.begin(115200);
+  connectWifi();
+  if (MDNS.begin(HOSTNAME)) MDNS.addService("http", "tcp", 80);
+  const char* hdrs[] = {"X-Token"};
+  server.collectHeaders(hdrs, 1);
+  server.on("/open", handleOpen);
+  server.on("/status", []() { sendCors(200, statusJson()); });
+  server.onNotFound([]() { sendCors(404, "{\"ok\":false}"); });
+  server.begin();
+}
+
+String serialBuf;
+void loop() {
+  server.handleClient();
+
+  if (relayUntil && (int32_t)(millis() - relayUntil) >= 0) { relayWrite(false); relayUntil = 0; Serial.println("LOCKED"); }
+
+  static uint32_t lastBtn = 0;
+  if (digitalRead(PIN_EXIT_BTN) == LOW && millis() - lastBtn > 1500) { lastBtn = millis(); openDoor(DEFAULT_MS); }
+
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      serialBuf.trim();
+      if (serialBuf.startsWith("OPEN")) openDoor(serialBuf.length() > 5 ? serialBuf.substring(5).toInt() : DEFAULT_MS);
+      else if (serialBuf == "STATUS") Serial.println(statusJson());
+      serialBuf = "";
+    } else if (serialBuf.length() < 32) serialBuf += c;
+  }
+
+  static uint32_t lastWifi = 0;
+  if (WiFi.status() != WL_CONNECTED && millis() - lastWifi > 30000) { lastWifi = millis(); WiFi.reconnect(); }
+}
+</script><!--@@FW_END-->
+
+<script>
+'use strict';
+/* ═══════════════════════════ QR ENCODER (embebido) ═══════════════════════════ */
+/*@@QR_BEGIN*/
+/* SVB-QR: codificador QR minimalista (modo byte, corrección M, versiones 1–10). Sin dependencias.
+   Esta misma función está embebida en index.html (bloque "QR ENCODER"); tests/qr.test.py verifica que decodifique. */
+function qrEncode(text) {
+  const data = Array.from(new TextEncoder().encode(text));
+  // [total codewords, ec por bloque, [[nBloques, dataPorBloque], ...]] — nivel M
+  const T = [null, [26, 10, [[1, 16]]], [44, 16, [[1, 28]]], [70, 26, [[1, 44]]], [100, 18, [[2, 32]]], [134, 24, [[2, 43]]],
+    [172, 16, [[4, 27]]], [196, 18, [[4, 31]]], [242, 22, [[2, 38], [2, 39]]], [292, 22, [[3, 36], [2, 37]]], [346, 26, [[4, 43], [1, 44]]]];
+  const ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+  let ver = 0;
+  for (let v = 1; v <= 10; v++) {
+    const cap = T[v][2].reduce((s, [n, d]) => s + n * d, 0);
+    if (4 + (v < 10 ? 8 : 16) + data.length * 8 <= cap * 8) { ver = v; break; }
+  }
+  if (!ver) throw new Error('Texto demasiado largo para QR');
+  const [, ecLen, groups] = T[ver];
+  const dataCap = groups.reduce((s, [n, d]) => s + n * d, 0);
+  // Flujo de bits
+  const bits = [];
+  const put = (val, len) => { for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+  put(4, 4); put(data.length, ver < 10 ? 8 : 16); data.forEach((b) => put(b, 8));
+  put(0, Math.min(4, dataCap * 8 - bits.length));
+  while (bits.length % 8) bits.push(0);
+  const cw = [];
+  for (let i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (let p = 0; cw.length < dataCap; p++) cw.push(p % 2 ? 0x11 : 0xec);
+  // Reed-Solomon GF(256)
+  const EXP = new Array(512), LOG = new Array(256);
+  for (let i = 0, x = 1; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11d; }
+  for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const mul = (a, b) => (a && b ? EXP[LOG[a] + LOG[b]] : 0);
+  let gen = [1];
+  for (let i = 0; i < ecLen; i++) {
+    const g = new Array(gen.length + 1).fill(0);
+    gen.forEach((c, j) => { g[j] ^= c; g[j + 1] ^= mul(c, EXP[i]); });
+    gen = g;
+  }
+  const rs = (blk) => {
+    const r = new Array(ecLen).fill(0);
+    blk.forEach((b) => {
+      const f = b ^ r.shift(); r.push(0);
+      for (let j = 0; j < ecLen; j++) r[j] ^= mul(gen[j + 1], f);
+    });
+    return r;
+  };
+  const blocks = []; let off = 0;
+  groups.forEach(([n, d]) => { for (let i = 0; i < n; i++) { const b = cw.slice(off, off + d); off += d; blocks.push({ d: b, e: rs(b) }); } });
+  const final = [];
+  const maxD = Math.max(...blocks.map((b) => b.d.length));
+  for (let i = 0; i < maxD; i++) blocks.forEach((b) => { if (i < b.d.length) final.push(b.d[i]); });
+  for (let i = 0; i < ecLen; i++) blocks.forEach((b) => final.push(b.e[i]));
+  // Matriz
+  const N = ver * 4 + 17;
+  const M = Array.from({ length: N }, () => new Array(N).fill(null));
+  const fn = Array.from({ length: N }, () => new Array(N).fill(false));
+  const set = (r, c, v) => { M[r][c] = v ? 1 : 0; fn[r][c] = true; };
+  const finder = (r0, c0) => {
+    for (let r = -1; r <= 7; r++) for (let c = -1; c <= 7; c++) {
+      const rr = r0 + r, cc = c0 + c;
+      if (rr < 0 || cc < 0 || rr >= N || cc >= N) continue;
+      const on = r >= 0 && r <= 6 && c >= 0 && c <= 6 && (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+      set(rr, cc, on);
+    }
+  };
+  finder(0, 0); finder(0, N - 7); finder(N - 7, 0);
+  for (let i = 8; i < N - 8; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  const al = ALIGN[ver];
+  const last = al.length - 1;
+  al.forEach((r, i) => al.forEach((c, j) => {
+    if ((i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0)) return;
+    for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) set(r + dr, c + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1);
+  }));
+  set(N - 8, 8, 1); // módulo oscuro
+  // Reservar formato / versión
+  for (let i = 0; i < 9; i++) { if (!fn[8][i]) set(8, i, 0); if (!fn[i][8]) set(i, 8, 0); }
+  for (let i = 0; i < 8; i++) { set(8, N - 1 - i, 0); set(N - 1 - i, 8, 0); }
+  if (ver >= 7) for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) { set(i, N - 11 + j, 0); set(N - 11 + j, i, 0); }
+  // Datos en zigzag
+  const dbits = [];
+  final.forEach((b) => { for (let i = 7; i >= 0; i--) dbits.push((b >>> i) & 1); });
+  let k = 0, up = true;
+  for (let c = N - 1; c > 0; c -= 2) {
+    if (c === 6) c--;
+    for (let i = 0; i < N; i++) {
+      const r = up ? N - 1 - i : i;
+      for (let d = 0; d < 2; d++) {
+        const cc = c - d;
+        if (!fn[r][cc]) { M[r][cc] = k < dbits.length ? dbits[k] : 0; k++; }
+      }
+    }
+    up = !up;
+  }
+  const MASKS = [(r, c) => (r + c) % 2 === 0, (r) => r % 2 === 0, (r, c) => c % 3 === 0, (r, c) => (r + c) % 3 === 0,
+    (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0, (r, c) => ((r * c) % 2) + ((r * c) % 3) === 0,
+    (r, c) => (((r * c) % 2) + ((r * c) % 3)) % 2 === 0, (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0];
+  const bch = (val, poly, polyBits) => {
+    let v = val << (polyBits - 1);
+    for (let i = 31; i >= polyBits - 1; i--) if ((v >>> i) & 1) v ^= poly << (i - (polyBits - 1));
+    return v;
+  };
+  const drawFormat = (G, mask) => {
+    const data5 = (0 << 3) | mask; // M = 00
+    const f = ((data5 << 10) | bch(data5, 0x537, 11)) ^ 0x5412;
+    const bit = (i) => (f >>> i) & 1;
+    for (let i = 0; i <= 5; i++) G[i][8] = bit(i);
+    G[7][8] = bit(6); G[8][8] = bit(7); G[8][7] = bit(8);
+    for (let i = 9; i < 15; i++) G[8][14 - i] = bit(i);
+    for (let i = 0; i < 8; i++) G[8][N - 1 - i] = bit(i);
+    for (let i = 8; i < 15; i++) G[N - 15 + i][8] = bit(i);
+    G[N - 8][8] = 1;
+    if (ver >= 7) {
+      const vbits = (ver << 12) | bch(ver, 0x1f25, 13);
+      for (let i = 0; i < 18; i++) {
+        const b = (vbits >>> i) & 1, a = Math.floor(i / 3), c = N - 11 + (i % 3);
+        G[a][c] = b; G[c][a] = b;
+      }
+    }
+  };
+  const penalty = (G) => {
+    let p = 0;
+    for (let pass = 0; pass < 2; pass++) for (let i = 0; i < N; i++) {
+      let run = 1;
+      for (let j = 1; j < N; j++) {
+        const a = pass ? G[j][i] : G[i][j], b = pass ? G[j - 1][i] : G[i][j - 1];
+        if (a === b) { run++; if (j === N - 1 && run >= 5) p += run - 2; } else { if (run >= 5) p += run - 2; run = 1; }
+      }
+    }
+    for (let i = 0; i < N - 1; i++) for (let j = 0; j < N - 1; j++) { const s = G[i][j] + G[i + 1][j] + G[i][j + 1] + G[i + 1][j + 1]; if (s === 0 || s === 4) p += 3; }
+    const pat = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0], pat2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    for (let i = 0; i < N; i++) for (let j = 0; j <= N - 11; j++) {
+      let h1 = true, h2 = true, v1 = true, v2 = true;
+      for (let q = 0; q < 11; q++) { if (G[i][j + q] !== pat[q]) h1 = false; if (G[i][j + q] !== pat2[q]) h2 = false; if (G[j + q][i] !== pat[q]) v1 = false; if (G[j + q][i] !== pat2[q]) v2 = false; }
+      p += 40 * (h1 + h2 + v1 + v2);
+    }
+    let dark = 0; G.forEach((row) => row.forEach((v) => { dark += v; }));
+    p += Math.floor(Math.abs((dark * 100) / (N * N) - 50) / 5) * 10;
+    return p;
+  };
+  let best = null, bestP = Infinity;
+  for (let m = 0; m < 8; m++) {
+    const G = M.map((row, r) => row.map((v, c) => (fn[r][c] ? v : v ^ (MASKS[m](r, c) ? 1 : 0))));
+    drawFormat(G, m);
+    const p = penalty(G);
+    if (p < bestP) { bestP = p; best = G; }
+  }
+  return { size: N, modules: best, version: ver };
+}
+/*@@QR_END*/
+
+/* ═══════════════════════════ UTILIDADES ═══════════════════════════ */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtTime = (d) => new Date(d).toLocaleString('es-AR', { hour12: false });
+const isElectron = !!window.electronAPI;
+const isTauri = !!window.__TAURI__;
+
+/* ═══════════════════════════ AJUSTES ═══════════════════════════ */
+const DEFAULTS = {
+  biz: 'Almacén Rave', mode: 'corp', logo: '',
+  emergency: '911', familyName: 'Familiar', familyPhone: '', familyWa: true, officePhone: '', ringCall: false,
+  voiceOn: false, wakeOn: false, wake: 'rave', lang: 'es-AR', voice: '', sens: 0.4, rate: 1,
+  chime: 0, vol: 0.7,
+  relayMs: 3000, relayMode: 'server', doorPin: '2580', duressPin: '9999', adminPin: '1234',
+  server: '', doorSrc: 'local', gridQ: 'sd', lowLatency: false, motion: 8, loiter: 10, face: true, aiNotify: true, ir: false, ai: true,
+  camNames: {},
+};
+const S = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('svb.settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
+function save() { try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } }
+
+/* ═══════════════════════════ LOG DE AUDITORÍA ═══════════════════════════ */
+const LOG_KEY = 'svb.audit';
+let audit = (() => { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; } })();
+function logEvent(type, level, message, opt = {}) {
+  const e = { id: (crypto.randomUUID && crypto.randomUUID()) || String(Date.now() + Math.random()), ts: new Date().toISOString(), type, level, message, origin: 'panel', hidden: !!opt.hidden };
+  audit.unshift(e);
+  if (audit.length > 2000) audit.length = 2000;
+  try { localStorage.setItem(LOG_KEY, JSON.stringify(audit)); } catch { audit.length = 500; }
+  if (!e.hidden) tick(`${type}`, message);
+  if (opt.sync !== false && net.online) api('/api/events', { method: 'POST', body: { type, level, message } }).catch(() => {});
+  return e;
+}
+function tick(type, msg) {
+  const t = $('#ticker');
+  const s = document.createElement('span');
+  s.innerHTML = `${new Date().toLocaleTimeString('es-AR', { hour12: false })} <b>${esc(type)}</b> ${esc(msg)}`;
+  t.prepend(s);
+  while (t.children.length > 8) t.lastChild.remove();
+}
+
+/* ═══════════════════════════ BÓVEDA DE EVIDENCIA (IndexedDB) ═══════════════════════════ */
+const Vault = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('svb-vault', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('photos', { keyPath: 'id' });
+      r.onsuccess = () => { this.db = r.result; res(this.db); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async add(photo) { const db = await this.open(); return new Promise((res) => { const tx = db.transaction('photos', 'readwrite'); tx.objectStore('photos').put(photo); tx.oncomplete = res; }); },
+  async all() { const db = await this.open(); return new Promise((res) => { const r = db.transaction('photos').objectStore('photos').getAll(); r.onsuccess = () => res(r.result.sort((a, b) => b.ts.localeCompare(a.ts))); }); },
+  async clear() { const db = await this.open(); return new Promise((res) => { const tx = db.transaction('photos', 'readwrite'); tx.objectStore('photos').clear(); tx.oncomplete = res; }); },
+};
+
+/* ═══════════════════════════ RED / SERVIDOR ═══════════════════════════ */
+const net = { online: false, status: null, adminPin: '' };
+function base() {
+  if (S.server) return S.server.replace(/\/$/, '');
+  return /^https?:/.test(location.protocol) ? location.origin : '';
+}
+async function api(path, { method = 'GET', body, admin = false, timeout = 8000, raw = false } = {}) {
+  if (!base()) throw new Error('sin servidor');
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (admin) headers['X-Admin-Pin'] = net.adminPin;
+    const r = await fetch(base() + path, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal, credentials: 'same-origin' });
+    if (raw) return r;
+    const data = await r.json().catch(() => ({}));
+    data._status = r.status;
+    return data;
+  } finally { clearTimeout(to); }
+}
+async function refreshStatus() {
+  try {
+    const st = await api('/api/status', { timeout: 5000 });
+    if (st._status !== 200) throw new Error();
+    const first = !net.online;
+    net.online = true; net.status = st;
+    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); }
+  } catch {
+    if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
+    net.online = false; net.status = null;
+  }
+  paintStatus();
+}
+function setPill(id, state, title) {
+  const p = $(id); p.classList.remove('on', 'warn');
+  if (state) p.classList.add(state);
+  if (title) p.title = title;
+}
+function paintStatus() {
+  const st = net.status;
+  setPill('#stServer', net.online ? 'on' : '', net.online ? 'Servidor conectado' : 'Modo autónomo');
+  const cams = st && st.cameras;
+  const camOk = cams && cams.configured && cams.go2rtc.running;
+  setPill('#stCams', camOk ? 'on' : cams ? 'warn' : '', camOk ? 'Grabador Dahua conectado' : 'Cámaras sin configurar');
+  setPill('#stDoor', st ? (st.door.relay === 'esp32' ? 'on' : 'warn') : (isElectron ? 'warn' : ''), st ? (st.door.relay === 'esp32' ? 'ESP32 conectado' : 'Relé simulado') : 'Sin servidor');
+  setPill('#stAi', S.ai ? 'on' : '');
+  const t = $('#camStatusTxt');
+  if (t) {
+    if (!net.online) t.textContent = 'Sin servidor: solo funciona la cámara de esta tablet/PC. Instalá el servidor SVB en una PC del almacén para ver las cámaras Dahua.';
+    else if (!cams.configured) t.textContent = 'Servidor conectado, pero todavía no encontró el grabador Dahua. Revisá CAM_PASS / CAM_SERIAL en .env o tocá «Buscar grabador».';
+    else t.textContent = `Grabador ${cams.serialHint || ''} en ${cams.host} · ${cams.channels.length} canales · go2rtc ${cams.go2rtc.running ? 'activo' : 'detenido'}${cams.go2rtc.error ? ' · ' + cams.go2rtc.error : ''}`;
+  }
+}
+
+/* ═══════════════════════════ AUDIO ═══════════════════════════ */
+let AC = null;
+function ac() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; }
+function tone(freq, dur = 0.12, type = 'sine', vol = 1, when = 0) {
+  try {
+    const c = ac(); const t = c.currentTime + when;
+    const o = c.createOscillator(); const g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.35 * vol * S.vol), t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch { /* sin audio */ }
+}
+const Sfx = {
+  key: () => tone(1200, 0.05, 'square', 0.35),
+  ok: () => { tone(880, 0.12); tone(1320, 0.18, 'sine', 1, 0.12); },
+  err: () => { tone(220, 0.25, 'sawtooth', 0.6); tone(180, 0.3, 'sawtooth', 0.6, 0.25); },
+  alarm: () => { for (let i = 0; i < 6; i++) tone(i % 2 ? 660 : 990, 0.18, 'square', 0.7, i * 0.2); },
+};
+const CHIMES = [
+  { name: 'Clásico ding‑dong', play: () => { tone(659, 0.6, 'sine'); tone(523, 0.9, 'sine', 1, 0.45); } },
+  { name: 'Westminster', play: () => [659, 523, 587, 392].forEach((f, i) => tone(f, 0.7, 'sine', 1, i * 0.45)) },
+  { name: 'Digital', play: () => [0, 0.15, 0.3, 0.6, 0.75, 0.9].forEach((w) => tone(1568, 0.09, 'square', 0.5, w)) },
+  { name: 'Suave arpegio', play: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.5, 'triangle', 0.9, i * 0.12)) },
+  { name: 'Industrial', play: () => { tone(110, 0.7, 'sawtooth', 0.8); tone(220, 0.7, 'square', 0.4); tone(110, 0.7, 'sawtooth', 0.8, 0.9); } },
+];
+
+/* ═══════════════════════════ UI GENERAL ═══════════════════════════ */
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); }
+function flash(ok, title, sub = '', ms = 2200) {
+  $('#flashIcon').innerHTML = `<use href="#${ok ? 'ic-check' : ok === null ? 'ic-lock' : 'ic-x'}"/>`;
+  $('#flashTitle').textContent = title; $('#flashSub').textContent = sub;
+  $('#flashOv').classList.add('show');
+  clearTimeout(flash.t); flash.t = setTimeout(() => $('#flashOv').classList.remove('show'), ms);
+}
+let lastInteraction = Date.now();
+['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, () => { lastInteraction = Date.now(); }, { passive: true }));
+
+function applyBrand() {
+  $('#bizName').textContent = S.biz;
+  $('#logo').src = S.logo || 'assets/rave-logo.jpg';
+  $('#modeLabel').textContent = S.mode === 'corp' ? 'Modo corporativo · alta seguridad' : 'Modo residencial · doméstico';
+  $('#ringLabel').textContent = S.mode === 'corp' ? 'Llamar a oficina' : 'Tocar timbre';
+  $('#familyLabel').textContent = 'Llamar ' + (S.familyName || 'familiar');
+  document.title = `SVB Seguridad · ${S.biz}`;
+}
+function setView(v) {
+  $$('.tab[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
+  $$('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + v));
+  if (v === 'cctv' && !$('#cctvGrid').children.length) buildGrid();
+}
+setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); }, 1000);
+
+/* ═══════════════════════════ TECLADO Y ACCESO ═══════════════════════════ */
+function buildKeypad(container, onKey) {
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'OK'];
+  container.innerHTML = keys.map((k) => `<button class="key ${k === 'C' ? 'fn' : ''} ${k === 'OK' ? 'ok fn' : ''}" data-k="${k}">${k === 'C' ? 'BORRAR' : k === 'OK' ? 'ENTRAR' : k}</button>`).join('');
+  container.addEventListener('click', (e) => { const b = e.target.closest('.key'); if (b) { Sfx.key(); onKey(b.dataset.k); } });
+}
+function renderDots(el, len, placeholder) {
+  el.innerHTML = len ? Array.from({ length: Math.max(4, len) }, (_, i) => `<span class="dot ${i < len ? 'f' : ''}"></span>`).join('') : `<span>${placeholder}</span>`;
+}
+let pin = '';
+let localFails = 0, lockedUntil = 0;
+function onDoorKey(k) {
+  if (k === 'C') pin = '';
+  else if (k === 'OK') { const p = pin; pin = ''; submitPin(p, 'teclado'); }
+  else if (pin.length < 8) pin += k;
+  renderDots($('#pinDisplay'), pin.length, 'Ingrese PIN');
+}
+addEventListener('keydown', (e) => {
+  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show')) return;
+  if (/^\d$/.test(e.key)) onDoorKey(e.key);
+  else if (e.key === 'Enter') onDoorKey('OK');
+  else if (e.key === 'Backspace' || e.key === 'Escape') onDoorKey('C');
+});
+
+function localVisitors() { try { return JSON.parse(localStorage.getItem('svb.visitors') || '[]').filter((v) => new Date(v.expires) > new Date()); } catch { return []; } }
+
+async function submitPin(p, source) {
+  if (!p) return;
+  if (Date.now() < lockedUntil) { flash(null, 'TECLADO BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
+  let result = 'denied', covert = false, who = '', retry = 0;
+  if (net.online) {
+    try {
+      const r = await api('/api/door/open', { method: 'POST', body: { pin: p, source, ms: S.relayMs } });
+      result = r.result || 'denied'; covert = r._c === 1; who = r.visitor || ''; retry = r.retryIn || 0;
+      if (r.relay && r.relay.ok === false) toast('Atención: la cerradura (ESP32) no respondió');
+    } catch { net.online = false; }
+  }
+  if (!net.online) { // modo autónomo
+    const v = localVisitors().find((x) => x.code === p);
+    if (p === S.duressPin) { result = 'open'; covert = true; }
+    else if (p === S.doorPin) result = 'open';
+    else if (v) { result = 'open'; who = v.name; }
+    else if (++localFails >= 5) { result = 'locked'; retry = 60; localFails = 0; }
+  }
+  if (result === 'open') { localFails = 0; return grantAccess({ covert, who, source }); }
+  if (result === 'locked') {
+    lockedUntil = Date.now() + retry * 1000;
+    Sfx.err(); flash(null, 'TECLADO BLOQUEADO', `Demasiados intentos. Reintente en ${retry} s`, 3500);
+    if (!net.online) logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false });
+    if (S.mode === 'corp') captureEvidence('LOCKOUT', 1);
+    return;
+  }
+  Sfx.err(); flash(false, 'ACCESO DENEGADO', 'PIN incorrecto');
+  if (!net.online) logEvent('ACCESS_DENIED', 'WARN', `PIN incorrecto (${source})`, { sync: false });
+  else tick('ACCESS_DENIED', `PIN incorrecto (${source})`);
+}
+
+async function grantAccess({ covert, who, source }) {
+  // Para el que mira la pantalla, coacción y apertura normal son idénticas (sin alarma ni aviso).
+  Sfx.ok();
+  flash(true, 'ACCESO CONCEDIDO', who ? `Bienvenido/a, ${who}` : 'Puerta liberada');
+  if (S.relayMode === 'serial' && isElectron && window.electronAPI.relay) window.electronAPI.relay(S.relayMs).catch(() => toast('Relé USB no responde'));
+  if (covert) {
+    logEvent('CRITICAL_DURESS_EVENT', 'CRITICAL', `Apertura bajo coacción (${source})`, { hidden: true, sync: false });
+    captureEvidence('DURESS', 3, true);
+    tick('DOOR_OPEN', `Puerta abierta (${source})`); // ticker igual al normal
+  } else {
+    if (!net.online) logEvent(who ? 'VISITOR_ACCESS' : 'DOOR_OPEN', 'INFO', who ? `Acceso de visita: ${who}` : `Puerta abierta (${source})`, { sync: false });
+    else tick(who ? 'VISITOR_ACCESS' : 'DOOR_OPEN', who ? `Visita: ${who}` : `Puerta abierta (${source})`);
+  }
+}
+
+/* ═══════════════════════════ CAPTURA DE EVIDENCIA ═══════════════════════════ */
+function frameFrom(video, q = 0.82) {
+  if (!video || video.readyState < 2 || !video.videoWidth) return null;
+  const c = document.createElement('canvas');
+  const w = Math.min(1280, video.videoWidth); const h = Math.round(w * video.videoHeight / video.videoWidth);
+  c.width = w; c.height = h; c.getContext('2d').drawImage(video, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', q);
+}
+async function snapshot() {
+  let d = frameFrom(doorVideo());
+  if (!d && net.online && net.status && net.status.cameras.configured) {
+    try {
+      const r = await api('/api/snapshot/1', { raw: true, timeout: 6000 });
+      if (r.ok) { const b = await r.blob(); d = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }); }
+    } catch { /* sin snapshot */ }
+  }
+  return d;
+}
+async function captureEvidence(reason, count = 1, silent = false) {
+  const shots = [];
+  for (let i = 0; i < count; i++) {
+    const d = await snapshot();
+    if (d) { const ph = { id: `${Date.now()}-${i}`, ts: new Date().toISOString(), reason, data: d }; await Vault.add(ph).catch(() => {}); shots.push(ph); }
+    if (i < count - 1) await sleep(700);
+  }
+  if (!silent && shots.length) tick('EVIDENCE', `${shots.length} foto(s) guardada(s): ${reason}`);
+  logEvent('EVIDENCE_CAPTURED', reason === 'DURESS' ? 'CRITICAL' : 'INFO', `${shots.length} foto(s) – ${reason}`, { hidden: silent, sync: !silent });
+  return shots;
+}
+
+/* ═══════════════════════════ SOS 911 Y CONTACTOS ═══════════════════════════ */
+let sosTimer = null;
+function startSos(trigger = 'botón') {
+  if (sosTimer) return;
+  let n = 3;
+  $('#sosCount').textContent = n; $('#sosOv').classList.add('show');
+  Sfx.alarm();
+  logEvent('SOS_COUNTDOWN', 'HIGH', `SOS iniciado por ${trigger}`, { sync: false });
+  speak('Llamando a emergencias en tres segundos. Toque cancelar para detener.');
+  sosTimer = setInterval(() => {
+    n--;
+    if (n > 0) { $('#sosCount').textContent = n; tone(990, 0.15, 'square', 0.8); return; }
+    clearInterval(sosTimer); sosTimer = null; $('#sosOv').classList.remove('show');
+    fireSos();
+  }, 1000);
+}
+function cancelSos() {
+  if (!sosTimer) return;
+  clearInterval(sosTimer); sosTimer = null; $('#sosOv').classList.remove('show');
+  logEvent('SOS_CANCELLED', 'INFO', 'SOS cancelado por el usuario', { sync: false });
+  speak('Llamada cancelada.');
+}
+async function fireSos() {
+  const shot = (await captureEvidence('SOS', 1))[0];
+  logEvent('SOS_911', 'CRITICAL', `Llamada de emergencia a ${S.emergency}`, { sync: false });
+  if (net.online) api('/api/alert', { method: 'POST', body: { type: 'SOS_911', level: 'CRITICAL', emoji: '🚨', message: `BOTÓN SOS PRESIONADO. Se llamó al ${S.emergency}.`, snapshot: shot && shot.data, camera: shot ? undefined : 1 } }).catch(() => {});
+  dial(S.emergency);
+}
+function dial(number) {
+  const n = String(number || '').replace(/[^\d+*#]/g, '');
+  if (!n) { toast('Configure el número en Administración → Contactos'); return; }
+  const url = 'tel:' + n;
+  if (isElectron && window.electronAPI.openExternal) window.electronAPI.openExternal(url);
+  else if (isTauri && window.__TAURI__.shell) window.__TAURI__.shell.open(url);
+  else location.href = url;
+}
+async function geoLink() {
+  if (!navigator.geolocation) return '';
+  return new Promise((res) => navigator.geolocation.getCurrentPosition((p) => res(` Ubicación: https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}`), () => res(''), { timeout: 4000 }));
+}
+async function callFamily() {
+  if (!S.familyPhone) { toast('Configure el teléfono del contacto en Administración'); return; }
+  logEvent('FAMILY_CALL', 'HIGH', `Llamada a ${S.familyName}`, { sync: true });
+  if (S.familyWa) {
+    const g = await geoLink();
+    const txt = encodeURIComponent(`🚨 AUXILIO desde ${S.biz} (${new Date().toLocaleTimeString('es-AR')}). Necesito ayuda.${g}`);
+    window.open(`https://wa.me/${S.familyPhone.replace(/\D/g, '')}?text=${txt}`, '_blank');
+    await sleep(600);
+  }
+  dial(S.familyPhone);
+}
+async function ring() {
+  CHIMES[S.chime].play();
+  logEvent('DOORBELL', 'INFO', 'Timbre presionado', { sync: false });
+  speak(S.mode === 'corp' ? 'Avisando a la oficina, aguarde por favor.' : 'Avisando, aguarde por favor.');
+  const shot = (await captureEvidence('TIMBRE', 1, true))[0];
+  if (net.online) api('/api/alert', { method: 'POST', body: { type: 'DOORBELL', level: 'INFO', emoji: '🔔', message: 'Están tocando el timbre.', snapshot: shot && shot.data, camera: shot ? undefined : 1 } }).catch(() => {});
+  if (S.ringCall && S.officePhone) dial(S.officePhone);
+}
+
+/* ═══════════════════════════ CÁMARAS ═══════════════════════════ */
+let localStream = null;
+async function startLocalCamera() {
+  const msg = $('#localMsg');
+  if (S.doorSrc !== 'local') { msg.style.display = 'none'; return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { msg.textContent = 'Este navegador no permite usar la cámara (requiere https o localhost).'; return; }
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+    const v = $('#localVideo'); v.srcObject = localStream; await v.play().catch(() => {});
+    msg.style.display = 'none';
+    logEvent('CAMERA_LOCAL', 'INFO', 'Cámara de puerta activa', { sync: false });
+  } catch (e) {
+    msg.textContent = 'Sin cámara local (' + (e.name || 'error') + '). ' + (net.online ? 'Elegí un canal Dahua como cámara de puerta en Administración → Cámaras.' : '');
+  }
+}
+let rtcLoaded = null;
+function loadPlayer() {
+  if (rtcLoaded) return rtcLoaded;
+  rtcLoaded = import(base() + '/go2rtc/video-rtc.js').then(({ VideoRTC }) => {
+    if (!customElements.get('svb-stream')) {
+      customElements.define('svb-stream', class extends VideoRTC {
+        oninit() {
+          super.oninit(); this.video.controls = false; this.video.muted = true;
+          const st = (d) => this.dispatchEvent(new CustomEvent('svb-state', { detail: d }));
+          this.video.addEventListener('playing', () => st('en vivo'));
+          this.video.addEventListener('waiting', () => st('cargando'));
+          this.video.addEventListener('emptied', () => st('reconectando'));
+        }
+        onconnect() { const r = super.onconnect(); this.dispatchEvent(new CustomEvent('svb-state', { detail: 'conectando' })); return r; }
+      });
+    }
+    return true;
+  }).catch((e) => { rtcLoaded = null; throw e; });
+  return rtcLoaded;
+}
+function streamEl(name, onState) {
+  const el = document.createElement('svb-stream');
+  el.mode = S.lowLatency ? 'webrtc,mse,hls,mjpeg' : 'mse,hls,mjpeg';
+  el.background = true;
+  el._name = name; el._onState = onState; el._lastT = -1; el._lastProg = Date.now();
+  if (onState) el.addEventListener('svb-state', (e) => onState(e.detail));
+  el.src = base() + '/go2rtc/api/ws?src=' + encodeURIComponent(name);
+  return el;
+}
+// Vigilante: si un canal no avanza en 12 s (grabador reiniciado, WiFi caído, error RTSP) se reconecta solo.
+setInterval(() => {
+  $$('svb-stream').forEach((el) => {
+    const v = el.video;
+    if (v && v.readyState >= 2 && v.currentTime !== el._lastT) { el._lastT = v.currentTime; el._lastProg = Date.now(); return; }
+    if (Date.now() - el._lastProg < 12000 || !el.isConnected) return;
+    const n = streamEl(el._name, el._onState);
+    n.style.cssText = el.style.cssText;
+    if (el._onState) el._onState('reconectando');
+    el.replaceWith(n);
+    if (el === doorStreamEl) doorStreamEl = n;
+    logEvent('CAMERA_RECONNECT', 'WARN', `Reconectando ${el._name}`, { sync: false });
+  });
+}, 4000);
+let gridGen = 0;
+async function buildGrid() {
+  const gen = ++gridGen;
+  const grid = $('#cctvGrid');
+  const st = net.status;
+  const chans = st && st.cameras.configured ? st.cameras.channels : [];
+  if (chans.length) { try { await loadPlayer(); } catch { toast('No se pudo cargar el reproductor de video'); } }
+  if (gen !== gridGen) return; // otra reconstrucción más nueva en curso
+  grid.classList.remove('single');
+  grid.innerHTML = '';
+  const n = Math.min(9, Math.max(4, chans.length));
+  const cols = n > 4 ? 3 : 2;
+  grid.style.gridTemplateColumns = `repeat(${cols},1fr)`; grid.style.gridTemplateRows = `repeat(${Math.ceil(n / cols)},1fr)`;
+  for (let i = 0; i < n; i++) {
+    const c = chans[i];
+    const cell = document.createElement('div');
+    cell.className = 'cell'; cell.dataset.ch = c ? c.ch : '';
+    const nm = c ? (S.camNames[c.ch] || c.name) : `Canal ${i + 1}`;
+    cell.innerHTML = `<span class="name">${esc(nm)}</span><span class="st">${c ? 'conectando' : 'sin señal'}</span>`;
+    if (c && customElements.get('svb-stream')) {
+      cell.prepend(streamEl(S.gridQ === 'hd' ? c.hd : c.sd, (d) => { cell.querySelector('.st').textContent = d; }));
+    } else if (!c) {
+      cell.insertAdjacentHTML('beforeend', `<div class="msg">${net.online ? 'Grabador Dahua no configurado' : 'Instale el servidor SVB para ver las cámaras Dahua'}</div>`);
+    }
+    cell.addEventListener('click', () => toggleBig(cell, c));
+    grid.appendChild(cell);
+  }
+  fillDoorSrcOptions();
+  if (S.doorSrc !== 'local') attachDoorChannel();
+}
+function toggleBig(cell, c) {
+  const grid = $('#cctvGrid');
+  const big = !cell.classList.contains('big');
+  $$('.cell', grid).forEach((x) => x.classList.remove('big'));
+  grid.classList.toggle('single', big);
+  if (big) cell.classList.add('big');
+  if (c && customElements.get('svb-stream')) { // HD al ampliar, liviano en grilla
+    const old = cell.querySelector('svb-stream'); if (old) old.remove();
+    cell.prepend(streamEl(big ? c.hd : (S.gridQ === 'hd' ? c.hd : c.sd), (d) => { cell.querySelector('.st').textContent = d; }));
+  }
+}
+function fillDoorSrcOptions() {
+  const sel = $('#sDoorSrc'); if (!sel) return;
+  const chans = net.status && net.status.cameras.configured ? net.status.cameras.channels : [];
+  sel.innerHTML = '<option value="local">Cámara de esta tablet/PC</option>' + chans.map((c) => `<option value="ch${c.ch}">Dahua · ${esc(S.camNames[c.ch] || c.name)}</option>`).join('');
+  sel.value = S.doorSrc;
+}
+let doorStreamEl = null;
+async function attachDoorChannel() {
+  const scr = $('#doorScreen');
+  if (doorStreamEl) { doorStreamEl.remove(); doorStreamEl = null; }
+  if (S.doorSrc === 'local' || !net.online) { $('#localVideo').style.display = ''; $('#aiSrcLabel').textContent = 'PUERTA · EN VIVO'; return; }
+  const ch = (net.status.cameras.channels || []).find((c) => 'ch' + c.ch === S.doorSrc);
+  if (!ch) return;
+  try { await loadPlayer(); } catch { return; }
+  $('#localVideo').style.display = 'none'; $('#localMsg').style.display = 'none';
+  doorStreamEl = streamEl(ch.hd);
+  doorStreamEl.style.cssText = 'position:absolute;inset:0;display:block';
+  scr.prepend(doorStreamEl);
+  $('#aiSrcLabel').textContent = `${(S.camNames[ch.ch] || ch.name).toUpperCase()} · DAHUA`;
+}
+function doorVideo() {
+  if (doorStreamEl && doorStreamEl.video) return doorStreamEl.video;
+  return $('#localVideo');
+}
+
+/* ═══════════════════════════ EDGE AI (Canvas) ═══════════════════════════ */
+const AI = { prev: null, motionHist: [], tamperSince: 0, loiterSince: 0, faceSince: 0, last: {}, fd: null, faceBusy: false, faces: [] };
+const aiCanvas = document.createElement('canvas'); aiCanvas.width = 160; aiCanvas.height = 120;
+const aiCtx = aiCanvas.getContext('2d', { willReadFrequently: true });
+if ('FaceDetector' in window) { try { AI.fd = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 3 }); } catch { AI.fd = null; } }
+function aiAlert(type, msg, cool = 30000) {
+  const now = Date.now();
+  if (AI.last[type] && now - AI.last[type] < cool) return;
+  AI.last[type] = now;
+  logEvent(type, 'HIGH', msg, { sync: false });
+  toast(msg);
+  if (S.mode === 'corp') Sfx.alarm();
+  captureEvidence(type, 1, true).then((shots) => {
+    if (net.online && S.aiNotify) api('/api/alert', { method: 'POST', body: { type, level: 'HIGH', emoji: '⚠️', message: msg, snapshot: shots[0] && shots[0].data, camera: shots[0] ? undefined : 1 } }).catch(() => {});
+  });
+}
+function setTag(id, text, hot) { const t = $(id); t.textContent = text; t.classList.toggle('hot', !!hot); }
+function aiStep() {
+  const ov = $('#overlay'); const octx = ov.getContext('2d');
+  const v = doorVideo();
+  if (!S.ai || !v || v.readyState < 2 || !v.videoWidth) { octx.clearRect(0, 0, ov.width, ov.height); return; }
+  const W = 160, H = 120;
+  aiCtx.drawImage(v, 0, 0, W, H);
+  let img;
+  try { img = aiCtx.getImageData(0, 0, W, H).data; } catch { return; }
+  const gray = new Uint8Array(W * H);
+  let sum = 0, sum2 = 0;
+  for (let i = 0, j = 0; i < img.length; i += 4, j++) { const g = (img[i] * 77 + img[i + 1] * 150 + img[i + 2] * 29) >> 8; gray[j] = g; sum += g; sum2 += g * g; }
+  const mean = sum / gray.length; const std = Math.sqrt(Math.max(0, sum2 / gray.length - mean * mean));
+  // Movimiento por diferencia de cuadros
+  let changed = 0, minX = W, minY = H, maxX = 0, maxY = 0;
+  const thr = 40 - S.motion; // más sensibilidad → umbral menor
+  if (AI.prev) {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = y * W + x;
+      if (Math.abs(gray[k] - AI.prev[k]) > thr) { changed++; if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y; }
+    }
+  }
+  AI.prev = gray;
+  const pct = (changed / (W * H)) * 100;
+  const moving = pct > 0.6;
+  const now = Date.now();
+  AI.motionHist.push({ t: now, m: moving });
+  AI.motionHist = AI.motionHist.filter((h) => now - h.t < 4000);
+  const activity = AI.motionHist.filter((h) => h.m).length / Math.max(1, AI.motionHist.length);
+  setTag('#tMotion', `Movimiento ${pct.toFixed(1)}%`, moving);
+
+  // Merodeo: presencia sostenida sin interacción con el panel
+  const present = activity > 0.25 || AI.faces.length > 0;
+  if (present && now - lastInteraction > 3000) { if (!AI.loiterSince) AI.loiterSince = now; } else AI.loiterSince = 0;
+  const loitS = AI.loiterSince ? (now - AI.loiterSince) / 1000 : 0;
+  setTag('#tLoiter', loitS ? `Presencia ${loitS.toFixed(0)}s` : 'Merodeo —', loitS > S.loiter);
+  if (loitS > S.loiter) aiAlert('LOITERING_ALERT', `Merodeo: persona frente a la puerta hace más de ${S.loiter}s sin interactuar`);
+
+  // Sabotaje: lente tapado (imagen oscura y uniforme) o cegado (sobreexpuesto)
+  const blocked = (std < 10 && mean < 40) || (std < 8) || mean > 245;
+  if (blocked) { if (!AI.tamperSince) AI.tamperSince = now; } else AI.tamperSince = 0;
+  const tampered = AI.tamperSince && now - AI.tamperSince > 2000;
+  setTag('#tTamper', tampered ? 'LENTE BLOQUEADO' : 'Lente OK', tampered);
+  if (tampered) aiAlert('TAMPER_ALERT', 'Sabotaje: la cámara de puerta fue tapada o cegada', 60000);
+
+  // Overlay
+  if (ov.width !== ov.clientWidth) { ov.width = ov.clientWidth; ov.height = ov.clientHeight; }
+  octx.clearRect(0, 0, ov.width, ov.height);
+  octx.strokeStyle = '#ffffff'; octx.lineWidth = 2; octx.font = '12px monospace'; octx.fillStyle = '#ffffff';
+  const sx = ov.width / W, sy = ov.height / H;
+  if (moving && changed > 30) { octx.setLineDash([6, 4]); octx.strokeRect(minX * sx, minY * sy, (maxX - minX) * sx, (maxY - minY) * sy); octx.setLineDash([]); octx.fillText('MOV', minX * sx + 4, minY * sy + 14); }
+  const fx = ov.width / v.videoWidth, fy = ov.height / v.videoHeight;
+  AI.faces.forEach((f) => { const b = f.boundingBox; octx.strokeRect(b.x * fx, b.y * fy, b.width * fx, b.height * fy); octx.fillText('ROSTRO', b.x * fx + 4, b.y * fy - 6); });
+
+  // Rostro: FaceDetector nativo si existe; si no, estimación por movimiento centrado (simulado)
+  if (S.face) {
+    if (AI.fd && !AI.faceBusy) { AI.faceBusy = true; AI.fd.detect(v).then((f) => { AI.faces = f; }).catch(() => { AI.fd = null; }).finally(() => { AI.faceBusy = false; }); }
+    const faceNow = AI.fd ? AI.faces.length > 0 : (activity > 0.4 && (minX + maxX) / 2 > W * 0.3 && (minX + maxX) / 2 < W * 0.7);
+    if (faceNow) { if (!AI.faceSince) AI.faceSince = now; } else AI.faceSince = 0;
+    const steady = AI.faceSince && now - AI.faceSince > 2500;
+    setTag('#tFace', faceNow ? (steady ? 'Rostro detectado' : 'Analizando…') : 'Rostro —', steady);
+    if (steady && (!AI.last.face || now - AI.last.face > 60000)) {
+      AI.last.face = now;
+      logEvent('FACE_PRESENCE', 'INFO', AI.fd ? 'Rostro detectado frente a la puerta' : 'Rostro detectado (simulado)', { sync: false });
+      speak(`Bienvenido a ${S.biz}. Ingrese su código o toque el timbre.`);
+    }
+  } else setTag('#tFace', 'Rostro off');
+}
+setInterval(aiStep, 200);
+
+/* ═══════════════════════════ VOZ ═══════════════════════════ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false, wantListen = false;
+function speak(text) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = S.lang; u.rate = S.rate;
+    const v = speechSynthesis.getVoices().find((x) => x.name === S.voice);
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch { /* sin TTS */ }
+}
+const NUMS = { cero: 0, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+function spokenDigits(t) { return t.split(/\s+/).map((w) => (/^\d+$/.test(w) ? w : NUMS[w] !== undefined ? String(NUMS[w]) : '')).join(''); }
+function norm(t) { return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function handleVoice(raw, conf = 1) {
+  let t = norm(raw);
+  if (conf < S.sens) return;
+  if (S.wakeOn) { const w = norm(S.wake); if (!t.includes(w)) return; t = t.slice(t.indexOf(w) + w.length).trim(); }
+  tick('VOZ', `«${raw}»`);
+  if (/\b(cancelar|cancela|detener)\b/.test(t)) { cancelSos(); return; }
+  if (/\b(911|emergencia|auxilio|socorro|policia)\b/.test(t) || /nueve uno uno/.test(t)) { startSos('voz'); return; }
+  if (/\babr(ir|e|i)\b.*\bpuerta\b/.test(t)) {
+    const d = spokenDigits(t.replace(/.*puerta/, ''));
+    if (d.length >= 4) { submitPin(d, 'voz'); return; }
+    speak('Por seguridad, ingrese su PIN en el teclado o dígalo después de abrir puerta.');
+    renderDots($('#pinDisplay'), 0, 'Diga o tipee su PIN'); return;
+  }
+  if (/\b(ver )?camaras?\b/.test(t)) { setView('cctv'); speak('Mostrando cámaras.'); return; }
+  if (/\bver puerta\b/.test(t)) { setView('door'); return; }
+  if (/\b(timbre|tocar)\b/.test(t) || /^llamar?$/.test(t) || /\bllamar (a la )?(oficina|residente|dueno)\b/.test(t)) { ring(); return; }
+  if (/\bllamar\b.*\b(familiar|familia|contacto|mama|papa)\b/.test(t)) { callFamily(); return; }
+  if (/\bllamar\b/.test(t)) { ring(); return; }
+}
+function initVoice() {
+  $('#voiceSupport').textContent = SR ? 'Reconocimiento de voz disponible en este navegador.' : 'Este navegador no soporta reconocimiento de voz (usar Chrome/Edge). La síntesis de voz sí funciona.';
+  if (!SR) { $('#btnMic').disabled = true; $('#btnMic').style.opacity = .4; return; }
+  rec = new SR(); rec.lang = S.lang; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
+  rec.onresult = (e) => { const r = e.results[e.results.length - 1]; if (r.isFinal) handleVoice(r[0].transcript, r[0].confidence || 1); };
+  rec.onstart = () => { listening = true; $('#btnMic').classList.add('live'); };
+  rec.onend = () => { listening = false; $('#btnMic').classList.remove('live'); if (wantListen) setTimeout(() => { try { rec.start(); } catch { /* ya activo */ } }, 400); };
+  rec.onerror = (e) => { if (e.error === 'not-allowed') { wantListen = false; toast('Permiso de micrófono denegado'); } };
+  if (S.voiceOn) toggleVoice(true);
+}
+function toggleVoice(on) {
+  if (!rec) return;
+  wantListen = on === undefined ? !wantListen : on;
+  rec.lang = S.lang;
+  if (wantListen) { try { rec.start(); } catch { /* ya activo */ } speak('Asistente activo.'); } else rec.stop();
+}
+
+/* ═══════════════════════════ QR / NFC ═══════════════════════════ */
+function drawQr(canvas, text) {
+  const q = qrEncode(text); const ctx = canvas.getContext('2d');
+  const quiet = 4; const scale = Math.floor(canvas.width / (q.size + quiet * 2));
+  const off = Math.floor((canvas.width - scale * q.size) / 2);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#000';
+  q.modules.forEach((row, r) => row.forEach((v, c) => { if (v) ctx.fillRect(off + c * scale, off + r * scale, scale, scale); }));
+}
+const passText = (v) => `SVB1|${v.code}|${v.expires}|${v.name}`;
+function parsePass(t) { const m = String(t).match(/^SVB1\|(\d{6})\|/); return m ? m[1] : null; }
+let scanStream = null, scanLoop = null, nfcAbort = null;
+async function openScanner() {
+  $('#scanTitle').textContent = 'ESCANEE SU PASE QR'; $('#scanBox').style.display = '';
+  $('#scanSub').textContent = 'Acerque el código QR a la cámara. También puede tipear el código de 6 dígitos en el teclado.';
+  $('#scanOv').classList.add('show');
+  if (!('BarcodeDetector' in window)) { $('#scanSub').textContent = 'Este dispositivo no lee QR por cámara. Tipee el código de 6 dígitos en el teclado.'; $('#scanBox').style.display = 'none'; return; }
+  try {
+    const det = new window.BarcodeDetector({ formats: ['qr_code'] });
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    const v = $('#scanVideo'); v.srcObject = scanStream; await v.play();
+    scanLoop = setInterval(async () => {
+      const codes = await det.detect(v).catch(() => []);
+      const code = codes.map((c) => parsePass(c.rawValue)).find(Boolean);
+      if (code) { closeScanner(); submitPin(code, 'qr'); }
+    }, 300);
+  } catch { $('#scanSub').textContent = 'No se pudo abrir la cámara para escanear.'; }
+}
+function closeScanner() {
+  clearInterval(scanLoop); scanLoop = null;
+  if (scanStream) scanStream.getTracks().forEach((t) => t.stop()); scanStream = null;
+  if (nfcAbort) { nfcAbort.abort(); nfcAbort = null; }
+  $('#scanOv').classList.remove('show');
+}
+async function readNfc() {
+  if (!('NDEFReader' in window)) { toast('NFC no disponible: requiere Chrome en Android con NFC'); return; }
+  $('#scanTitle').textContent = 'ACERQUE SU TARJETA NFC'; $('#scanBox').style.display = 'none';
+  $('#scanSub').textContent = 'Apoye la tarjeta o el llavero en la parte trasera del dispositivo.';
+  $('#scanOv').classList.add('show');
+  try {
+    const r = new window.NDEFReader(); nfcAbort = new AbortController();
+    await r.scan({ signal: nfcAbort.signal });
+    r.onreading = (ev) => {
+      const dec = new TextDecoder();
+      const txt = ev.message.records.filter((x) => x.recordType === 'text').map((x) => dec.decode(x.data)).join('');
+      const code = parsePass(txt);
+      closeScanner();
+      if (code) submitPin(code, 'nfc'); else { Sfx.err(); flash(false, 'TARJETA NO VÁLIDA', ''); logEvent('NFC_INVALID', 'WARN', 'Tag NFC desconocido', { sync: true }); }
+    };
+  } catch (e) { $('#scanSub').textContent = 'NFC: ' + e.message; }
+}
+
+/* ═══════════════════════════ PANEL DE ADMINISTRACIÓN ═══════════════════════════ */
+let adminPinBuf = '';
+function askAdmin() {
+  adminPinBuf = ''; renderDots($('#adminDisplay'), 0, 'PIN de ingeniería');
+  $('#pinOv').classList.add('show');
+}
+async function onAdminKey(k) {
+  if (k === 'C') adminPinBuf = '';
+  else if (k !== 'OK' && adminPinBuf.length < 8) adminPinBuf += k;
+  renderDots($('#adminDisplay'), adminPinBuf.length, 'PIN de ingeniería');
+  if (k !== 'OK') return;
+  const p = adminPinBuf; adminPinBuf = '';
+  let ok = false;
+  if (net.online) {
+    try { net.adminPin = p; const r = await api('/api/admin/check', { method: 'POST', admin: true }); ok = r.ok === true; if (r._status === 429) toast(`Bloqueado ${r.retryIn}s`); } catch { ok = p === S.adminPin; }
+  } else ok = p === S.adminPin;
+  if (!ok) { net.adminPin = ''; Sfx.err(); renderDots($('#adminDisplay'), 0, 'PIN incorrecto'); logEvent('ADMIN_DENIED', 'WARN', 'PIN de administración incorrecto', { sync: false }); return; }
+  $('#pinOv').classList.remove('show');
+  openAdmin();
+}
+function openAdmin() {
+  $('#adminOv').classList.add('show');
+  logEvent('ADMIN_OPEN', 'INFO', 'Ingreso a administración', { sync: true });
+  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions();
+  drawQr($('#linkQr'), base() || location.href);
+  $('#linkTxt').textContent = (base() || location.href) + ' — escanear con el celular del dueño (misma red WiFi o Tailscale).';
+}
+function closeAdmin() { $('#adminOv').classList.remove('show'); net.adminPin = ''; applyBrand(); }
+function buildAdminNav() {
+  const nav = $('#adminNav');
+  nav.innerHTML = $$('.pane').map((p) => `<button class="nb" data-go="${p.dataset.pane}"><span class="n">${p.dataset.n}</span>${p.dataset.title}</button>`).join('');
+  nav.addEventListener('click', (e) => { const b = e.target.closest('.nb'); if (b) showPane(b.dataset.go); });
+  showPane('marca');
+}
+function showPane(id) {
+  $$('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === id));
+  $$('#adminNav .nb').forEach((b) => b.classList.toggle('active', b.dataset.go === id));
+  if (id === 'auditoria') { renderLog(); renderVault(); }
+}
+const BIND = { sBiz: 'biz', sMode: 'mode', sEmergency: 'emergency', sFamilyName: 'familyName', sFamilyPhone: 'familyPhone', sFamilyWa: 'familyWa', sOfficePhone: 'officePhone', sRingCall: 'ringCall',
+  sVoiceOn: 'voiceOn', sWakeOn: 'wakeOn', sWake: 'wake', sLang: 'lang', sVoice: 'voice', sSens: 'sens', sRate: 'rate', sVol: 'vol', sRelay: 'relayMs', sRelayMode: 'relayMode',
+  sDoorPin: 'doorPin', sDuressPin: 'duressPin', sAdminPin: 'adminPin', sServer: 'server', sDoorSrc: 'doorSrc', sGridQ: 'gridQ', sLowLat: 'lowLatency', sMot: 'motion', sLoit: 'loiter', sFace: 'face', sAiNotify: 'aiNotify' };
+function labels() {
+  $('#sSensV').textContent = Math.round(S.sens * 100) + '%'; $('#sRateV').textContent = S.rate.toFixed(2) + '×';
+  $('#sVolV').textContent = Math.round(S.vol * 100) + '%'; $('#sRelayV').textContent = S.relayMs + ' ms';
+  $('#sMotV').textContent = S.motion; $('#sLoitV').textContent = S.loiter + ' s';
+}
+function loadForm() {
+  fillVoices();
+  Object.entries(BIND).forEach(([id, k]) => { const el = $('#' + id); if (!el) return; if (el.type === 'checkbox') el.checked = !!S[k]; else el.value = S[k]; });
+  labels(); renderChimes();
+}
+function bindForm() {
+  Object.entries(BIND).forEach(([id, k]) => {
+    const el = $('#' + id); if (!el) return;
+    el.addEventListener(el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input', () => {
+      let v = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.type === 'range' || el.type === 'number') v = parseFloat(v);
+      if (['doorPin', 'duressPin', 'adminPin'].includes(k)) { v = String(v).replace(/\D/g, ''); el.value = v; if (v.length < 4) return; }
+      S[k] = v; save(); labels();
+      if (k === 'mode' || k === 'biz' || k === 'familyName') applyBrand();
+      if (k === 'lang' && rec) rec.lang = v;
+      if (k === 'doorSrc') attachDoorChannel();
+      if (k === 'gridQ' || k === 'server' || k === 'lowLatency') { if (k === 'server') { rtcLoaded = null; refreshStatus(); } buildGrid(); }
+    });
+  });
+}
+function fillVoices() {
+  const sel = $('#sVoice');
+  const vs = ('speechSynthesis' in window) ? speechSynthesis.getVoices().filter((v) => v.lang.startsWith(S.lang.slice(0, 2))) : [];
+  sel.innerHTML = '<option value="">Automática</option>' + vs.map((v) => `<option ${v.name === S.voice ? 'selected' : ''}>${esc(v.name)}</option>`).join('');
+}
+function renderChimes() {
+  $('#chimeList').innerHTML = CHIMES.map((c, i) => `<div class="li"><label class="chk grow"><input type="radio" name="chime" value="${i}" ${S.chime === i ? 'checked' : ''}>${i + 1}. ${c.name}</label><button class="btn sm" data-play="${i}">Escuchar</button></div>`).join('');
+}
+async function renderLog() {
+  let rows = audit.map((e) => ({ ...e }));
+  if (net.online && net.adminPin) {
+    try { const srv = await api('/api/events?limit=500', { admin: true }); if (Array.isArray(srv)) rows = rows.concat(srv.map((e) => ({ ...e, origin: 'servidor' }))); } catch { /* sin servidor */ }
+  }
+  rows.sort((a, b) => b.ts.localeCompare(a.ts));
+  renderLog.rows = rows;
+  $('#logBody').innerHTML = rows.slice(0, 400).map((e) => `<tr class="${e.level === 'CRITICAL' ? 'crit' : ''}"><td class="lv">${fmtTime(e.ts)}</td><td class="lv">${esc(e.level)}</td><td class="lv">${esc(e.type)}</td><td>${esc(e.message || '')}</td><td class="lv">${esc(e.origin || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Sin eventos</td></tr>';
+}
+async function renderVault() {
+  const ph = await Vault.all().catch(() => []);
+  $('#vaultGrid').innerHTML = ph.slice(0, 120).map((p) => `<figure><img src="${p.data}" alt=""><figcaption>${fmtTime(p.ts)} · ${esc(p.reason)}</figcaption></figure>`).join('') || '<p class="muted small">Sin fotos todavía.</p>';
+}
+function download(name, data, type = 'application/json') {
+  const a = document.createElement('a');
+  a.href = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(new Blob([data], { type }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+async function renderVisitors() {
+  let list = localVisitors().map((v) => ({ ...v, where: 'local' }));
+  if (net.online && net.adminPin) { try { const r = await api('/api/visitors', { admin: true }); if (Array.isArray(r)) list = r.map((v) => ({ ...v, where: 'servidor' })); } catch { /* offline */ } }
+  $('#vList').innerHTML = list.map((v) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(v.name)}</b> <span class="muted small">· vence ${fmtTime(v.expires)}</span></div><span class="codebig" style="font-size:18px;letter-spacing:3px">${esc(v.code)}</span><button class="btn sm" data-del="${esc(v.id)}">Revocar</button></div>`).join('') || '<p class="muted small">No hay pases activos.</p>';
+}
+let lastPass = null;
+async function createPass() {
+  const name = $('#vName').value.trim() || 'Visita';
+  const hours = Math.max(1, Math.min(720, parseInt($('#vHours').value, 10) || 8));
+  let v = null;
+  if (net.online) { try { const r = await api('/api/visitors', { method: 'POST', admin: true, body: { name, hours } }); if (r.code) v = r; } catch { /* offline */ } }
+  if (!v) {
+    let code; do { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); } while (code === S.doorPin || code === S.duressPin);
+    v = { id: String(Date.now()), name, code, expires: new Date(Date.now() + hours * 3600e3).toISOString() };
+    localStorage.setItem('svb.visitors', JSON.stringify([...localVisitors(), v]));
+    logEvent('VISITOR_CREATED', 'INFO', `Pase temporal para ${name} (${hours} h)`, { sync: false });
+  }
+  lastPass = v;
+  $('#vOut').style.display = 'flex'; $('#vCode').textContent = v.code; $('#vExp').textContent = 'Vence: ' + fmtTime(v.expires);
+  drawQr($('#vQr'), passText(v));
+  renderVisitors();
+}
+
+/* ═══════════════════════════ PLATAFORMA (PWA / Electron / Tauri) ═══════════════════════════ */
+let installEvt = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; $('#sysInstall').disabled = false; });
+function platformInfo() {
+  const p = isElectron ? 'Aplicación de escritorio (Electron)' : isTauri ? 'Aplicación de escritorio (Tauri)' : matchMedia('(display-mode: standalone)').matches ? 'App instalada (PWA)' : 'Navegador web';
+  $('#platTxt').textContent = `Plataforma: ${p} · ${navigator.userAgent.split(') ')[0].replace('Mozilla/5.0 (', '')}) · Cámara: ${navigator.mediaDevices ? 'sí' : 'no'} · Voz: ${SR ? 'sí' : 'no'} · NFC: ${'NDEFReader' in window ? 'sí' : 'no'} · QR: ${'BarcodeDetector' in window ? 'sí' : 'no'}`;
+  if (isElectron) { $('#sysMin').disabled = false; $('#sysQuit').disabled = false; }
+}
+function toggleKiosk() {
+  if (isElectron && window.electronAPI.toggleKiosk) return window.electronAPI.toggleKiosk();
+  if (isTauri && window.__TAURI__.window) { const w = window.__TAURI__.window.getCurrent(); return w.isFullscreen().then((f) => w.setFullscreen(!f)); }
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => toast('Pantalla completa no disponible'));
+  else document.exitFullscreen();
+}
+
+/* ═══════════════════════════ ARRANQUE ═══════════════════════════ */
+function wire() {
+  buildKeypad($('#keypad'), onDoorKey);
+  buildKeypad($('#adminKeys'), onAdminKey);
+  renderDots($('#pinDisplay'), 0, 'Ingrese PIN');
+  $$('.tab[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+  const tIr = $('#tgIr'), tAi = $('#tgAi');
+  const paintToggles = () => { tIr.classList.toggle('on', S.ir); tAi.classList.toggle('on', S.ai); document.body.classList.toggle('ir', S.ir); setPill('#stAi', S.ai ? 'on' : ''); };
+  tIr.addEventListener('click', () => { S.ir = !S.ir; save(); paintToggles(); logEvent('IR_MODE', 'INFO', S.ir ? 'Visión nocturna activada' : 'Visión nocturna desactivada', { sync: false }); });
+  tAi.addEventListener('click', () => { S.ai = !S.ai; save(); paintToggles(); });
+  paintToggles();
+  $('#btnSos').addEventListener('click', () => startSos('botón'));
+  $('#sosCancel').addEventListener('click', cancelSos);
+  $('#btnRing').addEventListener('click', ring);
+  $('#btnFamily').addEventListener('click', callFamily);
+  $('#btnScan').addEventListener('click', openScanner);
+  $('#btnNfc').addEventListener('click', readNfc);
+  $('#scanCancel').addEventListener('click', closeScanner);
+  $('#btnMic').addEventListener('click', () => toggleVoice());
+  $('#btnAdmin').addEventListener('click', askAdmin);
+  $('#pinCancel').addEventListener('click', () => $('#pinOv').classList.remove('show'));
+  $('#adminClose').addEventListener('click', closeAdmin);
+  let lp; const brand = $('#brand');
+  brand.addEventListener('pointerdown', () => { lp = setTimeout(askAdmin, 3000); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((e) => brand.addEventListener(e, () => clearTimeout(lp)));
+
+  buildAdminNav(); bindForm();
+  $('#sLogo').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const img = new Image(); const url = URL.createObjectURL(f);
+    img.onload = () => { const c = document.createElement('canvas'); const s = Math.min(1, 400 / img.width); c.width = img.width * s; c.height = img.height * s; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); S.logo = c.toDataURL('image/png'); save(); applyBrand(); toast('Logo actualizado'); };
+    img.src = url;
+  });
+  $('#sLogoReset').addEventListener('click', () => { S.logo = ''; save(); applyBrand(); });
+  $('#sTgTest').addEventListener('click', async () => { if (!net.online) return toast('Requiere servidor'); const r = await api('/api/telegram/test', { method: 'POST', admin: true }); toast(r.sent ? 'Mensaje de prueba enviado a Telegram' : 'No enviado: ' + (r.reason || r.status)); });
+  $('#sVoiceTest').addEventListener('click', () => speak(`Hola, soy el asistente de seguridad de ${S.biz}.`));
+  if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = fillVoices;
+  $('#chimeList').addEventListener('click', (e) => { const b = e.target.closest('[data-play]'); if (b) CHIMES[+b.dataset.play].play(); });
+  $('#chimeList').addEventListener('change', (e) => { if (e.target.name === 'chime') { S.chime = +e.target.value; save(); } });
+  $('#sRelayTest').addEventListener('click', async () => {
+    if (S.relayMode === 'serial' && isElectron && window.electronAPI.relay) { try { await window.electronAPI.relay(S.relayMs); toast('Relé USB accionado'); } catch (e) { toast('Error relé USB: ' + e.message); } return; }
+    if (!net.online) return toast('Sin servidor: relé no disponible');
+    const r = await api('/api/relay/test', { method: 'POST', admin: true, body: { ms: S.relayMs } });
+    toast(r.simulated ? `Relé simulado ${r.ms} ms (configurar ESP32_URL)` : r.ok ? `Puerta abierta ${r.ms} ms` : 'Error: ' + (r.error || r.status));
+  });
+  $('#sDiscover').addEventListener('click', async () => {
+    if (!net.online) return toast('Requiere servidor');
+    $('#discOut').textContent = 'Buscando en la red local… (puede tardar 30 s)';
+    const r = await api('/api/discover', { method: 'POST', admin: true, timeout: 120000 }).catch((e) => ({ error: e.message }));
+    if (r.error) { $('#discOut').textContent = 'Error: ' + r.error; return; }
+    const d = r.discovery || { devices: [] };
+    $('#discOut').innerHTML = (r.found ? '<b style="color:#fff">✔ Grabador encontrado y conectado.</b><br>' : '✖ No se encontró el grabador con ese número de serie.<br>') + `Direcciones revisadas: ${d.scanned || 0}<br>` + d.devices.map((x) => `${esc(x.host)} ${esc(x.type || '')} ${x.match ? '← RAVE' : ''} ${esc(x.note || '')}`).join('<br>');
+    await refreshStatus(); buildGrid();
+  });
+  $('#sReloadCams').addEventListener('click', async () => { rtcLoaded = null; await refreshStatus(); buildGrid(); toast('Cámaras reconectadas'); });
+  const fw = $('#fw-src').textContent.trim();
+  $('#fwView').textContent = fw;
+  $('#fwCopy').addEventListener('click', () => navigator.clipboard.writeText(fw).then(() => toast('Copiado')).catch(() => toast('No se pudo copiar')));
+  $('#fwDl').addEventListener('click', () => download('esp32_cerradura.ino', fw, 'text/plain'));
+  $('#logExport').addEventListener('click', async () => { await renderLog(); download(`auditoria-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ negocio: S.biz, exportado: new Date().toISOString(), eventos: renderLog.rows }, null, 2)); });
+  $('#vaultExport').addEventListener('click', async () => download(`evidencia-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await Vault.all())));
+  $('#vaultClear').addEventListener('click', async () => { await Vault.clear(); logEvent('VAULT_CLEARED', 'WARN', 'Bóveda de evidencia vaciada', { sync: true }); renderVault(); });
+  $('#logRefresh').addEventListener('click', () => { renderLog(); renderVault(); });
+  $('#vCreate').addEventListener('click', createPass);
+  $('#vList').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-del]'); if (!b) return;
+    if (net.online && net.adminPin) await api('/api/visitors?id=' + encodeURIComponent(b.dataset.del), { method: 'DELETE', admin: true }).catch(() => {});
+    localStorage.setItem('svb.visitors', JSON.stringify(localVisitors().filter((v) => v.id !== b.dataset.del)));
+    renderVisitors();
+  });
+  $('#vShare').addEventListener('click', () => { if (!lastPass) return; const t = encodeURIComponent(`Pase de acceso a ${S.biz}: código ${lastPass.code}, válido hasta ${fmtTime(lastPass.expires)}. Tipéelo en el teclado de la puerta.`); window.open(`https://wa.me/?text=${t}`, '_blank'); });
+  $('#vDownload').addEventListener('click', () => download(`pase-${lastPass ? lastPass.code : 'qr'}.png`, $('#vQr').toDataURL('image/png')));
+  $('#vNfcWrite').addEventListener('click', async () => {
+    if (!lastPass) return;
+    if (!('NDEFReader' in window)) return toast('Grabar NFC requiere Chrome en Android');
+    try { await new window.NDEFReader().write({ records: [{ recordType: 'text', data: passText(lastPass) }] }); toast('Tag NFC grabado'); logEvent('NFC_WRITTEN', 'INFO', `Tag NFC para ${lastPass.name}`, { sync: true }); } catch (e) { toast('NFC: ' + e.message); }
+  });
+  $('#sysFull').addEventListener('click', toggleKiosk);
+  $('#sysInstall').addEventListener('click', async () => { if (installEvt) { installEvt.prompt(); installEvt = null; $('#sysInstall').disabled = true; } });
+  $('#sysMin').addEventListener('click', () => window.electronAPI && window.electronAPI.minimize());
+  $('#sysQuit').addEventListener('click', () => window.electronAPI && window.electronAPI.close());
+  $('#sysReset').addEventListener('click', () => { localStorage.removeItem('svb.settings'); location.reload(); });
+}
+
+async function boot() {
+  wire(); applyBrand(); platformInfo(); initVoice();
+  logEvent('SYSTEM_BOOT', 'INFO', `Panel iniciado (${isElectron ? 'escritorio' : 'web'})`, { sync: false });
+  await refreshStatus();
+  setInterval(refreshStatus, 15000);
+  startLocalCamera();
+  if (!$('#cctvGrid').children.length) buildGrid();
+  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  document.addEventListener('click', () => ac(), { once: true });
+}
+boot();
+window.SVB = { S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, audit: () => audit };
+</script>
+</body>
+</html>

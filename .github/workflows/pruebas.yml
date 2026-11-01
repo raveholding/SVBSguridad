@@ -1,0 +1,12 @@
+name: Pruebas
+on: [push, pull_request]
+jobs:
+  servidor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: node tools/embed.js --check
+      - run: cd server && npm run setup && npm test

@@ -1,0 +1,18 @@
+# Servicio systemd para dejar SVB Seguridad siempre encendido (Raspberry Pi / Linux).
+# sudo cp docs/svb-seguridad.service /etc/systemd/system/
+# (editar WorkingDirectory y User) → sudo systemctl enable --now svb-seguridad
+[Unit]
+Description=SVB Seguridad - Almacen Rave
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/SVBSguridad
+ExecStart=/usr/bin/node server/server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

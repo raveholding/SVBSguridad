@@ -1,0 +1,20 @@
+# Credenciales y datos del negocio: NUNCA al repositorio
+.env
+.env.*
+!.env.example
+data/
+server/data/
+
+# Binarios descargados
+server/bin/
+
+# Dependencias y builds
+node_modules/
+desktop/dist/
+*.log
+
+# Pruebas
+tests/screenshots/
+__pycache__/
+.DS_Store
+Thumbs.db
