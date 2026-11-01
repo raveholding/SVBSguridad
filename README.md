@@ -2,7 +2,7 @@
 
 **Sistema Vincular Business — Soluciones de Seguridad.** Panel de seguridad táctil (web, celular y Windows) con cámaras Dahua en vivo, control de cerradura, PIN de coacción, botón SOS 911, asistente de voz, pases QR/NFC para proveedores, detección de merodeo y sabotaje con IA en el borde, y alertas con foto al celular del dueño.
 
-![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-83%20OK-000?style=flat-square)
+![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-91%20OK-000?style=flat-square)
 
 ---
 
@@ -61,6 +61,7 @@ flowchart LR
 | **Eventos del grabador (push)** | Movimiento, persona/vehículo, intrusión, cruce de línea, cámara tapada, pérdida de video, alarmas y disco, en vivo en el panel (la cámara se resalta) + avisos del navegador. |
 | **Armar / Desarmar** | Con el sistema **armado** (local cerrado), cada movimiento manda **foto a Telegram**. Desarmado: solo sabotaje, pérdida de video, alarmas y disco. |
 | **Grabaciones** | Reproducción del disco del grabador por cámara, fecha y hora. |
+| **Portero digital QR / NFC** | Cartel con QR (y sticker NFC) en la puerta: el cliente lo escanea con **su celular**, elige motivo (cliente, delivery, proveedor), toca el timbre y **ve tu respuesta en su pantalla**. Suena en el panel con la cámara de la puerta y te llega a Telegram con botones: *Ya voy · Un momento · Dejar en la puerta · No atendemos · Abrir puerta*. |
 | **Configuración rápida** | PINs, contraseña del grabador, Telegram (solo pegando el token) y nombres de cámaras desde el panel, sin tocar archivos. |
 | **Edge AI** | Movimiento, **merodeo** (presencia > 10 s sin interactuar), **sabotaje** (lente tapado/cegado), detección de rostro (nativa si el navegador la tiene, simulada si no). Cualquier cámara Dahua puede ser la "cámara de puerta". |
 | **Voz** | «abrir puerta 2 5 8 0», «emergencia», «llamar a 911», «ver cámaras», «tocar timbre», «cancelar». Sin servicios pagos. |
@@ -86,6 +87,23 @@ Completar `WIFI_SSID`, `WIFI_PASS` y `TOKEN` en el sketch, grabar con Arduino ID
 1. En Telegram, abrir **@BotFather** → `/newbot` → nombre y usuario terminado en `bot` → copiar el **token**.
 2. Abrir el bot nuevo y tocar **INICIAR**.
 3. Panel → ⚙ → **Configuración rápida** → pegar el token → **Conectar Telegram**. Detecta tu chat solo y manda un mensaje de prueba.
+
+## Portero digital (timbre con QR / NFC)
+
+```mermaid
+flowchart LR
+  C["Celular del cliente<br/>(escanea QR / NFC)"] -- "timbre.html (GitHub Pages)" --> N["Relevo ntfy.sh<br/>(tema secreto)"]
+  N --> S["Servidor SVB<br/>en el local"]
+  S --> P["Panel: suena + cámara"]
+  S --> T["Telegram del dueño<br/>con botones"]
+  P & T -- respuesta --> N -- "«Ya voy»" --> C
+```
+
+1. **Activar la página pública (una vez):** GitHub → repositorio → **Settings → Pages** → Branch **main** / **(root)** → **Save**.
+2. Panel → ⚙ → **Portero QR / NFC** → **Imprimir cartel para la puerta**.
+3. (Opcional) Desde un Android con Chrome: **Grabar sticker NFC** (NTAG213/215).
+
+Funciona con los datos móviles del cliente, sin abrir puertos del router. El enlace lleva un código secreto; si alguien abusa, **Regenerar código** invalida los carteles viejos. Comandos de Telegram: `/foto` `/armar` `/desarmar` `/estado`.
 
 ## Actualizar
 
@@ -125,9 +143,9 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 ## Pruebas
 
 ```bash
-cd server && npm run setup && npm test     # 8 pruebas: Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
+cd server && npm run setup && npm test     # 9 pruebas: portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
-python3 tests/e2e.py                       # 74 pruebas de punta a punta con navegador real
+python3 tests/e2e.py                       # 82 pruebas de punta a punta con navegador real
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
 
@@ -144,6 +162,8 @@ server/                    Servidor puente (Node.js sin dependencias)
   lib/dahua.js             Digest auth, número de serie, URLs RTSP Dahua
   lib/discover.js          Búsqueda del grabador por número de serie
   lib/dahua-events.js      Eventos en vivo del grabador (movimiento, intrusión, sabotaje…)
+  lib/doorbell.js          Portero digital: relevo ntfy y respuestas
+timbre.html                Página pública del portero (celular del cliente)
   scripts/                 Descarga de go2rtc, búsqueda por consola
 firmware/esp32_cerradura/  Firmware de la cerradura
 desktop/                   App Windows (Electron) + instalador

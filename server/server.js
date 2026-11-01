@@ -22,6 +22,7 @@ const { rtspUrl, redact, DEFAULT_RTSP_TEMPLATE } = require('./lib/dahua');
 const { discover } = require('./lib/discover');
 const { DahuaEvents } = require('./lib/dahua-events');
 const { digestGet, parseKV } = require('./lib/dahua');
+const { NtfyListener, publish, REPLIES } = require('./lib/doorbell');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -32,7 +33,7 @@ const MIME = {
   '.ino': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
 };
 // Solo esto se publica por HTTP. Nunca .env, data/, server/.
-const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js']);
+const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/timbre.html']);
 const PUBLIC_DIRS = ['/assets/', '/firmware/'];
 // Endpoints de go2rtc permitidos a través del proxy (no exponer /api/config ni /api/streams: tienen contraseñas).
 const GO2RTC_ALLOWED = [/^\/video-stream\.js$/, /^\/video-rtc\.js$/, /^\/api\/ws$/, /^\/api\/frame\.jpeg$/, /^\/api\/stream\.(mp4|m3u8|mjpeg)$/, /^\/api\/hls\//];
@@ -173,6 +174,117 @@ function createApp(cfg, opts = {}) {
     })();
   }
 
+
+  // ───────────── Portero digital (QR / NFC desde el celular del cliente) ─────────────
+  let bell = null;
+  const rings = new Map(); // id -> {ts, name, msg, answered}
+  let lastRing = 0;
+  function doorbellUrl() {
+    const d = cfg.doorbell;
+    if (!d.topic) return null;
+    const u = new URL(d.page);
+    u.searchParams.set('t', d.topic);
+    u.searchParams.set('n', cfg.businessName);
+    if (d.ntfy !== 'https://ntfy.sh') u.searchParams.set('h', d.ntfy);
+    return u.toString();
+  }
+  function startDoorbell() {
+    if (bell) { bell.stop(); bell = null; }
+    const d = cfg.doorbell;
+    if (!d.enabled) return;
+    if (!d.topic) {
+      d.topic = 'rave-' + crypto.randomBytes(12).toString('hex');
+      try { writeEnv({ DOORBELL_TOPIC: d.topic }); } catch { /* sin permisos */ }
+    }
+    bell = new NtfyListener({ base: d.ntfy, topic: d.topic, log: (m) => log('[portero]', m) });
+    bell.on('connected', () => log('[portero] listo: escuchando timbres por QR/NFC'));
+    bell.on('ring', (r) => onRing({ ...r, source: 'qr' }));
+    bell.start();
+  }
+  async function onRing({ id, name, msg, source }) {
+    const now = Date.now();
+    if (now - lastRing < cfg.doorbell.cooldown * 1000) return { ok: false, reason: 'cooldown' };
+    lastRing = now;
+    id = id || crypto.randomBytes(6).toString('hex');
+    const ring = { id, ts: new Date().toISOString(), name, msg, source, answered: null };
+    rings.set(id, ring);
+    if (rings.size > 50) rings.delete(rings.keys().next().value);
+    addEvent({ type: 'DOORBELL_QR', message: `Timbre desde ${source === 'qr' ? 'el celular del cliente' : source}${name ? ': ' + name : ''}${msg ? ' — ' + msg : ''}` });
+    broadcast('ring', ring);
+    let photo = null;
+    try { photo = await snapshot(cfg.doorbell.camera, true); } catch { /* sin cámara */ }
+    const kb = { inline_keyboard: [[{ text: '🙂 Ya voy', callback_data: `r:${id}:voy` }, { text: '⏳ Un momento', callback_data: `r:${id}:momento` }], [{ text: '📦 Dejar en la puerta', callback_data: `r:${id}:deje` }, { text: '🚫 No atendemos', callback_data: `r:${id}:cerrado` }], [{ text: '🔓 Abrir puerta', callback_data: `r:${id}:pase` }]] };
+    await notify(`🔔 Tocan el timbre en ${cfg.businessName}${name ? `\n👤 ${name}` : ''}${msg ? `\n💬 ${msg}` : ''}\nRespondé con los botones:`, photo, kb);
+    return { ok: true, id };
+  }
+  async function replyRing(id, code, by) {
+    const ring = rings.get(id);
+    if (!ring) return { ok: false, error: 'Timbre vencido o inexistente' };
+    if (!REPLIES[code]) return { ok: false, error: 'Respuesta inválida' };
+    ring.answered = code;
+    let relay = null;
+    if (code === 'pase') relay = await triggerRelay();
+    if (ring.source === 'qr' && cfg.doorbell.topic) await publish(cfg.doorbell.ntfy, cfg.doorbell.topic + '-r', { type: 'reply', id, code, text: REPLIES[code] }).catch(() => {});
+    addEvent({ type: code === 'pase' ? 'DOOR_OPEN' : 'DOORBELL_REPLY', level: code === 'pase' ? 'HIGH' : 'INFO', message: `Respuesta al timbre (${by}): ${REPLIES[code]}` });
+    broadcast('ring-reply', { id, code, text: REPLIES[code], by });
+    return { ok: true, relay };
+  }
+
+  // ───────────── Telegram: botones y comandos del dueño ─────────────
+  let tgCtl = null; let tgOffset = 0; let tgRun = 0;
+  function startTelegramPoll() {
+    tgRun++; if (tgCtl) tgCtl.abort();
+    const run = tgRun;
+    if (!cfg.telegramPoll || !cfg.telegram.token || !cfg.telegram.chatId) return;
+    (async () => {
+      while (run === tgRun && !stopping) {
+        const t0 = Date.now();
+        try {
+          tgCtl = new AbortController();
+          const r = await fetch(`${cfg.telegram.api}/bot${cfg.telegram.token}/getUpdates?timeout=25&offset=${tgOffset}&allowed_updates=${encodeURIComponent('["callback_query","message"]')}`, { signal: tgCtl.signal });
+          const j = await r.json();
+          for (const u of j.result || []) {
+            if (typeof u.update_id === 'number') tgOffset = Math.max(tgOffset, u.update_id + 1);
+            await handleTelegram(u).catch((e) => log('[telegram]', e.message));
+          }
+        } catch (e) { if (e.name !== 'AbortError') await new Promise((res) => setTimeout(res, 3000)); }
+        if (Date.now() - t0 < 1000) await new Promise((res) => setTimeout(res, 1000));
+      }
+    })();
+  }
+  async function tg(method, body) {
+    return fetch(`${cfg.telegram.api}/bot${cfg.telegram.token}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+  }
+  async function handleTelegram(u) {
+    const owner = String(cfg.telegram.chatId);
+    if (u.callback_query) {
+      const q = u.callback_query;
+      const chat = String((q.message && q.message.chat && q.message.chat.id) || (q.from && q.from.id));
+      if (chat !== owner) return tg('answerCallbackQuery', { callback_query_id: q.id, text: 'No autorizado' });
+      const m = String(q.data || '').match(/^r:([\w-]+):(\w+)$/);
+      if (!m) return;
+      const r = await replyRing(m[1], m[2], 'Telegram');
+      await tg('answerCallbackQuery', { callback_query_id: q.id, text: r.ok ? (m[2] === 'pase' ? 'Puerta abierta' : 'Respuesta enviada al cliente') : r.error });
+      if (r.ok) await tg('sendMessage', { chat_id: owner, text: `✅ Respondiste: ${REPLIES[m[2]]}` });
+      return;
+    }
+    const msg = u.message;
+    if (!msg || String(msg.chat && msg.chat.id) !== owner || !msg.text) return;
+    const cmd = msg.text.trim().toLowerCase().split(/[\s@]/)[0];
+    if (cmd === '/foto' || cmd === 'foto') {
+      for (let ch = 1; ch <= cfg.cam.channels; ch++) {
+        try { await notify(`📷 ${cfg.cam.names[ch - 1] || 'Canal ' + ch}`, await snapshot(ch, true)); } catch { /* canal sin imagen */ }
+      }
+    } else if (cmd === '/armar' || cmd === '/desarmar') {
+      state.armed = cmd === '/armar'; saveState();
+      addEvent({ type: state.armed ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: `${state.armed ? 'Armado' : 'Desarmado'} desde Telegram` });
+      broadcast('arm', { armed: state.armed });
+      await notify(state.armed ? '🔒 Sistema ARMADO' : '🔓 Sistema desarmado');
+    } else if (cmd === '/estado' || cmd === '/start' || cmd === '/ayuda') {
+      await notify(`🛡 ${cfg.businessName}\nSistema: ${state.armed ? 'ARMADO' : 'desarmado'}\nGrabador: ${state.camHost ? 'conectado' : 'sin conexión'} · eventos ${state.dvrConnected ? 'activos' : 'inactivos'}\nPortero QR: ${bell && bell.connected ? 'activo' : 'inactivo'}\n\nComandos: /foto /armar /desarmar /estado`);
+    }
+  }
+
   function restartGo2rtc() {
     if (child) { child.removeAllListeners('exit'); child.kill(); child = null; }
     state.go2rtc.running = false;
@@ -250,7 +362,7 @@ function createApp(cfg, opts = {}) {
   }
 
   // ───────────── Telegram (alerta silenciosa al dueño) ─────────────
-  async function notify(text, photo) {
+  async function notify(text, photo, replyMarkup) {
     const t = cfg.telegram;
     if (!t.token || !t.chatId) return { sent: false, reason: 'Telegram no configurado' };
     try {
@@ -260,9 +372,10 @@ function createApp(cfg, opts = {}) {
         fd.append('chat_id', t.chatId);
         fd.append('caption', text.slice(0, 1000));
         fd.append('photo', new Blob([photo], { type: 'image/jpeg' }), 'evidencia.jpg');
+        if (replyMarkup) fd.append('reply_markup', JSON.stringify(replyMarkup));
         r = await fetch(`${t.api}/bot${t.token}/sendPhoto`, { method: 'POST', body: fd });
       } else {
-        r = await fetch(`${t.api}/bot${t.token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: t.chatId, text }) });
+        r = await fetch(`${t.api}/bot${t.token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: t.chatId, text, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }) });
       }
       return { sent: r.ok, status: r.status };
     } catch (e) {
@@ -364,6 +477,7 @@ function createApp(cfg, opts = {}) {
         armed: state.armed,
         dvrEvents: state.dvrConnected,
         ptz: true,
+        doorbell: !!(bell && bell.connected),
         cameras: {
           configured: !!state.camHost,
           host: state.camHost ? state.camHost.replace(/\.\d+$/, '.x') : null,
@@ -506,6 +620,34 @@ function createApp(cfg, opts = {}) {
       return send(res, 200, { found: !!state.discovery && state.discovery.devices.some((d) => d.match), discovery: state.discovery });
     }
 
+    // ── Portero digital ──
+    if (pathname === '/api/doorbell' && m === 'GET') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      return send(res, 200, { enabled: cfg.doorbell.enabled, connected: !!(bell && bell.connected), url: doorbellUrl(), page: cfg.doorbell.page, camera: cfg.doorbell.camera });
+    }
+    if (pathname === '/api/doorbell/regenerate' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      cfg.doorbell.topic = ''; startDoorbell();
+      addEvent({ type: 'DOORBELL_REGENERATED', level: 'HIGH', message: 'Código del portero regenerado: los QR/NFC viejos dejan de funcionar' });
+      return send(res, 200, { ok: true, url: doorbellUrl() });
+    }
+    if (pathname === '/api/doorbell/test' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      lastRing = 0;
+      return send(res, 200, await onRing({ name: 'Prueba', msg: 'Timbre de prueba desde administración', source: 'prueba' }));
+    }
+    if (pathname === '/api/doorbell/reply' && m === 'POST') {
+      const b = await readBody(req);
+      const code = String(b.code || '');
+      if (code === 'pase') {
+        const lock = lockStatus(ip);
+        if (lock) return send(res, 429, { ok: false, retryIn: lock });
+        const pin = String(b.pin || '');
+        if (!(pin && (safeEq(pin, cfg.doorPin) || safeEq(pin, cfg.adminPin)))) { registerFailure(ip); return send(res, 403, { ok: false, error: 'PIN incorrecto' }); }
+      }
+      return send(res, 200, await replyRing(String(b.id || ''), code, 'panel'));
+    }
+
     // ── Eventos en vivo para el panel (Server-Sent Events) ──
     if (pathname === '/api/live' && m === 'GET') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -624,6 +766,8 @@ function createApp(cfg, opts = {}) {
       if (ch.TELEGRAM_CHAT_ID) cfg.telegram.chatId = ch.TELEGRAM_CHAT_ID;
       if (ch.PANEL_USER) cfg.panelUser = ch.PANEL_USER;
       if (ch.PANEL_PASS) cfg.panelPass = ch.PANEL_PASS;
+      if (ch.TELEGRAM_BOT_TOKEN || ch.TELEGRAM_CHAT_ID) startTelegramPoll();
+      if (ch.BUSINESS_NAME) startDoorbell();
       let camChanged = false;
       if (ch.CAM_NAMES) cfg.cam.names = ch.CAM_NAMES.split(',').map((x) => x.trim()); // solo etiquetas: sin cortar el video
       if (ch.CAM_CHANNELS) { cfg.cam.channels = Math.max(1, Math.min(16, parseInt(ch.CAM_CHANNELS, 10) || 4)); camChanged = true; }
@@ -649,6 +793,8 @@ function createApp(cfg, opts = {}) {
         if (!chat) return send(res, 409, { error: 'Token correcto. Ahora abrí tu bot en Telegram, tocá INICIAR (o mandale "hola") y volvé a tocar Detectar.' });
         cfg.telegram.token = token; cfg.telegram.chatId = String(chat.id);
         writeEnv({ TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: String(chat.id) });
+        tgOffset = Math.max(tgOffset, ...(j.result || []).map((u) => (u.update_id || 0) + 1));
+        startTelegramPoll();
         const n = await notify(`✅ ${cfg.businessName}: alertas de seguridad conectadas. Vas a recibir aquí avisos de coacción, SOS, timbre y eventos de cámaras.`);
         addEvent({ type: 'TELEGRAM_LINKED', message: `Telegram vinculado (${chat.first_name || chat.title || 'chat'})` });
         return send(res, 200, { ok: true, name: chat.first_name || chat.title || '', sent: n.sent });
@@ -690,6 +836,8 @@ function createApp(cfg, opts = {}) {
     await resolveCameraHost().catch((e) => log('[cámaras]', e.message));
     startGo2rtc();
     startDvrEvents();
+    startDoorbell();
+    startTelegramPoll();
     await new Promise((r) => server.listen(cfg.port, cfg.host, r));
     log(`SVB Seguridad · ${cfg.businessName} → http://localhost:${server.address().port}`);
     return server;
@@ -698,6 +846,8 @@ function createApp(cfg, opts = {}) {
     stopping = true;
     if (child) child.kill();
     if (dvr) dvr.stop();
+    if (bell) bell.stop();
+    tgRun++; if (tgCtl) tgCtl.abort();
     sse.forEach((r) => r.end());
     await new Promise((r) => server.close(r));
   }

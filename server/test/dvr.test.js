@@ -75,7 +75,7 @@ test('Funciones DMSS: eventos push, armado, PTZ, equipo, reproducción, configur
   const envFile = path.join(dataDir, '.env');
   fs.writeFileSync(envFile, 'CAM_USER=admin\nCAM_PASS=clave\nDOOR_PIN=2580\n');
   const cfg = readConfig({ PORT: '0', HOST: '127.0.0.1', CAM_HOST: 'auto', CAM_SERIAL: SERIAL, CAM_PASS: PASS, CAM_SCAN: '127.0.0.1', CAM_HTTP_PORT: String(dvrPort), CAM_RTSP_PORT: '1',
-    GO2RTC_DISABLED: '1', DATA_DIR: dataDir, TELEGRAM_API: `http://127.0.0.1:${tgPort}`, DVR_ALERT_COOLDOWN: '0' });
+    GO2RTC_DISABLED: '1', DATA_DIR: dataDir, TELEGRAM_API: `http://127.0.0.1:${tgPort}`, DVR_ALERT_COOLDOWN: '0', DOORBELL: '0', TELEGRAM_POLL: '0' });
   const app = createApp(cfg, { log: () => {}, envFile });
   const port = (await app.start()).address().port;
   t.after(async () => { await app.stop(); dvr.close(); tg.close(); });

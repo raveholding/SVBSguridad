@@ -123,6 +123,13 @@ main.wide .side{display:none}
 .pbstage svb-stream video{width:100%;height:100%;object-fit:contain}
 .pbbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;justify-content:center;width:min(1100px,94vw)}
 .pbbar label{min-width:150px}
+.ringbox{width:min(760px,94vw);display:flex;flex-direction:column;gap:14px;align-items:center}
+.ringcam{position:relative;width:100%;aspect-ratio:16/9;background:#000;border:2px solid var(--white);border-radius:16px;overflow:hidden;animation:mflash 1.2s ease-in-out infinite}
+.ringcam svb-stream{position:absolute;inset:0;display:block}
+.ringcam svb-stream video,.ringcam img{width:100%;height:100%;object-fit:cover}
+.ringacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;width:100%}
+.ringacts .btn{min-height:64px;font-size:16px}
+.poster-prev{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 .setup h3{color:var(--white);font-weight:500;margin:26px 0 8px;font-size:16px}
 .setup ol{color:var(--silver);line-height:1.8;font-size:14px;padding-left:20px;user-select:text;-webkit-user-select:text}
 .warn{border:1px solid var(--silver);border-radius:12px;padding:12px 14px;color:var(--white);background:#111;margin-bottom:12px;font-size:14px}
@@ -161,6 +168,7 @@ main.wide .side{display:none}
 .flash .ring{width:160px;height:160px;border-radius:50%;border:2px solid var(--white);display:grid;place-items:center}
 .flash .ring svg{width:80px;height:80px;stroke-width:1.2}
 .modal{background:var(--p1);border:1px solid var(--b2);border-radius:18px;padding:18px;width:min(380px,92vw)}
+#pinOv{z-index:70}
 .toast{position:fixed;left:50%;top:86px;transform:translateX(-50%) translateY(-20px);opacity:0;transition:.25s;z-index:80;background:var(--white);color:#000;padding:12px 18px;border-radius:12px;font-weight:600;max-width:90vw;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -429,6 +437,35 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       <div id="suOut" class="small" style="margin-top:10px"></div>
     </section>
 
+    <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero QR / NFC">
+      <h2>Portero digital: timbre con el celular del cliente</h2>
+      <p class="lead">Pegá este QR (y un sticker NFC) en la puerta. El cliente lo escanea con su celular, toca el timbre, suena aquí y te llega la foto a Telegram con botones para responder.</p>
+      <div id="dbState" class="small muted"></div>
+      <div class="poster-prev" style="margin-top:12px">
+        <canvas id="dbQr" width="260" height="260" style="background:#fff;border-radius:10px"></canvas>
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
+          <button class="btn primary" id="dbPrint">Imprimir cartel para la puerta</button>
+          <button class="btn" id="dbNfc">Grabar sticker NFC</button>
+          <button class="btn" id="dbCopy">Copiar enlace</button>
+          <button class="btn" id="dbTest">Probar timbre</button>
+          <button class="btn ghost" id="dbRegen">Regenerar código (invalida QR viejos)</button>
+        </div>
+      </div>
+      <div id="dbUrl" class="small muted" style="margin-top:10px;word-break:break-all;user-select:text"></div>
+      <h3>Activación (una sola vez)</h3>
+      <ol>
+        <li>Entrá a <b>github.com/raveholding/SVBSguridad</b> → <b>Settings</b> → <b>Pages</b>.</li>
+        <li>En <b>Branch</b> elegí <b>main</b> y carpeta <b>/ (root)</b> → <b>Save</b>.</li>
+        <li>En 1–2 minutos la página del portero queda publicada. Probala escaneando el QR con tu celular <b>con los datos móviles</b> (sin WiFi).</li>
+      </ol>
+      <h3>Sticker NFC</h3>
+      <ol>
+        <li>Comprá stickers NFC <b>NTAG213 o NTAG215</b> (los venden en Mercado Libre).</li>
+        <li>Desde un celular Android con Chrome, abrí este panel, tocá <b>Grabar sticker NFC</b> y apoyá el sticker atrás del celular.</li>
+        <li>Pegalo en la puerta junto al QR: los clientes acercan el celular y se abre el timbre (Android y iPhone XS o más nuevo).</li>
+      </ol>
+    </section>
+
     <section class="pane" data-pane="marca" data-n="0" data-title="Marca y perfil">
       <h2>Marca y perfil de operación</h2>
       <p class="lead">Logo, nombre del negocio y nivel de seguridad.</p>
@@ -603,6 +640,23 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       </div>
       <p class="small muted" style="margin-top:16px">SVB Seguridad v1.0 · Sistema Vincular Business</p>
     </section>
+  </div>
+</div>
+
+<!-- Timbre del portero digital -->
+<div class="ov-full center" id="ringOv">
+  <div class="ringbox">
+    <div class="big-t" style="font-size:24px">🔔 TOCAN EL TIMBRE</div>
+    <div class="sub-t" id="ringWho"></div>
+    <div class="ringcam" id="ringCam"></div>
+    <div class="ringacts">
+      <button class="btn primary" data-reply="voy">Ya voy</button>
+      <button class="btn" data-reply="momento">Un momento</button>
+      <button class="btn" data-reply="deje">Dejar en la puerta</button>
+      <button class="btn" data-reply="cerrado">No atendemos</button>
+      <button class="btn" data-reply="pase"><svg class="i"><use href="#ic-lock"/></svg>Abrir puerta</button>
+      <button class="btn ghost" id="ringClose">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -1083,7 +1137,7 @@ function onDoorKey(k) {
   renderDots($('#pinDisplay'), pin.length, 'Ingrese PIN');
 }
 addEventListener('keydown', (e) => {
-  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show') || $('#pbOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
+  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show') || $('#pbOv').classList.contains('show') || $('#ringOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
   if (/^\d$/.test(e.key)) onDoorKey(e.key);
   else if (e.key === 'Enter') onDoorKey('OK');
   else if (e.key === 'Backspace' || e.key === 'Escape') onDoorKey('C');
@@ -1285,6 +1339,63 @@ setInterval(() => {
     logEvent('CAMERA_RECONNECT', 'WARN', `Reconectando ${el._name}`, { sync: false });
   });
 }, 4000);
+/* ═══════════════════════════ PORTERO DIGITAL (timbre por QR / NFC) ═══════════════════════════ */
+let curRing = null, ringTimer = null, ringChime = null;
+function showRing(r) {
+  curRing = r;
+  $('#ringWho').textContent = [r.name, r.msg].filter(Boolean).join(' · ') || (r.source === 'qr' ? 'Cliente en la puerta (desde su celular)' : 'Timbre');
+  const cam = $('#ringCam'); cam.innerHTML = '';
+  const ch = (net.status && net.status.cameras.configured && net.status.cameras.channels.find((c) => c.ch === (S.ringCam || 1))) || null;
+  if (ch && customElements.get('svb-stream')) cam.appendChild(streamEl(ch.hd, () => {}));
+  else { const d = frameFrom(doorVideo()); if (d) cam.innerHTML = `<img src="${d}" alt="">`; }
+  $('#ringOv').classList.add('show');
+  CHIMES[S.chime].play(); clearInterval(ringChime); let n = 0;
+  ringChime = setInterval(() => { if (++n > 3 || !curRing) return clearInterval(ringChime); CHIMES[S.chime].play(); }, 4000);
+  clearTimeout(ringTimer); ringTimer = setTimeout(hideRing, 90000);
+  speak('Tocan el timbre');
+  tick('DOORBELL_QR', $('#ringWho').textContent);
+}
+function hideRing() { curRing = null; clearInterval(ringChime); $('#ringOv').classList.remove('show'); $('#ringCam').innerHTML = ''; }
+async function replyRing(code) {
+  if (!curRing) return;
+  const body = { id: curRing.id, code };
+  if (code === 'pase') { const pin = await askPin('PIN para abrir'); if (!pin) return; body.pin = pin; }
+  const r = await api('/api/doorbell/reply', { method: 'POST', body }).catch((e) => ({ error: e.message }));
+  if (r.ok) { toast(code === 'pase' ? 'Puerta abierta' : 'Respuesta enviada al celular del cliente'); if (code === 'pase') Sfx.ok(); hideRing(); }
+  else { Sfx.err(); toast(r.error || 'No se pudo responder'); }
+}
+async function loadDoorbell() {
+  if (!net.online) { $('#dbState').innerHTML = '<div class="warn">Requiere el servidor SVB encendido.</div>'; return; }
+  const d = await api('/api/doorbell', { admin: true }).catch(() => null);
+  if (!d || !d.url) { $('#dbState').innerHTML = '<div class="warn">Portero desactivado (DOORBELL=0 en .env).</div>'; return; }
+  loadDoorbell.url = d.url;
+  $('#dbState').innerHTML = d.connected ? '<span class="ok-msg">✔ Portero activo: escuchando timbres.</span>' : '<div class="warn">El servidor todavía no se conectó al relevo de timbres (ntfy.sh). Revisá internet en la PC.</div>';
+  drawQr($('#dbQr'), d.url);
+  $('#dbUrl').textContent = d.url;
+}
+function printPoster() {
+  const url = loadDoorbell.url; if (!url) return;
+  const c = document.createElement('canvas'); c.width = 900; c.height = 900; drawQr(c, url);
+  const logo = new URL(S.logo || 'assets/rave-logo.jpg', location.href).href;
+  const w = window.open('', '_blank');
+  if (!w) return toast('Permití las ventanas emergentes para imprimir');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cartel timbre</title><style>
+    @page{size:A4;margin:14mm}body{margin:0;font-family:Segoe UI,Arial,sans-serif;text-align:center;color:#000}
+    .p{border:3px solid #000;border-radius:24px;padding:28px 24px;max-width:170mm;margin:0 auto}
+    img.l{max-width:90mm;max-height:42mm;background:#000;border-radius:10px;padding:6px}h1{font-size:34px;margin:18px 0 6px}
+    p{font-size:18px;margin:6px 0}img.q{width:120mm;height:120mm;image-rendering:pixelated;margin:14px 0}.s{font-size:13px;color:#444}
+  </style></head><body><div class="p"><img class="l" src="${logo}"><h1>🔔 TOCÁ EL TIMBRE</h1><p><b>Escaneá con la cámara de tu celular</b></p>
+  <img class="q" src="${c.toDataURL('image/png')}"><p>o <b>acercá tu celular</b> al sticker NFC</p><p class="s">${esc(S.biz)} · te respondemos en tu pantalla</p></div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+async function writeDoorbellNfc() {
+  if (!loadDoorbell.url) return;
+  if (!('NDEFReader' in window)) return toast('Grabar NFC: abrí este panel en Chrome de un celular Android');
+  try { toast('Apoyá el sticker NFC en la parte de atrás del celular…'); await new window.NDEFReader().write({ records: [{ recordType: 'url', data: loadDoorbell.url }] }); toast('Sticker NFC grabado ✔'); logEvent('NFC_DOORBELL', 'INFO', 'Sticker NFC del portero grabado', { sync: true }); }
+  catch (e) { toast('NFC: ' + e.message); }
+}
+
 /* ═══════════════════════════ MONITOR (estilo DMSS) ═══════════════════════════ */
 const MON = { split: [1, 4, 9, 16].includes(S.split) ? S.split : 4, page: 0, sel: null, prev: null, recs: new Map(), events: [], unseen: 0, armed: false, motionT: {} };
 function chanList() {
@@ -1494,6 +1605,8 @@ function connectLive() {
   liveES.addEventListener('hello', (e) => { const d = JSON.parse(e.data); MON.armed = d.armed; paintArm(); });
   liveES.addEventListener('arm', (e) => { MON.armed = JSON.parse(e.data).armed; paintArm(); });
   liveES.addEventListener('dvr', (e) => addDvrEvent(JSON.parse(e.data)));
+  liveES.addEventListener('ring', (e) => showRing(JSON.parse(e.data)));
+  liveES.addEventListener('ring-reply', (e) => { const d = JSON.parse(e.data); if (curRing && curRing.id === d.id) { hideRing(); toast(`Respondido (${d.by}): ${d.text}`); } });
   liveES.onerror = () => { if (liveES && liveES.readyState === 2) { liveES = null; setTimeout(connectLive, 5000); } };
   api('/api/dvr/events').then((l) => { if (Array.isArray(l)) l.slice().reverse().forEach((e) => addDvrEvent(e, false)); }).catch(() => {});
 }
@@ -1758,7 +1871,7 @@ async function onAdminKey(k) {
 function openAdmin() {
   $('#adminOv').classList.add('show');
   logEvent('ADMIN_OPEN', 'INFO', 'Ingreso a administración', { sync: true });
-  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions(); loadSetup(); loadDevice();
+  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions(); loadSetup(); loadDevice(); loadDoorbell();
   drawQr($('#linkQr'), base() || location.href);
   $('#linkTxt').textContent = (base() || location.href) + ' — escanear con el celular del dueño (misma red WiFi o Tailscale).';
 }
@@ -1942,6 +2055,13 @@ function wire() {
   $('#pinCancel').addEventListener('click', closePinOv);
   wireMonitor();
   $('#suSave').addEventListener('click', saveSetup);
+  $$('#ringOv [data-reply]').forEach((b) => b.addEventListener('click', () => replyRing(b.dataset.reply)));
+  $('#ringClose').addEventListener('click', hideRing);
+  $('#dbPrint').addEventListener('click', printPoster);
+  $('#dbNfc').addEventListener('click', writeDoorbellNfc);
+  $('#dbCopy').addEventListener('click', () => navigator.clipboard.writeText(loadDoorbell.url || '').then(() => toast('Enlace copiado')).catch(() => toast('No se pudo copiar')));
+  $('#dbTest').addEventListener('click', async () => { const r = await api('/api/doorbell/test', { method: 'POST', admin: true }).catch(() => ({})); toast(r.ok ? 'Timbre de prueba enviado' : 'No se pudo probar'); });
+  $('#dbRegen').addEventListener('click', async () => { const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); } });
   $('#suTgDetect').addEventListener('click', detectTelegram);
   $('#adminClose').addEventListener('click', closeAdmin);
   let lp; const brand = $('#brand');

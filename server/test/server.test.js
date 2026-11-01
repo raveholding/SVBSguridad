@@ -99,7 +99,7 @@ test('API: puerta, coacción, visitas, bloqueo, seguridad de archivos', async (t
   const cfg = readConfig({
     PORT: '0', HOST: '127.0.0.1', CAM_SERIAL: SERIAL, CAM_PASS: PASS, CAM_SCAN: '127.0.0.1', CAM_HTTP_PORT: String(dPort), CAM_RTSP_PORT: '1',
     ESP32_URL: `http://127.0.0.1:${espPort}`, ESP32_TOKEN: 'tok', TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '42', TELEGRAM_API: `http://127.0.0.1:${tgPort}`,
-    GO2RTC_DISABLED: '1', DATA_DIR: dataDir,
+    GO2RTC_DISABLED: '1', DATA_DIR: dataDir, DOORBELL: '0', TELEGRAM_POLL: '0',
   });
   const app = createApp(cfg, { log: () => {}, envFile: path.join(dataDir, '.env') });
   const srv = await app.start();
@@ -186,7 +186,7 @@ test('API: puerta, coacción, visitas, bloqueo, seguridad de archivos', async (t
 
 test('Basic auth del panel cuando PANEL_USER/PANEL_PASS están definidos', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'svb-'));
-  const app = createApp(readConfig({ PORT: '0', HOST: '127.0.0.1', PANEL_USER: 'rave', PANEL_PASS: 'secreto', GO2RTC_DISABLED: '1', DATA_DIR: dataDir }), { log: () => {} });
+  const app = createApp(readConfig({ PORT: '0', HOST: '127.0.0.1', PANEL_USER: 'rave', PANEL_PASS: 'secreto', GO2RTC_DISABLED: '1', DATA_DIR: dataDir, DOORBELL: '0' }), { log: () => {} });
   const port = (await app.start()).address().port;
   t.after(() => app.stop());
   assert.strictEqual((await req(port, 'GET', '/api/health')).status, 401);
@@ -208,7 +208,7 @@ test('Video: grabador RTSP falso → go2rtc → snapshot y WebSocket por el serv
   const apiPort = rtspPort + 2000;
   const app = createApp(readConfig({
     PORT: '0', HOST: '127.0.0.1', CAM_HOST: '127.0.0.1', CAM_PASS: 'x', CAM_CHANNELS: '2', CAM_RTSP_PORT: String(rtspPort),
-    CAM_RTSP_TEMPLATE: 'rtsp://{user}:{pass}@{host}:{port}/fake{channel}', CAM_PLAYBACK_TEMPLATE: 'rtsp://{host}:{port}/fake{channel}?s={start}', GO2RTC_BIN: GO2RTC, GO2RTC_API: `127.0.0.1:${apiPort}`, GO2RTC_WEBRTC_PORT: String(apiPort + 1), DATA_DIR: tmp,
+    CAM_RTSP_TEMPLATE: 'rtsp://{user}:{pass}@{host}:{port}/fake{channel}', CAM_PLAYBACK_TEMPLATE: 'rtsp://{host}:{port}/fake{channel}?s={start}', GO2RTC_BIN: GO2RTC, GO2RTC_API: `127.0.0.1:${apiPort}`, GO2RTC_WEBRTC_PORT: String(apiPort + 1), DATA_DIR: tmp, DOORBELL: '0',
   }), { log: () => {} });
   const port = (await app.start()).address().port;
   t.after(async () => { await app.stop(); fake.kill(); });

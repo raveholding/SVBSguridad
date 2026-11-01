@@ -98,6 +98,8 @@ def main():
             "-vf", f"drawtext=text='CANAL {c}':fontsize=48:fontcolor=white:x=20:y=20", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency",
             "-g", "15", "-pix_fmt", "yuv420p", "-f", "rtsp", "-rtsp_transport", "tcp", f"rtsp://127.0.0.1:{rtsp}/fake{c}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
     esp, tg, dvr = serve(Esp), serve(Tg), serve(Dvr)
+    ntfy_proc = subprocess.Popen(["node", os.path.join(ROOT, "server", "test", "fake-ntfy.js")], stdout=subprocess.PIPE, text=True)
+    ntfy_port = int(ntfy_proc.stdout.readline().strip())
     time.sleep(2)
     for c in range(1, 5):
         for _ in range(5):
@@ -109,8 +111,10 @@ def main():
                GO2RTC_WEBRTC_PORT=str(webrtc), DATA_DIR=tmp, ESP32_URL=f"http://127.0.0.1:{esp.server_port}", ESP32_TOKEN="tok",
                TELEGRAM_BOT_TOKEN="T", TELEGRAM_CHAT_ID="1", TELEGRAM_API=f"http://127.0.0.1:{tg.server_port}",
                CAM_HTTP_PORT=str(dvr.server_port), CAM_PLAYBACK_TEMPLATE="rtsp://{host}:{port}/fake{channel}?t={start}",
-               SVB_ENV_FILE=os.path.join(tmp, ".env"), DVR_ALERT_COOLDOWN="0")
+               SVB_ENV_FILE=os.path.join(tmp, ".env"), DVR_ALERT_COOLDOWN="0",
+               NTFY_URL=f"http://127.0.0.1:{ntfy_port}", DOORBELL_COOLDOWN="0")
     srv_log = open(os.path.join(tmp, "server.log"), "w")
+    procs.append(ntfy_proc)
     procs.append(subprocess.Popen(["node", os.path.join(ROOT, "server", "server.js")], env=env, stdout=srv_log, stderr=subprocess.STDOUT))
     url = f"http://127.0.0.1:{web}/"
     assert wait_http(url + "api/health"), "el servidor no arrancó"
@@ -316,7 +320,7 @@ def main():
             page.click("#adminKeys .key[data-k='OK']")
             page.wait_for_selector("#adminOv.show", timeout=5000)
             check("PIN 1234 abre el panel de ingeniería", True)
-            check("12 secciones de administración", page.locator("#adminNav .nb").count() == 12)
+            check("13 secciones de administración", page.locator("#adminNav .nb").count() == 13)
             page.click("[data-go='firmware']")
             check("Firmware ESP32 visible", "WebServer server(80)" in page.inner_text("#fwView"))
             page.click("[data-go='camaras']")
@@ -364,11 +368,60 @@ def main():
             page.click("[data-go='camaras']")
             page.wait_for_function("document.querySelector('#devInfo').textContent.includes('XVR1A04')", timeout=6000)
             check("Info del grabador (modelo/firmware)", True)
+
+            # Portero QR / NFC
+            page.click("[data-go='portero']")
+            page.wait_for_function("document.querySelector('#dbUrl').textContent.includes('timbre.html?t=rave-')", timeout=8000)
+            check("Portero activo y con enlace secreto", "activo" in page.inner_text("#dbState"))
+            db_url = page.inner_text("#dbUrl")
+            page.locator("#dbQr").screenshot(path=os.path.join(SHOTS, "qr-portero.png"))
+            with page.expect_popup() as pop:
+                page.click("#dbPrint")
+            poster = pop.value; poster.wait_for_load_state()
+            check("Cartel imprimible para la puerta", "TOCÁ EL TIMBRE" in poster.content())
+            poster.screenshot(path=os.path.join(SHOTS, "06-cartel-portero.png")); poster.close()
+            page.screenshot(path=os.path.join(SHOTS, "04c-portero-admin.png"))
             page.click("#adminClose")
             page.click(".tab[data-view='door']")
             type_pin("4455")
             page.wait_for_selector("#flashOv.show", timeout=5000)
             check("PIN nuevo funciona al instante", page.inner_text("#flashTitle") == "ACCESO CONCEDIDO")
+            page.wait_for_timeout(2400)
+
+            print("[8b] Portero: el cliente toca el timbre desde SU celular")
+            from urllib.parse import urlparse, parse_qs
+            topic = parse_qs(urlparse(db_url).query)["t"][0]
+            cel = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+            cp = cel.new_page(); cp.on("pageerror", lambda e: errors.append("timbre: " + str(e)))
+            cp.goto(f"{url}timbre.html?t={topic}&n=Almac%C3%A9n%20Rave&h=http://127.0.0.1:{ntfy_port}")
+            check("Página del portero muestra el negocio", cp.inner_text("#biz") == "Almacén Rave")
+            cp.click(".chip[data-m='Delivery / pedido']"); cp.fill("#name", "Juan")
+            n_tg = len(calls["tg"])
+            cp.click("#bell")
+            cp.wait_for_function("document.querySelector('#status b').textContent.includes('enviado')", timeout=8000)
+            page.wait_for_selector("#ringOv.show", timeout=8000)
+            check("El panel suena y muestra quién toca", "Juan" in page.inner_text("#ringWho") and "Delivery" in page.inner_text("#ringWho"))
+            time.sleep(1.5)
+            check("Aviso a Telegram con botones de respuesta", any("Tocan el timbre" in body and "callback_data" in body for _, body in calls["tg"][n_tg:]))
+            cp.screenshot(path=os.path.join(SHOTS, "07-timbre-celular-esperando.png"))
+            page.screenshot(path=os.path.join(SHOTS, "08-panel-timbre.png"))
+            page.click("#ringOv [data-reply='voy']")
+            cp.wait_for_function("document.querySelector('#status').classList.contains('reply')", timeout=8000)
+            check("El cliente ve la respuesta en su celular", "Ya voy" in cp.inner_text("#status"))
+            check("Se cierra el aviso en el panel", not page.is_visible("#ringOv"))
+            cp.screenshot(path=os.path.join(SHOTS, "07b-timbre-celular-respuesta.png"))
+            # segundo timbre → abrir la puerta con PIN
+            cp.evaluate("document.querySelector('#bell').disabled = false")
+            n_esp = len(calls["esp"])
+            cp.click("#bell")
+            page.wait_for_selector("#ringOv.show", timeout=8000)
+            page.click("#ringOv [data-reply='pase']")
+            for d in "4455":
+                page.click(f"#adminKeys .key[data-k='{d}']")
+            page.click("#adminKeys .key[data-k='OK']")
+            cp.wait_for_function("document.querySelector('#status').textContent.includes('Puerta abierta')", timeout=8000)
+            check("Abrir puerta desde el timbre (con PIN)", len(calls["esp"]) > n_esp)
+            cel.close()
             page.wait_for_timeout(2400)
 
             print("[9] Pase de visita en la puerta")

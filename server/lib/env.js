@@ -56,6 +56,15 @@ function readConfig(env = process.env) {
     },
     dataDir: env.DATA_DIR || '',
     dvrCooldown: int('DVR_ALERT_COOLDOWN', 60),
+    doorbell: {
+      enabled: env.DOORBELL !== '0',
+      topic: env.DOORBELL_TOPIC || '',
+      ntfy: (env.NTFY_URL || 'https://ntfy.sh').replace(/\/$/, ''),
+      page: env.DOORBELL_PAGE || 'https://raveholding.github.io/SVBSguridad/timbre.html',
+      camera: int('DOORBELL_CAMERA', 1),
+      cooldown: int('DOORBELL_COOLDOWN', 15),
+    },
+    telegramPoll: env.TELEGRAM_POLL !== '0',
   };
 }
 

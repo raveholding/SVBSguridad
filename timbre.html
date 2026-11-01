@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<title>Portero digital</title>
+<style>
+:root{--bg:#000;--p1:#0A0A0A;--p2:#121212;--b1:#222;--b2:#333;--silver:#E0E0E0;--white:#fff;--muted:#8a8a8a;--font:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--silver);font-family:var(--font)}
+.wrap{max-width:460px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 20px calc(24px + env(safe-area-inset-bottom));gap:18px;text-align:center}
+.logo{max-width:220px;width:60%;border-radius:10px}
+h1{margin:0;font-size:22px;font-weight:500;color:var(--white);letter-spacing:.5px}
+.sub{color:var(--muted);font-size:14px;margin:0}
+.bell{width:min(64vw,240px);aspect-ratio:1;border-radius:50%;border:2px solid var(--white);background:radial-gradient(circle at 50% 40%,#1a1a1a,#000);color:var(--white);display:grid;place-items:center;cursor:pointer;margin:10px 0;transition:transform .1s;position:relative}
+.bell:active{transform:scale(.96)}
+.bell svg{width:42%;height:42%;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.bell span{position:absolute;bottom:18%;font-size:13px;letter-spacing:3px;font-weight:700}
+.bell.ringing{animation:ring 1.2s ease-in-out infinite}
+.bell[disabled]{opacity:.45;pointer-events:none}
+@keyframes ring{0%,100%{box-shadow:0 0 0 0 #ffffff55}50%{box-shadow:0 0 0 22px #ffffff00}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--b2);background:var(--p1);color:var(--silver);font-size:14px;cursor:pointer}
+.chip.on{background:var(--silver);color:#000;border-color:var(--silver)}
+input{width:100%;min-height:52px;border-radius:14px;border:1px solid var(--b2);background:var(--p1);color:var(--white);padding:0 16px;font-size:16px;font-family:inherit}
+input:focus{outline:none;border-color:var(--silver)}
+.status{min-height:84px;width:100%;border:1px solid var(--b1);border-radius:16px;background:var(--p1);padding:16px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.status b{color:var(--white);font-size:18px;font-weight:600}
+.status small{color:var(--muted)}
+.status.reply{border-color:var(--white);background:#111}
+.foot{margin-top:auto;color:#555;font-size:11px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img class="logo" src="assets/rave-logo.jpg" alt="" onerror="this.remove()">
+  <h1 id="biz">Portero digital</h1>
+  <p class="sub">Tocá el botón y te atendemos enseguida.</p>
+
+  <button class="bell" id="bell" aria-label="Tocar timbre">
+    <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+    <span>TOCAR</span>
+  </button>
+
+  <div class="chips" id="chips">
+    <button class="chip" data-m="Cliente">Soy cliente</button>
+    <button class="chip" data-m="Delivery / pedido">Delivery</button>
+    <button class="chip" data-m="Proveedor">Proveedor</button>
+    <button class="chip" data-m="Consulta">Consulta</button>
+  </div>
+  <input id="name" maxlength="40" placeholder="Tu nombre (opcional)" autocomplete="given-name">
+
+  <div class="status" id="status"><b>Listo para tocar</b><small>El encargado recibe el aviso con la imagen de la cámara de la puerta.</small></div>
+  <div class="foot">SVB Seguridad · Sistema Vincular Business</div>
+</div>
+<script>
+'use strict';
+const q = new URLSearchParams(location.search);
+const topic = q.get('t') || '';
+const host = (q.get('h') || 'https://ntfy.sh').replace(/\/$/, '');
+const $ = (s) => document.querySelector(s);
+if (q.get('n')) { $('#biz').textContent = q.get('n'); document.title = 'Timbre · ' + q.get('n'); }
+let reason = '';
+let es = null, waitT = null;
+
+function status(title, sub, reply) {
+  const st = $('#status');
+  st.className = 'status' + (reply ? ' reply' : '');
+  st.innerHTML = `<b></b><small></small>`;
+  st.querySelector('b').textContent = title; st.querySelector('small').textContent = sub || '';
+}
+function beep() {
+  try {
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320].forEach((f, i) => { const o = c.createOscillator(); const g = c.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.2, c.currentTime + i * 0.15); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + i * 0.15 + 0.3); o.connect(g).connect(c.destination); o.start(c.currentTime + i * 0.15); o.stop(c.currentTime + i * 0.15 + 0.35); });
+  } catch (e) { /* sin audio */ }
+}
+if (!/^[\w-]{10,64}$/.test(topic)) {
+  $('#bell').disabled = true;
+  status('Código no válido', 'Volvé a escanear el código QR de la puerta.');
+}
+$('#chips').addEventListener('click', (e) => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  const on = !c.classList.contains('on');
+  document.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+  if (on) c.classList.add('on');
+  reason = on ? c.dataset.m : '';
+});
+function listen(id, since) {
+  if (es) es.close();
+  es = new EventSource(`${host}/${encodeURIComponent(topic)}-r/sse?since=${since}`);
+  es.onmessage = (ev) => {
+    try {
+      const m = JSON.parse(ev.data); const p = JSON.parse(m.message);
+      if (p.type !== 'reply' || p.id !== id) return;
+      clearTimeout(waitT); es.close(); es = null;
+      $('#bell').classList.remove('ringing');
+      status(p.text, new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), true);
+      if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+      beep();
+    } catch (e) { /* mensaje ajeno */ }
+  };
+}
+$('#bell').addEventListener('click', async () => {
+  const bell = $('#bell');
+  bell.disabled = true; bell.classList.add('ringing');
+  const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  const since = Math.floor(Date.now() / 1000) - 2;
+  listen(id, since);
+  status('Llamando…', 'Avisando al local');
+  try {
+    const r = await fetch(`${host}/${encodeURIComponent(topic)}`, { method: 'POST', body: JSON.stringify({ type: 'ring', id, name: $('#name').value.trim(), msg: reason }) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    status('Timbre enviado ✓', 'Esperá la respuesta en esta pantalla…');
+  } catch (e) {
+    bell.classList.remove('ringing'); bell.disabled = false;
+    status('No se pudo enviar', 'Revisá tu conexión a internet y volvé a tocar.');
+    return;
+  }
+  waitT = setTimeout(() => { bell.classList.remove('ringing'); status('Sin respuesta todavía', 'Podés volver a tocar el timbre.'); }, 120000);
+  setTimeout(() => { bell.disabled = false; }, 20000);
+});
+</script>
+</body>
+</html>
