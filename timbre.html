@@ -30,6 +30,9 @@ input:focus{outline:none;border-color:var(--silver)}
 .status b{color:var(--white);font-size:18px;font-weight:600}
 .status small{color:var(--muted)}
 .status.reply{border-color:var(--white);background:#111}
+.wa{display:none;width:100%;min-height:54px;border-radius:14px;border:1px solid var(--b2);background:var(--p1);color:var(--white);font-size:16px;font-weight:600;align-items:center;justify-content:center;gap:10px;text-decoration:none}
+.wa.show{display:flex}
+.wa svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
 .foot{margin-top:auto;color:#555;font-size:11px;font-family:var(--mono)}
 </style>
 </head>
@@ -53,6 +56,7 @@ input:focus{outline:none;border-color:var(--silver)}
   <input id="name" maxlength="40" placeholder="Tu nombre (opcional)" autocomplete="given-name">
 
   <div class="status" id="status"><b>Listo para tocar</b><small>El encargado recibe el aviso con la imagen de la cámara de la puerta.</small></div>
+  <a class="wa" id="wa" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A9 9 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/></svg>Escribir por WhatsApp</a>
   <div class="foot">SVB Seguridad · Sistema Vincular Business</div>
 </div>
 <script>
@@ -63,6 +67,13 @@ const host = (q.get('h') || 'https://ntfy.sh').replace(/\/$/, '');
 const $ = (s) => document.querySelector(s);
 if (q.get('n')) { $('#biz').textContent = q.get('n'); document.title = 'Timbre · ' + q.get('n'); }
 let reason = '';
+const wa = (q.get('w') || '').replace(/\D/g, '');
+function waLink() {
+  const who = $('#name') ? $('#name').value.trim() : '';
+  const txt = `Hola, estoy en la puerta de ${q.get('n') || 'su local'}${who ? '. Soy ' + who : ''}${reason ? ' (' + reason + ')' : ''}.`;
+  return `https://wa.me/${wa}?text=${encodeURIComponent(txt)}`;
+}
+if (/^\d{8,15}$/.test(wa)) { const a = document.querySelector('#wa'); a.classList.add('show'); a.href = waLink(); ['input', 'click'].forEach((ev) => document.addEventListener(ev, () => { a.href = waLink(); })); }
 let es = null, waitT = null;
 
 function status(title, sub, reply) {

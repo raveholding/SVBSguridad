@@ -65,6 +65,14 @@ class Dvr(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
 
+class Cmb(BaseHTTPRequestHandler):
+    """CallMeBot (WhatsApp) simulado."""
+    def do_GET(self):
+        calls.setdefault("wa", []).append(self.path)
+        self.send_response(200); self.send_header("Content-Type", "text/plain"); self.end_headers(); self.wfile.write(b"Message queued.")
+    def log_message(self, *a): pass
+
+
 def serve(handler):
     s = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=s.serve_forever, daemon=True).start()
@@ -97,7 +105,7 @@ def main():
         procs.append(subprocess.Popen(["ffmpeg", "-loglevel", "error", "-re", "-f", "lavfi", "-i", f"testsrc2=size=640x360:rate=15",
             "-vf", f"drawtext=text='CANAL {c}':fontsize=48:fontcolor=white:x=20:y=20", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency",
             "-g", "15", "-pix_fmt", "yuv420p", "-f", "rtsp", "-rtsp_transport", "tcp", f"rtsp://127.0.0.1:{rtsp}/fake{c}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
-    esp, tg, dvr = serve(Esp), serve(Tg), serve(Dvr)
+    esp, tg, dvr, cmb = serve(Esp), serve(Tg), serve(Dvr), serve(Cmb)
     ntfy_proc = subprocess.Popen(["node", os.path.join(ROOT, "server", "test", "fake-ntfy.js")], stdout=subprocess.PIPE, text=True)
     ntfy_port = int(ntfy_proc.stdout.readline().strip())
     time.sleep(2)
@@ -112,7 +120,7 @@ def main():
                TELEGRAM_BOT_TOKEN="T", TELEGRAM_CHAT_ID="1", TELEGRAM_API=f"http://127.0.0.1:{tg.server_port}",
                CAM_HTTP_PORT=str(dvr.server_port), CAM_PLAYBACK_TEMPLATE="rtsp://{host}:{port}/fake{channel}?t={start}",
                SVB_ENV_FILE=os.path.join(tmp, ".env"), DVR_ALERT_COOLDOWN="0",
-               NTFY_URL=f"http://127.0.0.1:{ntfy_port}", DOORBELL_COOLDOWN="0")
+               NTFY_URL=f"http://127.0.0.1:{ntfy_port}", DOORBELL_COOLDOWN="0", CALLMEBOT_API=f"http://127.0.0.1:{cmb.server_port}")
     srv_log = open(os.path.join(tmp, "server.log"), "w")
     procs.append(ntfy_proc)
     procs.append(subprocess.Popen(["node", os.path.join(ROOT, "server", "server.js")], env=env, stdout=srv_log, stderr=subprocess.STDOUT))
@@ -347,24 +355,55 @@ def main():
             page.wait_for_timeout(800)
             check("Prueba de relé desde admin", len(calls["esp"]) >= 4)
             page.screenshot(path=os.path.join(SHOTS, "04-admin-auditoria.png"))
-            # Configuración rápida: Telegram con token + PINs nuevos (escribe .env)
+            # Centro de configuración: todo desde el panel (escribe .env en el servidor)
             page.click("[data-go='setup']")
+            page.wait_for_selector("#cfgForm .cfgcard", timeout=8000)
+            check("Centro de configuración con 6 grupos", page.locator("#cfgForm .cfgcard").count() == 6)
             check("Aviso de PINs de fábrica", "PINs de fábrica" in page.inner_text("#setupWarn"))
             page.fill("#suTgToken", "123456:ABCdefGHIjklMNOpqrSTUvwxYZ12345")
             page.click("#suTgDetect")
-            page.wait_for_function("document.querySelector('#suTgOut').textContent.includes('Conectado')", timeout=10000)
-            check("Telegram se conecta solo con el token", "Nico" in page.inner_text("#suTgOut"))
-            page.fill("#suDoor", "4455"); page.fill("#suDuress", "4455")
-            page.click("#suSave")
-            page.wait_for_function("document.querySelector('#suOut').textContent.length > 3", timeout=5000)
-            check("Valida PIN de puerta ≠ coacción", "distintos" in page.inner_text("#suOut"))
-            page.fill("#suDuress", "7788")
-            page.fill("#suNames input[data-ch='1'] >> nth=0", "Entrada")
-            page.click("#suSave")
-            page.wait_for_function("document.querySelector('#suOut').textContent.includes('Guardado')", timeout=5000)
+            try:
+                page.wait_for_function("document.querySelector('#suTgOut') && document.querySelector('#suTgOut').textContent.includes('Conectado')", timeout=10000)
+            except Exception:
+                print("DEBUG suTgOut:", page.evaluate("document.querySelector('#suTgOut') && document.querySelector('#suTgOut').textContent"))
+            check("Telegram se conecta solo con el token", "Nico" in page.inner_text("#suTgOut") and "TELEGRAM_CHAT_ID=4242" in open(env["SVB_ENV_FILE"]).read())
+            page.fill("[data-key='DOOR_PIN']", "4455"); page.fill("[data-key='DURESS_PIN']", "4455")
+            page.click("[data-save='seguridad']")
+            page.wait_for_function("document.querySelector('[data-out=seguridad]').textContent.length > 3", timeout=5000)
+            check("Valida PIN de puerta ≠ coacción", "distintos" in page.inner_text("[data-out='seguridad']"))
+            page.fill("[data-key='DURESS_PIN']", "7788")
+            page.click("[data-save='seguridad']")
+            page.wait_for_function("document.querySelector('[data-out=seguridad]').textContent.includes('Guardado')", timeout=5000)
+            page.fill("[data-key='CAM_NAMES'] input[data-i='0']", "Entrada")
+            page.click("[data-save='grabador']")
+            page.wait_for_function("document.querySelector('[data-out=grabador]').textContent.includes('Guardado')", timeout=8000)
+            # WhatsApp de los dueños
+            page.click("[data-wa-add]")
+            page.fill(".waRow [data-wa-phone]", "+54 9 387 123-4567"); page.fill(".waRow [data-wa-key]", "123456")
+            page.click("[data-save='alertas']")
+            page.wait_for_function("document.querySelector('[data-out=alertas]').textContent.includes('Guardado')", timeout=8000)
+            check("WhatsApp de dueño guardado", "WHATSAPP_TO=+5493871234567:123456" in open(env["SVB_ENV_FILE"]).read())
+            check("QR para suscribir la notificación push", page.is_visible("#pushQr") and "rave-own-" in page.inner_text("[data-group='alertas']"))
+            page.click("[data-act-cfg='testNotify']")
+            page.wait_for_function("document.querySelector('#cfgNotifyOut').textContent.includes('push')", timeout=15000)
+            out = page.inner_text("#cfgNotifyOut")
+            check("Aviso de prueba por WhatsApp, push y Telegram", "WhatsApp" in out and out.count("✔") >= 3 and any("phone=%2B5493871234567" in u and "apikey=123456" in u for u in calls.get("wa", [])), out)
             envtxt = open(env["SVB_ENV_FILE"]).read()
             check("PINs, nombres y Telegram guardados en .env", "DOOR_PIN=4455" in envtxt and "DURESS_PIN=7788" in envtxt and "TELEGRAM_CHAT_ID=4242" in envtxt and "CAM_NAMES=Entrada," in envtxt)
-            page.screenshot(path=os.path.join(SHOTS, "04b-config-rapida.png"))
+            page.locator("[data-group='alertas']").screenshot(path=os.path.join(SHOTS, "04d-avisos-whatsapp-push.png"))
+            # Ajustes compartidos: cambiar un contacto aquí → aparece en otro equipo
+            page.click("[data-go='contactos']")
+            page.fill("#sFamilyPhone", "+5493879999999")
+            page.wait_for_timeout(1800)
+            otro = b.new_context(viewport={"width": 1280, "height": 760}); op2 = otro.new_page()
+            op2.goto(url); op2.wait_for_function("window.SVB && SVB.net.online", timeout=10000)
+            op2.wait_for_function("SVB.S.familyPhone === '+5493879999999'", timeout=8000)
+            check("Ajustes compartidos llegan a otro equipo", True)
+            check("Los PINs de respaldo NO se comparten", op2.evaluate("SVB.S.doorPin") == "2580")
+            otro.close()
+            page.click("[data-go='setup']")
+            page.wait_for_selector("#cfgForm .cfgcard", timeout=8000)
+            page.screenshot(path=os.path.join(SHOTS, "04b-config.png"), full_page=True)
             page.click("[data-go='camaras']")
             page.wait_for_function("document.querySelector('#devInfo').textContent.includes('XVR1A04')", timeout=6000)
             check("Info del grabador (modelo/firmware)", True)

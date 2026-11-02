@@ -11,12 +11,20 @@ function createNtfy() {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
     const parts = u.pathname.split('/').filter(Boolean);
     const topic = decodeURIComponent(parts[0] || '');
-    if (req.method === 'POST' && parts.length === 1) {
-      let body = ''; req.on('data', (c) => { body += c; });
+    if ((req.method === 'POST' || req.method === 'PUT') && parts.length <= 1) {
+      const chunks = []; req.on('data', (c) => chunks.push(c));
       req.on('end', () => {
-        const m = { id: crypto.randomBytes(6).toString('hex'), time: Math.floor(Date.now() / 1000), event: 'message', topic, message: body };
+        const raw = Buffer.concat(chunks);
+        const base = { id: crypto.randomBytes(6).toString('hex'), time: Math.floor(Date.now() / 1000), event: 'message' };
+        let m;
+        if (parts.length === 0) { // publicación JSON en la raíz (como ntfy.sh)
+          const j = JSON.parse(raw.toString());
+          m = { ...base, topic: j.topic, message: j.message || '', title: j.title, priority: j.priority, tags: j.tags, actions: j.actions };
+        } else if (req.method === 'PUT') { // adjunto
+          m = { ...base, topic, message: 'archivo', title: req.headers.title, attachment: { name: req.headers.filename, size: raw.length } };
+        } else m = { ...base, topic, message: raw.toString() };
         msgs.push(m);
-        subs.forEach((s) => s.topic === topic && s.send(m));
+        subs.forEach((x) => x.topic === m.topic && x.send(m));
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json' }); res.end(JSON.stringify(m));
       });
       return;

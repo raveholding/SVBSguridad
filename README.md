@@ -2,7 +2,7 @@
 
 **Sistema Vincular Business — Soluciones de Seguridad.** Panel de seguridad táctil (web, celular y Windows) con cámaras Dahua en vivo, control de cerradura, PIN de coacción, botón SOS 911, asistente de voz, pases QR/NFC para proveedores, detección de merodeo y sabotaje con IA en el borde, y alertas con foto al celular del dueño.
 
-![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-91%20OK-000?style=flat-square)
+![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-100%20OK-000?style=flat-square)
 
 ---
 
@@ -62,16 +62,23 @@ flowchart LR
 | **Armar / Desarmar** | Con el sistema **armado** (local cerrado), cada movimiento manda **foto a Telegram**. Desarmado: solo sabotaje, pérdida de video, alarmas y disco. |
 | **Grabaciones** | Reproducción del disco del grabador por cámara, fecha y hora. |
 | **Portero digital QR / NFC** | Cartel con QR (y sticker NFC) en la puerta: el cliente lo escanea con **su celular**, elige motivo (cliente, delivery, proveedor), toca el timbre y **ve tu respuesta en su pantalla**. Suena en el panel con la cámara de la puerta y te llega a Telegram con botones: *Ya voy · Un momento · Dejar en la puerta · No atendemos · Abrir puerta*. |
-| **Configuración rápida** | PINs, contraseña del grabador, Telegram (solo pegando el token) y nombres de cámaras desde el panel, sin tocar archivos. |
+| **Centro de configuración** | **Todo** se configura desde el panel, sin tocar archivos: negocio, PINs, usuario/contraseña del panel, grabador (IP auto, serie, usuario, clave, cámaras, nombres, eventos), cerradura (buscar y **vincular sola**), avisos (WhatsApp, push, Telegram) y portero. Se aplica al instante. Los ajustes del panel (contactos, voz, timbres, logo, orden de cámaras) se **comparten entre todos los equipos**. |
+| **Avisos a los dueños** | **WhatsApp** a los números que elijan (CallMeBot, gratis), **notificación push** al celular con foto y botones (app ntfy, gratis) y **Telegram**. Se elige qué avisos van por cada canal (todo / importantes / solo timbre). Botón *Enviar aviso de prueba a todos*. |
 | **Edge AI** | Movimiento, **merodeo** (presencia > 10 s sin interactuar), **sabotaje** (lente tapado/cegado), detección de rostro (nativa si el navegador la tiene, simulada si no). Cualquier cámara Dahua puede ser la "cámara de puerta". |
 | **Voz** | «abrir puerta 2 5 8 0», «emergencia», «llamar a 911», «ver cámaras», «tocar timbre», «cancelar». Sin servicios pagos. |
 | **Pases QR / NFC** | Códigos de 6 dígitos con vencimiento para proveedores; QR para escanear, tag NFC (Android) o tipeados. Envío por WhatsApp. |
 | **Auditoría** | Log en el servidor (`data/events.jsonl`) + en el panel; exportación JSON; bóveda de fotos de evidencia. |
 | **Admin** (PIN `1234`) | Configuración rápida, info del grabador (modelo, firmware, disco), marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
 
-## Cerradura (ESP32)
+## Cerradura (ESP32) — sin editar código
 
-Firmware: [`firmware/esp32_cerradura/esp32_cerradura.ino`](firmware/esp32_cerradura/esp32_cerradura.ino) (también visible en Admin → Firmware).
+Firmware: [`firmware/esp32_cerradura/esp32_cerradura.ino`](firmware/esp32_cerradura/esp32_cerradura.ino) (también en Admin → Firmware).
+
+1. Grabarlo tal cual (Arduino IDE 2 + *esp32 by Espressif*, placa *ESP32 Dev Module*).
+2. Al encenderlo crea la red WiFi **SVB-Puerta-XXXX** (clave `svbpuerta`). Conectarse con el celular, elegir el WiFi del local y su clave → **Guardar**.
+3. Panel → ⚙ → **Configuración → Cerradura → Buscar y vincular cerradura**: la encuentra y la vincula con una clave segura.
+
+Para reconfigurar: mantener el botón **BOOT** 5 segundos.
 
 | ESP32 | Conexión |
 |---|---|
@@ -80,13 +87,16 @@ Firmware: [`firmware/esp32_cerradura/esp32_cerradura.ino`](firmware/esp32_cerrad
 | GPIO 25 | Pulsador de salida interior → GND (opcional) |
 | Relé NA/COM | Cerradura eléctrica 12 V (fuente propia; diodo 1N4007 en paralelo) |
 
-Completar `WIFI_SSID`, `WIFI_PASS` y `TOKEN` en el sketch, grabar con Arduino IDE (placa *ESP32 Dev Module*), y en `.env`: `ESP32_URL=http://IP-DEL-ESP32` y `ESP32_TOKEN=<mismo TOKEN>`. Sin ESP32, la apertura queda **simulada** (se registra pero no acciona nada).
+Sin ESP32, la apertura queda **simulada** (se registra pero no acciona nada).
 
-## Alertas al celular (Telegram, gratis)
+## Avisos al celular de los dueños
 
-1. En Telegram, abrir **@BotFather** → `/newbot` → nombre y usuario terminado en `bot` → copiar el **token**.
-2. Abrir el bot nuevo y tocar **INICIAR**.
-3. Panel → ⚙ → **Configuración rápida** → pegar el token → **Conectar Telegram**. Detecta tu chat solo y manda un mensaje de prueba.
+Panel → ⚙ → **Configuración → Avisos a los dueños**:
+
+- **WhatsApp (CallMeBot, gratis, uso personal):** cada dueño agenda el número de CallMeBot que figura en callmebot.com, le escribe `I allow callmebot to send me messages` y recibe su clave. Se cargan número + clave (varios dueños). Sin foto.
+- **Notificación push (app ntfy, gratis):** instalar *ntfy* y suscribirse al tema que muestra el panel (o escanear el QR en Android). Llega con foto y, en el timbre, botones *Ya voy · Un momento · Dejar en puerta*.
+- **Telegram:** @BotFather → `/newbot` → pegar el token → **Conectar Telegram**.
+- **Enviar aviso de prueba a todos** muestra el resultado por canal y por número.
 
 ## Portero digital (timbre con QR / NFC)
 
@@ -143,9 +153,9 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 ## Pruebas
 
 ```bash
-cd server && npm run setup && npm test     # 9 pruebas: portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
+cd server && npm run setup && npm test     # 12 pruebas: configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
-python3 tests/e2e.py                       # 82 pruebas de punta a punta con navegador real
+python3 tests/e2e.py                       # 88 pruebas de punta a punta con navegador real
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
 
@@ -163,6 +173,8 @@ server/                    Servidor puente (Node.js sin dependencias)
   lib/discover.js          Búsqueda del grabador por número de serie
   lib/dahua-events.js      Eventos en vivo del grabador (movimiento, intrusión, sabotaje…)
   lib/doorbell.js          Portero digital: relevo ntfy y respuestas
+  lib/notifiers.js         WhatsApp (CallMeBot) y notificación push (ntfy)
+  lib/settings-schema.js   Esquema de toda la configuración (genera los formularios del panel)
 timbre.html                Página pública del portero (celular del cliente)
   scripts/                 Descarga de go2rtc, búsqueda por consola
 firmware/esp32_cerradura/  Firmware de la cerradura

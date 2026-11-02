@@ -130,6 +130,20 @@ main.wide .side{display:none}
 .ringacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;width:100%}
 .ringacts .btn{min-height:64px;font-size:16px}
 .poster-prev{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.cfgstat{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px}
+.cfgstat span{padding:8px 12px;border-radius:999px;border:1px solid var(--b2);background:var(--p1);font-size:13px;color:var(--muted)}
+.cfgstat span.ok{color:#000;background:var(--silver);border-color:var(--silver);font-weight:600}
+.cfgcard{background:var(--p1);border:1px solid var(--b1);border-radius:16px;padding:18px;margin-bottom:16px}
+.cfgcard>h3{margin:0 0 4px!important}
+.cfgcard>.help{color:var(--muted);font-size:13px;margin:0 0 14px}
+.cfgcard details{margin-top:8px;color:var(--muted);font-size:13px}
+.cfgcard details summary{cursor:pointer;min-height:40px;display:flex;align-items:center}
+.cfgrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:12px}
+.cfgacts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.cfgout{font-size:13px;margin-top:8px}
+.waRow{display:grid;grid-template-columns:1.2fr 1fr auto;gap:8px;margin-bottom:8px}
+.sub-card{border:1px solid var(--b1);border-radius:12px;padding:14px;margin-top:14px;background:#050505}
+.sub-card h4{margin:0 0 8px;color:var(--white);font-weight:500}
 .setup h3{color:var(--white);font-weight:500;margin:26px 0 8px;font-size:16px}
 .setup ol{color:var(--silver);line-height:1.8;font-size:14px;padding-left:20px;user-select:text;-webkit-user-select:text}
 .warn{border:1px solid var(--silver);border-radius:12px;padding:12px 14px;color:var(--white);background:#111;margin-bottom:12px;font-size:14px}
@@ -404,37 +418,12 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
   <div class="pane-wrap">
     <button class="btn close-admin" id="adminClose"><svg class="i"><use href="#ic-x"/></svg>Salir</button>
 
-    <section class="pane setup" data-pane="setup" data-n="★" data-title="Configuración rápida">
-      <h2>Configuración rápida</h2>
-      <p class="lead">Terminá de configurar el sistema desde acá, sin tocar archivos. Se guarda en el servidor (.env) y se aplica al instante.</p>
+    <section class="pane setup" data-pane="setup" data-n="★" data-title="Configuración">
+      <h2>Centro de configuración</h2>
+      <p class="lead">Todo el sistema se configura desde acá: se guarda en el servidor y se aplica al instante en todos los equipos (PC, tablet y celulares).</p>
       <div id="setupWarn"></div>
-      <h3>1 · PINs de acceso</h3>
-      <div class="row">
-        <label class="f">PIN de puerta<input class="inp" id="suDoor" type="password" inputmode="numeric" maxlength="8" placeholder="sin cambios"></label>
-        <label class="f">PIN de coacción<input class="inp" id="suDuress" type="password" inputmode="numeric" maxlength="8" placeholder="sin cambios"></label>
-        <label class="f">PIN de administración<input class="inp" id="suAdmin" type="password" inputmode="numeric" maxlength="8" placeholder="sin cambios"></label>
-      </div>
-      <h3>2 · Contraseña del grabador</h3>
-      <p class="small muted">Primero cambiala en DMSS (dispositivo → Cambiar la contraseña del dispositivo). Después escribí la nueva acá para que el sistema siga viendo las cámaras.</p>
-      <div class="row"><label class="f">Nueva contraseña del grabador<input class="inp" id="suCamPass" type="password" autocomplete="new-password" placeholder="sin cambios"></label></div>
-      <h3>3 · Alertas a tu celular (Telegram)</h3>
-      <div id="tgState" class="small muted"></div>
-      <ol>
-        <li>En Telegram, buscá <b>@BotFather</b> y tocá <b>Iniciar</b>.</li>
-        <li>Escribí <code>/newbot</code>. Nombre: <b>Alarma Rave</b>. Usuario: algo que termine en <b>bot</b>, por ejemplo <code>alarmarave_bot</code>.</li>
-        <li>BotFather te responde con un <b>token</b> (números:letras). Copialo y pegalo abajo.</li>
-        <li>Tocá el link de tu bot nuevo (t.me/…) y tocá <b>INICIAR</b>.</li>
-        <li>Volvé acá y tocá <b>Conectar Telegram</b>.</li>
-      </ol>
-      <div class="row">
-        <label class="f">Token del bot<input class="inp" id="suTgToken" placeholder="123456789:AA..." autocomplete="off"></label>
-        <div style="display:flex;align-items:end"><button class="btn primary" id="suTgDetect" style="width:100%">Conectar Telegram</button></div>
-      </div>
-      <div id="suTgOut" class="small"></div>
-      <h3>4 · Nombres de las cámaras</h3>
-      <div class="row" id="suNames"></div>
-      <button class="btn primary" id="suSave" style="margin-top:14px;min-width:220px">Guardar cambios</button>
-      <div id="suOut" class="small" style="margin-top:10px"></div>
+      <div class="cfgstat" id="cfgStatus"></div>
+      <div id="cfgForm"><p class="muted small">Cargando…</p></div>
     </section>
 
     <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero QR / NFC">
@@ -678,111 +667,200 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
 <!--@@FW_BEGIN--><script type="text/plain" id="fw-src">/*
  * SVB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
  * ------------------------------------------------------------------
+ * NO hace falta editar este código: se configura desde el celular.
+ *
+ *  1) Grabar este sketch tal cual (Arduino IDE 2 + "esp32 by Espressif", placa "ESP32 Dev Module").
+ *  2) Al encenderlo por primera vez crea la red WiFi  "SVB-Puerta-XXXX"  (clave: svbpuerta).
+ *     Conectate desde el celular: se abre la página de configuración (o entrá a http://192.168.4.1).
+ *     Elegí el WiFi del local y su clave → Guardar. El ESP32 se reinicia y se conecta.
+ *  3) En el panel SVB: ⚙ → Configuración → Cerradura → "Buscar y vincular cerradura".
+ *     El panel la encuentra en la red y la vincula con una clave segura automáticamente.
+ *
+ *  Volver a configurar: mantener apretado el botón BOOT 5 segundos (borra WiFi y vínculo).
+ *
  * Hardware:
- *   - ESP32 DevKit (ESP32-WROOM-32)
- *   - Módulo relé 1 canal 5V (optoacoplado) → GPIO 26
- *   - Cerradura electromagnética / electroimán 12V (alimentación propia + diodo 1N4007 en paralelo)
- *   - Sensor magnético de puerta (reed, NC) → GPIO 27 a GND (opcional)
- *   - Pulsador de salida interior → GPIO 25 a GND (opcional)
+ *   - Módulo relé 1 canal 5V → GPIO 26
+ *   - Cerradura eléctrica 12V con fuente propia (diodo 1N4007 en paralelo con la bobina)
+ *       · Cerradura de pestillo (tipo Kallay)  → contacto NA (NO) del relé
+ *       · Electroimán (traba con energía)       → contacto NC
+ *   - Sensor magnético de puerta (reed) → GPIO 27 a GND (opcional)
+ *   - Pulsador de salida interior        → GPIO 25 a GND (opcional)
  *
- * Control:
- *   - WiFi:  POST http://svb-puerta.local/open?ms=3000   con header  X-Token: <ESP32_TOKEN>
- *            GET  http://svb-puerta.local/status
- *   - USB/Serie (115200): "OPEN 3000"  |  "STATUS"   (modo escritorio Electron)
- *
- * Compilar: Arduino IDE 2.x + "esp32 by Espressif Systems" (Placa: ESP32 Dev Module).
- * Completar WIFI_SSID, WIFI_PASS y TOKEN antes de grabar. TOKEN debe coincidir con ESP32_TOKEN del .env.
+ * API (la usa el servidor SVB):
+ *   GET  /status                       estado (puerta, vínculo, IP)
+ *   POST /open?ms=3000   X-Token: …    abrir
+ *   POST /pair  (body = clave)         vincular (solo sin vincular y dentro de 10 min de encendido)
+ *   Serie 115200: "OPEN 3000" | "STATUS"  (app de escritorio por USB)
  */
 #include <WiFi.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include <ESPmDNS.h>
+#include <Preferences.h>
 
-// ====== CONFIGURACIÓN ======
-const char* WIFI_SSID = "TU_WIFI";
-const char* WIFI_PASS = "TU_CLAVE_WIFI";
-const char* TOKEN     = "cambiar-este-token-largo";
-const char* HOSTNAME  = "svb-puerta";
-
-const int  PIN_RELAY     = 26;
-const int  PIN_DOOR      = 27;     // reed switch (LOW = cerrada)
-const int  PIN_EXIT_BTN  = 25;     // pulsador de salida
-const bool RELAY_ACTIVE_LOW = true; // la mayoría de módulos relé chinos se activan con LOW
-// Cableado: cerradura eléctrica de pestillo (tipo Kallay/cerradero) → contacto NA (NO) del relé.
-//           Electroimán (traba con energía) → contacto NC: al activar el relé se corta y abre.
+const int  PIN_RELAY    = 26;
+const int  PIN_DOOR     = 27;
+const int  PIN_EXIT_BTN = 25;
+const int  PIN_BOOT     = 0;
+const bool RELAY_ACTIVE_LOW = true;   // la mayoría de los módulos relé se activan con LOW
 const uint32_t MIN_MS = 100, MAX_MS = 10000, DEFAULT_MS = 3000;
-// ===========================
+const uint32_t PAIR_WINDOW_MS = 10UL * 60UL * 1000UL;
+const char* AP_PASS  = "svbpuerta";
+const char* HOSTNAME = "svb-puerta";
 
 WebServer server(80);
-volatile uint32_t relayUntil = 0;
-uint32_t opens = 0;
+DNSServer dns;
+Preferences prefs;
+String wifiSsid, wifiPass, token;
+bool apMode = false;
+uint32_t relayUntil = 0, opens = 0;
 
-void relayWrite(bool on) {
-  digitalWrite(PIN_RELAY, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
-}
+void relayWrite(bool on) { digitalWrite(PIN_RELAY, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW); }
+bool doorClosed() { return digitalRead(PIN_DOOR) == LOW; }
 
 void openDoor(uint32_t ms) {
   ms = constrain(ms, MIN_MS, MAX_MS);
   relayWrite(true);
   relayUntil = millis() + ms;
+  if (relayUntil == 0) relayUntil = 1;
   opens++;
   Serial.printf("OPENED %lu\n", (unsigned long)ms);
 }
 
-bool doorClosed() { return digitalRead(PIN_DOOR) == LOW; }
+String chipId() { uint64_t m = ESP.getEfuseMac(); char b[7]; snprintf(b, sizeof(b), "%04X", (uint16_t)(m >> 32)); return String(b); }
+
+String jsonEscape(const String& s) { String o; for (char c : s) { if (c == '"' || c == '\\') o += '\\'; if ((uint8_t)c >= 32) o += c; } return o; }
 
 String statusJson() {
-  return String("{\"ok\":true,\"relay\":") + (relayUntil ? "true" : "false") +
-         ",\"door\":\"" + (doorClosed() ? "cerrada" : "abierta") + "\"" +
-         ",\"opens\":" + opens + ",\"rssi\":" + WiFi.RSSI() + ",\"ip\":\"" + WiFi.localIP().toString() + "\"}";
+  return String("{\"ok\":true,\"device\":\"svb-puerta\",\"id\":\"") + chipId() + "\",\"paired\":" + (token.length() ? "true" : "false") +
+         ",\"relay\":" + (relayUntil ? "true" : "false") + ",\"door\":\"" + (doorClosed() ? "cerrada" : "abierta") + "\"" +
+         ",\"opens\":" + opens + ",\"rssi\":" + WiFi.RSSI() + ",\"ip\":\"" + WiFi.localIP().toString() + "\",\"wifi\":\"" + jsonEscape(wifiSsid) + "\"}";
 }
 
-void sendCors(int code, const String& body) {
+void sendCors(int code, const String& type, const String& body) {
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.sendHeader("Access-Control-Allow-Headers", "X-Token, Content-Type");
-  server.send(code, "application/json", body);
+  server.send(code, type, body);
 }
 
+// ───────── Página de configuración (modo punto de acceso) ─────────
+const char PAGE_HEAD[] PROGMEM = R"HTML(<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SVB Puerta</title><style>body{margin:0;background:#000;color:#e0e0e0;font-family:system-ui,Arial;padding:24px}h1{color:#fff;font-weight:500;font-size:22px}
+label{display:block;margin:16px 0 6px;font-size:13px;color:#8a8a8a;letter-spacing:1px;text-transform:uppercase}input,select{width:100%;box-sizing:border-box;min-height:52px;
+border-radius:12px;border:1px solid #333;background:#0a0a0a;color:#fff;font-size:17px;padding:0 14px}button{margin-top:22px;width:100%;min-height:56px;border:0;border-radius:14px;
+background:#fff;color:#000;font-size:17px;font-weight:700}p{color:#8a8a8a;line-height:1.5}</style></head><body>)HTML";
+
+void handleRoot() {
+  String h = FPSTR(PAGE_HEAD);
+  h += "<h1>Cerradura SVB · configuración</h1><p>Elegí el WiFi del local. Después, en el panel SVB tocá <b>Buscar y vincular cerradura</b>.</p><form method='POST' action='/save'><label>Red WiFi</label><select name='s'>";
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) { String s = WiFi.SSID(i); s.replace("<", ""); s.replace(">", ""); h += "<option" + String(s == wifiSsid ? " selected" : "") + ">" + s + "</option>"; }
+  h += "</select><label>…o escribí el nombre</label><input name='s2' placeholder='(opcional)'><label>Clave del WiFi</label><input name='p' type='password'><button>Guardar y conectar</button></form>";
+  h += "<p>Equipo " + chipId() + "</p></body></html>";
+  server.send(200, "text/html; charset=utf-8", h);
+}
+
+void handleSave() {
+  String s = server.arg("s2").length() ? server.arg("s2") : server.arg("s");
+  if (!s.length()) { server.send(400, "text/plain", "Falta la red WiFi"); return; }
+  prefs.putString("ssid", s);
+  prefs.putString("pass", server.arg("p"));
+  String h = FPSTR(PAGE_HEAD);
+  h += "<h1>Guardado ✔</h1><p>La cerradura se reinicia y se conecta a <b>" + s + "</b>.<br>Volvé al WiFi del local y en el panel SVB tocá <b>Buscar y vincular cerradura</b>.</p></body></html>";
+  server.send(200, "text/html; charset=utf-8", h);
+  delay(1500);
+  ESP.restart();
+}
+
+// ───────── API ─────────
 void handleOpen() {
-  if (server.method() == HTTP_OPTIONS) { sendCors(204, ""); return; }
-  if (server.header("X-Token") != TOKEN) { sendCors(401, "{\"ok\":false,\"error\":\"token\"}"); return; }
-  uint32_t ms = server.hasArg("ms") ? server.arg("ms").toInt() : DEFAULT_MS;
-  openDoor(ms);
-  sendCors(200, statusJson());
+  if (server.method() == HTTP_OPTIONS) { sendCors(204, "text/plain", ""); return; }
+  if (!token.length() || server.header("X-Token") != token) { sendCors(401, "application/json", "{\"ok\":false,\"error\":\"token\"}"); return; }
+  openDoor(server.hasArg("ms") ? server.arg("ms").toInt() : DEFAULT_MS);
+  sendCors(200, "application/json", statusJson());
 }
 
-void connectWifi() {
+void handlePair() {
+  if (token.length()) { sendCors(409, "application/json", "{\"ok\":false,\"error\":\"ya vinculada: mantener BOOT 5 s para reiniciar\"}"); return; }
+  if (millis() > PAIR_WINDOW_MS) { sendCors(403, "application/json", "{\"ok\":false,\"error\":\"tiempo de vinculación vencido: reiniciar la cerradura\"}"); return; }
+  String t = server.arg("plain"); t.trim();
+  if (t.length() < 16 || t.length() > 64) { sendCors(400, "application/json", "{\"ok\":false,\"error\":\"clave invalida\"}"); return; }
+  token = t; prefs.putString("token", token);
+  sendCors(200, "application/json", statusJson());
+}
+
+void startAP() {
+  apMode = true;
+  String ssid = "SVB-Puerta-" + chipId();
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(ssid.c_str(), AP_PASS);
+  dns.start(53, "*", WiFi.softAPIP());   // portal cautivo: cualquier dirección abre la configuración
+  Serial.println("Modo configuracion: red " + ssid + " clave " + AP_PASS);
+}
+
+bool connectWifi() {
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(HOSTNAME);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.print("Conectando WiFi");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  Serial.print("Conectando a " + wifiSsid);
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print("."); }
-  Serial.println(WiFi.status() == WL_CONNECTED ? "\nWiFi OK: " + WiFi.localIP().toString() : "\nSin WiFi (sigue funcionando por USB)");
+  bool ok = WiFi.status() == WL_CONNECTED;
+  Serial.println(ok ? "\nWiFi OK: " + WiFi.localIP().toString() : "\nNo se pudo conectar");
+  return ok;
+}
+
+void factoryResetIfHeld() {
+  uint32_t t0 = millis();
+  while (digitalRead(PIN_BOOT) == LOW) {
+    if (millis() - t0 > 5000) {
+      prefs.clear(); Serial.println("Configuracion borrada"); delay(300); ESP.restart();
+    }
+    delay(20);
+  }
 }
 
 void setup() {
   pinMode(PIN_RELAY, OUTPUT);
-  relayWrite(false);                 // arranca trabada
+  relayWrite(false);                       // arranca trabada
   pinMode(PIN_DOOR, INPUT_PULLUP);
   pinMode(PIN_EXIT_BTN, INPUT_PULLUP);
+  pinMode(PIN_BOOT, INPUT_PULLUP);
   Serial.begin(115200);
-  connectWifi();
+  prefs.begin("svb", false);
+  factoryResetIfHeld();
+  wifiSsid = prefs.getString("ssid", "");
+  wifiPass = prefs.getString("pass", "");
+  token    = prefs.getString("token", "");
+
+  if (!wifiSsid.length() || !connectWifi()) startAP();
   if (MDNS.begin(HOSTNAME)) MDNS.addService("http", "tcp", 80);
+
   const char* hdrs[] = {"X-Token"};
   server.collectHeaders(hdrs, 1);
+  server.on("/", HTTP_GET, []() { if (apMode) handleRoot(); else sendCors(200, "application/json", statusJson()); });
+  server.on("/save", HTTP_POST, handleSave);
+  server.on("/status", HTTP_GET, []() { sendCors(200, "application/json", statusJson()); });
   server.on("/open", handleOpen);
-  server.on("/status", []() { sendCors(200, statusJson()); });
-  server.onNotFound([]() { sendCors(404, "{\"ok\":false}"); });
+  server.on("/pair", HTTP_POST, handlePair);
+  server.onNotFound([]() {
+    if (apMode) { server.sendHeader("Location", "http://192.168.4.1/"); server.send(302, "text/plain", ""); }
+    else sendCors(404, "application/json", "{\"ok\":false}");
+  });
   server.begin();
 }
 
 String serialBuf;
 void loop() {
+  if (apMode) dns.processNextRequest();
   server.handleClient();
 
   if (relayUntil && (int32_t)(millis() - relayUntil) >= 0) { relayWrite(false); relayUntil = 0; Serial.println("LOCKED"); }
 
   static uint32_t lastBtn = 0;
   if (digitalRead(PIN_EXIT_BTN) == LOW && millis() - lastBtn > 1500) { lastBtn = millis(); openDoor(DEFAULT_MS); }
+
+  static uint32_t bootDown = 0;
+  if (digitalRead(PIN_BOOT) == LOW) { if (!bootDown) bootDown = millis(); else if (millis() - bootDown > 5000) { prefs.clear(); ESP.restart(); } } else bootDown = 0;
 
   while (Serial.available()) {
     char c = Serial.read();
@@ -795,7 +873,16 @@ void loop() {
   }
 
   static uint32_t lastWifi = 0;
-  if (WiFi.status() != WL_CONNECTED && millis() - lastWifi > 30000) { lastWifi = millis(); WiFi.reconnect(); }
+  if (!apMode && WiFi.status() != WL_CONNECTED && millis() - lastWifi > 30000) { lastWifi = millis(); WiFi.reconnect(); }
+  // Si arrancó en modo configuración porque el router estaba apagado, sigue intentando y vuelve solo
+  if (apMode && wifiSsid.length() && millis() - lastWifi > 60000) {
+    lastWifi = millis();
+    WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  }
+  if (apMode && wifiSsid.length() && WiFi.status() == WL_CONNECTED) {
+    apMode = false; dns.stop(); WiFi.softAPdisconnect(true); WiFi.mode(WIFI_STA);
+    Serial.println("WiFi OK: " + WiFi.localIP().toString());
+  }
 }
 </script><!--@@FW_END-->
 
@@ -971,7 +1058,7 @@ const DEFAULTS = {
   camNames: {},
 };
 const S = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('svb.settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
-function save() { try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } }
+function save() { try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } if (typeof pushShared === 'function') pushShared(); }
 
 /* ═══════════════════════════ LOG DE AUDITORÍA ═══════════════════════════ */
 const LOG_KEY = 'svb.audit';
@@ -1036,7 +1123,7 @@ async function refreshStatus() {
     if (st._status !== 200) throw new Error();
     const first = !net.online;
     net.online = true; net.status = st;
-    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); connectLive(); MON.armed = !!st.armed; paintArm(); }
+    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); connectLive(); pullShared(); MON.armed = !!st.armed; paintArm(); }
   } catch {
     if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
     net.online = false; net.status = null;
@@ -1606,6 +1693,8 @@ function connectLive() {
   liveES.addEventListener('arm', (e) => { MON.armed = JSON.parse(e.data).armed; paintArm(); });
   liveES.addEventListener('dvr', (e) => addDvrEvent(JSON.parse(e.data)));
   liveES.addEventListener('ring', (e) => showRing(JSON.parse(e.data)));
+  liveES.addEventListener('settings', (e) => { const d = JSON.parse(e.data); if (d.by !== S.deviceId) pullShared(); });
+  liveES.addEventListener('config', () => refreshStatus());
   liveES.addEventListener('ring-reply', (e) => { const d = JSON.parse(e.data); if (curRing && curRing.id === d.id) { hideRing(); toast(`Respondido (${d.by}): ${d.text}`); } });
   liveES.onerror = () => { if (liveES && liveES.readyState === 2) { liveES = null; setTimeout(connectLive, 5000); } };
   api('/api/dvr/events').then((l) => { if (Array.isArray(l)) l.slice().reverse().forEach((e) => addDvrEvent(e, false)); }).catch(() => {});
@@ -1875,41 +1964,191 @@ function openAdmin() {
   drawQr($('#linkQr'), base() || location.href);
   $('#linkTxt').textContent = (base() || location.href) + ' — escanear con el celular del dueño (misma red WiFi o Tailscale).';
 }
-/* ── Configuración rápida (escribe .env en el servidor) ── */
-async function loadSetup() {
-  const names = chanList();
-  $('#suNames').innerHTML = (names.length ? names.slice().sort((a, b) => a.ch - b.ch) : [1, 2, 3, 4].map((ch) => ({ ch, name: `Canal ${ch}` })))
-    .map((c) => `<label class="f">Canal ${c.ch}<input class="inp" data-ch="${c.ch}" value="${esc(c.name)}"></label>`).join('');
-  if (!net.online) { $('#setupWarn').innerHTML = '<div class="warn">Sin servidor: la configuración rápida necesita el servidor SVB encendido.</div>'; return; }
-  const r = await api('/api/setup', { admin: true }).catch(() => ({}));
-  const w = [];
-  if (r.defaultPins) {
-    const d = Object.entries(r.defaultPins).filter(([, v]) => v).map(([k]) => ({ door: 'puerta', duress: 'coacción', admin: 'administración' }[k]));
-    if (d.length) w.push(`Todavía usás los PINs de fábrica de: <b>${d.join(', ')}</b>. Cambialos abajo.`);
+/* ── Centro de configuración (esquema del servidor → formularios) ── */
+let CFG = null;
+const fieldVal = (k) => { const f = CFG && CFG.fields.find((x) => x.key === k); return f ? f.value : undefined; };
+function fieldHtml(f) {
+  const id = `cf_${f.key}`;
+  const lab = esc(f.label);
+  if (f.type === 'bool') return `<label class="chk"><input type="checkbox" id="${id}" data-key="${f.key}" ${f.value ? 'checked' : ''}>${lab}</label>`;
+  if (f.type === 'select') return `<label class="f">${lab}<select class="inp" id="${id}" data-key="${f.key}">${f.options.map(([v, t]) => `<option value="${esc(v)}" ${v === f.value ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
+  if (f.type === 'names') {
+    const n = +fieldVal('CAM_CHANNELS') || 4; const names = String(f.value || '').split(',');
+    return `<div data-key="${f.key}" class="cfgrow" style="grid-column:1/-1">${Array.from({ length: n }, (_, i) => `<label class="f">Cámara ${i + 1}<input class="inp" data-i="${i}" value="${esc(names[i] || `Canal ${i + 1}`)}" maxlength="30"></label>`).join('')}</div>`;
   }
-  if (!r.telegram) w.push('Las alertas a tu celular (Telegram) no están conectadas. Paso 3.');
-  $('#setupWarn').innerHTML = w.map((x) => `<div class="warn">${x}</div>`).join('');
-  $('#tgState').innerHTML = r.telegram ? '<span class="ok-msg">✔ Telegram conectado.</span> Podés reconectarlo con otro bot si querés.' : '';
+  if (f.type === 'whatsapp') {
+    const rows = (f.value || []).map((r) => waRowHtml(r.phone, r.keySet)).join('');
+    return `<div data-key="${f.key}" style="grid-column:1/-1"><div class="waList">${rows}</div><button class="btn sm" data-wa-add>+ Agregar número de dueño</button></div>`;
+  }
+  if (f.type === 'pin' || f.type === 'secret') {
+    const ph = f.isSet ? '•••••• guardada (escribí para cambiar)' : 'sin configurar';
+    return `<label class="f">${lab}<input class="inp" id="${id}" data-key="${f.key}" type="password" autocomplete="new-password" ${f.type === 'pin' ? 'inputmode="numeric" maxlength="8"' : ''} placeholder="${f.type === 'pin' ? 'sin cambios' : ph}">${f.clearable && f.isSet ? `<span class="small"><label class="chk" style="min-height:32px;font-size:12px;text-transform:none;letter-spacing:0"><input type="checkbox" data-clear="${f.key}">Quitar</label></span>` : ''}</label>`;
+  }
+  const type = f.type === 'int' ? 'number' : f.type === 'url' ? 'url' : f.type === 'phone' ? 'tel' : 'text';
+  return `<label class="f">${lab}<input class="inp" id="${id}" data-key="${f.key}" type="${type}" ${f.min !== undefined ? `min="${f.min}" max="${f.max}"` : ''} value="${esc(f.value ?? '')}" data-orig="${esc(f.value ?? '')}"></label>`;
 }
-async function saveSetup() {
+function waRowHtml(phone = '', keySet = false) {
+  return `<div class="waRow"><input class="inp" data-wa-phone placeholder="+54 9 387 …" value="${esc(phone)}" inputmode="tel"><input class="inp" data-wa-key placeholder="${keySet ? 'clave guardada' : 'clave CallMeBot'}" data-keyset="${keySet ? 1 : 0}" inputmode="numeric"><button class="btn sm ghost" data-wa-del title="Quitar">✕</button></div>`;
+}
+const GROUP_EXTRA = {
+  seguridad: () => `<p class="small muted">Si definís usuario y contraseña del panel, el navegador la pedirá la próxima vez (en todos los equipos).</p>`,
+  grabador: () => `<div class="cfgacts"><button class="btn sm" data-act-cfg="discoverCam">Buscar grabador en la red</button></div><div class="cfgout" id="cfgCamOut"></div>`,
+  cerradura: () => `<div class="sub-card"><h4>Instalar la cerradura sin tocar código</h4><ol>
+      <li>Grabá el firmware en el ESP32 (sección Firmware ESP32) y encendelo.</li>
+      <li>Con el celular conectate a la red WiFi <b>SVB-Puerta-XXXX</b> (clave <code>svbpuerta</code>). Se abre la página de la cerradura: elegí el WiFi del local, su clave y Guardar.</li>
+      <li>Tocá <b>Buscar y vincular cerradura</b>: el sistema la encuentra y la vincula con una clave segura.</li></ol></div>
+    <div class="cfgacts"><button class="btn sm primary" data-act-cfg="pairEsp">Buscar y vincular cerradura</button><button class="btn sm" data-act-cfg="checkEsp">Probar conexión</button><button class="btn sm" data-act-cfg="testRelay">Probar apertura</button></div><div class="cfgout" id="cfgEspOut"></div>`,
+  alertas: () => {
+    const p = CFG.push;
+    return `<div class="sub-card"><h4>WhatsApp de los dueños (gratis con CallMeBot)</h4><ol>
+        <li>Cada dueño agenda el número de <b>CallMeBot</b> que figura en <b>callmebot.com</b> (sección WhatsApp).</li>
+        <li>Le manda por WhatsApp: <code>I allow callmebot to send me messages</code></li>
+        <li>Recibe su <b>clave (apikey)</b>. Cargá abajo su número con código de país y esa clave.</li></ol>
+        <p class="small muted">Es un servicio gratuito para uso personal; los mensajes pueden demorar hasta 1 minuto y no llevan foto. Para foto y botones usá la notificación push o Telegram.</p></div>
+      <div class="sub-card"><h4>Notificación push al celular (app ntfy, gratis)</h4>
+        ${p ? `<div class="poster-prev"><canvas id="pushQr" width="200" height="200" style="background:#fff;border-radius:10px"></canvas><ol style="flex:1;min-width:240px">
+          <li>Instalá <b>ntfy</b> desde Play Store o App Store.</li>
+          <li>En la app tocá <b>+</b> y escribí este tema: <code style="user-select:all">${esc(p.topic)}</code> (servidor: ${esc(p.server)}). En Android también podés escanear el QR.</li>
+          <li>Listo: te llegan los avisos con la foto y, en el timbre, botones <i>Ya voy · Un momento · Dejar en puerta</i>.</li></ol></div>
+          <p class="small muted">Cada dueño que lo instale con el mismo tema recibe los avisos. No compartas el tema con clientes.</p>` : '<p class="small muted">Activá la notificación push arriba y guardá.</p>'}</div>
+      <div class="sub-card"><h4>Telegram (foto y botones, comandos /foto /armar)</h4><div id="tgState" class="small muted"></div><ol>
+        <li>En Telegram, buscá <b>@BotFather</b> → <code>/newbot</code> → nombre <b>Alarma Rave</b> → usuario terminado en <b>bot</b>.</li>
+        <li>Copiá el <b>token</b> y pegalo abajo. Abrí tu bot nuevo y tocá <b>INICIAR</b>.</li></ol>
+        <div class="cfgrow"><label class="f">Token del bot<input class="inp" id="suTgToken" placeholder="123456789:AA..." autocomplete="off"></label><div style="display:flex;align-items:end"><button class="btn primary" id="suTgDetect" style="width:100%">Conectar Telegram</button></div></div><div id="suTgOut" class="small"></div></div>
+      <div class="cfgacts"><button class="btn primary" data-act-cfg="testNotify">Enviar aviso de prueba a todos</button></div><div class="cfgout" id="cfgNotifyOut"></div>`;
+  },
+  portero: () => `<div class="cfgacts"><button class="btn sm" data-act-cfg="checkPage">Verificar página pública del portero</button><button class="btn sm" onclick="showPane('portero')">Cartel QR y sticker NFC →</button></div><div class="cfgout" id="cfgPageOut"></div>`,
+};
+async function loadSetup() {
+  const form = $('#cfgForm');
+  if (!net.online) { $('#setupWarn').innerHTML = '<div class="warn">Sin servidor: la configuración necesita el servidor SVB encendido.</div>'; form.innerHTML = ''; return; }
+  const r = await api('/api/setup', { admin: true }).catch(() => null);
+  if (!r || !r.fields) { form.innerHTML = '<div class="warn">No se pudo leer la configuración.</div>'; return; }
+  CFG = r;
+  const w = [];
+  const d = Object.entries(r.defaultPins || {}).filter(([, v]) => v).map(([k]) => ({ door: 'puerta', duress: 'coacción', admin: 'administración' }[k]));
+  if (d.length) w.push(`Todavía usás los PINs de fábrica de: <b>${d.join(', ')}</b>. Cambialos en «PINs y acceso al panel».`);
+  const waCount = (fieldVal('WHATSAPP_TO') || []).length;
+  if (!r.telegram && !waCount && !r.push) w.push('Ningún aviso al celular configurado: cargá un WhatsApp o activá la notificación push.');
+  $('#setupWarn').innerHTML = w.map((x) => `<div class="warn">${x}</div>`).join('');
+  const st = r.status;
+  const chip = (ok, t) => `<span class="${ok ? 'ok' : ''}">${ok ? '✔' : '○'} ${t}</span>`;
+  $('#cfgStatus').innerHTML = chip(st.camera.connected, st.camera.connected ? `Grabador ${st.camera.host}` : 'Grabador sin conectar') + chip(st.door === 'esp32', st.door === 'esp32' ? 'Cerradura ESP32' : 'Cerradura simulada')
+    + chip(waCount > 0, `WhatsApp: ${waCount} dueño(s)`) + chip(r.push && r.push.connected, 'Notificación push') + chip(st.telegram, 'Telegram') + chip(st.doorbell, 'Portero QR');
+  form.innerHTML = r.groups.map((g) => {
+    const fs = r.fields.filter((f) => f.group === g.id);
+    const basic = fs.filter((f) => !f.advanced); const adv = fs.filter((f) => f.advanced);
+    return `<div class="cfgcard" data-group="${g.id}"><h3>${esc(g.title)}</h3><p class="help">${esc(g.help)}</p>
+      <div class="cfgrow">${basic.map(fieldHtml).join('')}</div>
+      ${adv.length ? `<details><summary>Opciones avanzadas</summary><div class="cfgrow" style="margin-top:10px">${adv.map(fieldHtml).join('')}</div></details>` : ''}
+      <div class="cfgacts"><button class="btn primary" data-save="${g.id}">Guardar</button><span class="cfgout" data-out="${g.id}"></span></div>
+      ${GROUP_EXTRA[g.id] ? GROUP_EXTRA[g.id]() : ''}</div>`;
+  }).join('');
+  if (r.push) drawQr($('#pushQr'), r.push.link);
+  $('#tgState').innerHTML = r.telegram ? '<span class="ok-msg">✔ Telegram conectado.</span> Podés reconectarlo con otro bot.' : '';
+
+}
+function collectGroup(g) {
   const body = {};
-  const pin = (id, k) => { const v = $(id).value.trim(); if (v) body[k] = v; };
-  pin('#suDoor', 'DOOR_PIN'); pin('#suDuress', 'DURESS_PIN'); pin('#suAdmin', 'ADMIN_PIN'); pin('#suCamPass', 'CAM_PASS');
-  const names = $$('#suNames input').sort((a, b) => a.dataset.ch - b.dataset.ch).map((i) => i.value.trim().replace(/,/g, ' ') || `Canal ${i.dataset.ch}`);
-  const cur = chanList().slice().sort((a, b) => a.ch - b.ch).map((c) => c.name);
-  if (names.join(',') !== cur.join(',')) body.CAM_NAMES = names.join(',');
-  if (!Object.keys(body).length) { $('#suOut').textContent = 'No hay cambios para guardar.'; return; }
-  const r = await api('/api/setup', { method: 'POST', admin: true, body }).catch((e) => ({ error: e.message }));
-  if (!r.ok) { $('#suOut').innerHTML = `<span class="warn" style="display:inline-block">${esc(r.error || 'No se pudo guardar')}</span>`; Sfx.err(); return; }
+  $$(`.cfgcard[data-group="${g}"] [data-key]`).forEach((el) => {
+    const k = el.dataset.key; const f = CFG.fields.find((x) => x.key === k);
+    if (f.type === 'bool') { if (el.checked !== !!f.value) body[k] = el.checked; return; }
+    if (f.type === 'select') { if (el.value !== f.value) body[k] = el.value; return; }
+    if (f.type === 'names') { const v = $$('input', el).map((i) => i.value.trim().replace(/,/g, ' ') || `Canal ${+i.dataset.i + 1}`).join(','); if (v !== f.value) body[k] = v; return; }
+    if (f.type === 'whatsapp') {
+      const rows = $$('.waRow', el).map((r) => { const ph = $('[data-wa-phone]', r).value.replace(/[^\d+]/g, ''); const key = $('[data-wa-key]', r).value.trim(); return ph ? `${ph.startsWith('+') ? ph : '+' + ph}:${key || ($('[data-wa-key]', r).dataset.keyset === '1' ? '*' : '')}` : ''; }).filter(Boolean);
+      const v = rows.join(','); const orig = (f.value || []).map((x) => `${x.phone}:*`).join(',');
+      if (v !== orig) body[k] = v; return;
+    }
+    if (f.type === 'pin' || f.type === 'secret') { if (el.value.trim()) body[k] = el.value.trim(); return; }
+    const v = el.value.trim(); if (v !== String(f.value ?? '')) body[k] = v;
+  });
+  $$(`.cfgcard[data-group="${g}"] [data-clear]`).forEach((c) => { if (c.checked) body[c.dataset.clear] = ''; });
+  return body;
+}
+async function saveGroup(g) {
+  const out = $(`[data-out="${g}"]`);
+  const body = collectGroup(g);
+  if (!Object.keys(body).length) { out.textContent = 'Sin cambios.'; return; }
+  out.textContent = 'Guardando…';
+  const r = await api('/api/setup', { method: 'POST', admin: true, body, timeout: 60000 }).catch((e) => ({ error: e.message }));
+  if (!r.ok) { out.innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'No se pudo guardar')}</span>`; const el = r.field && $(`[data-key="${r.field}"]`); if (el && el.focus) el.focus(); Sfx.err(); return; }
   if (body.ADMIN_PIN) { net.adminPin = body.ADMIN_PIN; S.adminPin = body.ADMIN_PIN; }
   if (body.DOOR_PIN) S.doorPin = body.DOOR_PIN;
   if (body.DURESS_PIN) S.duressPin = body.DURESS_PIN;
   if (body.CAM_NAMES) S.camNames = {};
-  save();
-  ['#suDoor', '#suDuress', '#suAdmin', '#suCamPass'].forEach((id) => { $(id).value = ''; });
-  $('#suOut').innerHTML = `<span class="ok-msg">✔ Guardado y aplicado: ${r.saved.map((k) => ({ DOOR_PIN: 'PIN de puerta', DURESS_PIN: 'PIN de coacción', ADMIN_PIN: 'PIN de administración', CAM_PASS: 'contraseña del grabador', CAM_NAMES: 'nombres de cámaras' }[k] || k)).join(', ')}.</span>`;
-  Sfx.ok();
-  await refreshStatus(); buildGrid(); loadSetup();
+  if (body.BUSINESS_NAME) S.biz = body.BUSINESS_NAME;
+  save(); applyBrand(); Sfx.ok();
+  await refreshStatus();
+  if (body.CAM_NAMES || body.CAM_CHANNELS || body.CAM_HOST || body.CAM_PASS) buildGrid();
+  await loadSetup();
+  const o2 = $(`[data-out="${g}"]`); if (o2) o2.innerHTML = '<span class="ok-msg">✔ Guardado y aplicado.</span>';
+}
+async function cfgAction(act) {
+  const show = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
+  if (act === 'discoverCam') {
+    show('#cfgCamOut', 'Buscando en la red… (hasta 30 s)');
+    const r = await api('/api/discover', { method: 'POST', admin: true, timeout: 120000 }).catch((e) => ({ error: e.message }));
+    show('#cfgCamOut', r.error ? `<span class="warn">${esc(r.error)}</span>` : r.found ? '<span class="ok-msg">✔ Grabador encontrado y conectado.</span>' : `No se encontró con ese número de serie. Equipos vistos: ${(r.discovery && r.discovery.devices || []).map((d) => esc(d.host + ' ' + (d.type || d.note || ''))).join(' · ') || 'ninguno'}`);
+    await refreshStatus(); buildGrid(); return loadSetup();
+  }
+  if (act === 'pairEsp') {
+    show('#cfgEspOut', 'Buscando la cerradura en la red…');
+    const r = await api('/api/esp32/discover', { method: 'POST', admin: true, body: {}, timeout: 120000 }).catch((e) => ({ error: e.message }));
+    show('#cfgEspOut', r.paired ? `<span class="ok-msg">✔ Cerradura ${esc(r.id)} vinculada en ${esc(r.url)}. Puerta ${esc(r.door || '')}.</span>` : r.ok ? `<span class="ok-msg">✔ ${esc(r.message)}</span>` : `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || r.message || 'No se pudo vincular')}</span>`);
+    await refreshStatus(); return r.paired && loadSetup();
+  }
+  if (act === 'checkEsp') {
+    const r = await api('/api/check/esp32', { method: 'POST', admin: true }).catch((e) => ({ error: e.message }));
+    return show('#cfgEspOut', r.ok ? `<span class="ok-msg">✔ El ESP32 responde. Puerta ${esc((r.info && r.info.door) || '')} · señal ${esc(String((r.info && r.info.rssi) ?? '—'))} dBm.</span>` : `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'Sin respuesta')}</span>`);
+  }
+  if (act === 'testRelay') {
+    const r = await api('/api/relay/test', { method: 'POST', admin: true, body: {} }).catch((e) => ({ error: e.message }));
+    return show('#cfgEspOut', r.simulated ? 'Apertura simulada (no hay ESP32 configurado).' : r.ok ? `<span class="ok-msg">✔ Puerta abierta ${r.ms} ms.</span>` : `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'Falló')}</span>`);
+  }
+  if (act === 'testNotify') {
+    show('#cfgNotifyOut', 'Enviando…');
+    const r = await api('/api/check/notify', { method: 'POST', admin: true, timeout: 60000 }).catch((e) => ({ error: e.message }));
+    if (r.error) return show('#cfgNotifyOut', `<span class="warn">${esc(r.error)}</span>`);
+    const lines = [];
+    lines.push(`Telegram: ${r.telegram && r.telegram.sent ? '✔ enviado' : '○ ' + esc((r.telegram && r.telegram.reason) || 'no enviado')}`);
+    (r.whatsapp || []).forEach((x) => lines.push(`WhatsApp ${esc(x.phone)}: ${x.ok ? '✔ enviado' : '✖ falló (revisá número y clave)'}`));
+    if (!(r.whatsapp || []).length) lines.push('WhatsApp: ○ sin números cargados');
+    lines.push(`Notificación push: ${r.push ? (r.push.ok ? '✔ enviada' : '✖ ' + esc(r.push.error || 'falló')) : '○ desactivada'}`);
+    return show('#cfgNotifyOut', lines.join('<br>'));
+  }
+  if (act === 'checkPage') {
+    show('#cfgPageOut', 'Verificando…');
+    const r = await api('/api/check/doorbell-page', { method: 'POST', admin: true, timeout: 20000 }).catch((e) => ({ error: e.message }));
+    return show('#cfgPageOut', r.ok ? '<span class="ok-msg">✔ La página del portero está publicada y funciona desde internet.</span>' : '<span class="warn" style="display:inline-block;padding:6px 10px">La página todavía no está publicada. Activá GitHub Pages (ver sección Portero QR / NFC).</span>');
+  }
+}
+
+/* ── Ajustes del panel compartidos entre todos los equipos ── */
+const SHARED = ['biz', 'mode', 'logo', 'emergency', 'familyName', 'familyPhone', 'familyWa', 'officePhone', 'ringCall', 'wakeOn', 'wake', 'lang', 'sens', 'rate', 'chime', 'vol', 'relayMs', 'gridQ', 'motion', 'loiter', 'face', 'aiNotify', 'camNames', 'camOrder', 'ringCam', 'split'];
+let pushT = null;
+if (!S.deviceId) { S.deviceId = 'eq-' + Math.random().toString(36).slice(2, 8); save(); }
+function pushShared() {
+  if (!net.online || !net.adminPin) return;
+  clearTimeout(pushT);
+  pushT = setTimeout(async () => {
+    const settings = {}; SHARED.forEach((k) => { settings[k] = S[k]; });
+    const r = await api('/api/panel-settings', { method: 'PUT', admin: true, body: { device: S.deviceId, settings } }).catch(() => null);
+    if (r && r.v) { S._sv = r.v; try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch { /* lleno */ } }
+  }, 700);
+}
+async function pullShared() {
+  if (!net.online) return;
+  const r = await api('/api/panel-settings').catch(() => null);
+  if (!r || !r.settings || !r.v || r.v === S._sv) return;
+  const beforeCams = JSON.stringify([S.camNames, S.camOrder]);
+  SHARED.forEach((k) => { if (k in r.settings) S[k] = r.settings[k]; });
+  S._sv = r.v;
+  try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch { /* lleno */ }
+  applyBrand();
+  if ([1, 4, 9, 16].includes(S.split)) MON.split = S.split;
+  if (JSON.stringify([S.camNames, S.camOrder]) !== beforeCams && $('#cctvGrid').children.length) buildGrid();
+  if ($('#adminOv').classList.contains('show')) loadForm();
 }
 async function detectTelegram() {
   const token = $('#suTgToken').value.trim();
@@ -1917,7 +2156,7 @@ async function detectTelegram() {
   if (!net.online) { $('#suTgOut').textContent = 'Requiere el servidor encendido.'; return; }
   $('#suTgOut').textContent = 'Conectando con Telegram…';
   const r = await api('/api/setup/telegram', { method: 'POST', admin: true, body: { token }, timeout: 20000 }).catch((e) => ({ error: e.message }));
-  if (r.ok) { $('#suTgOut').innerHTML = `<span class="ok-msg">✔ Conectado${r.name ? ' con ' + esc(r.name) : ''}. Te llegó un mensaje de prueba a Telegram.</span>`; $('#suTgToken').value = ''; Sfx.ok(); loadSetup(); }
+  if (r.ok) { Sfx.ok(); await loadSetup(); $('#suTgOut').innerHTML = `<span class="ok-msg">✔ Conectado${r.name ? ' con ' + esc(r.name) : ''}. Te llegó un mensaje de prueba a Telegram.</span>`; }
   else $('#suTgOut').innerHTML = `<div class="warn">${esc(r.error || 'No se pudo conectar')}</div>`;
 }
 async function loadDevice() {
@@ -2054,7 +2293,13 @@ function wire() {
   $('#btnAdmin').addEventListener('click', askAdmin);
   $('#pinCancel').addEventListener('click', closePinOv);
   wireMonitor();
-  $('#suSave').addEventListener('click', saveSetup);
+  $('#cfgForm').addEventListener('click', (e) => {
+    const sv = e.target.closest('[data-save]'); if (sv) return saveGroup(sv.dataset.save);
+    const ac = e.target.closest('[data-act-cfg]'); if (ac) return cfgAction(ac.dataset.actCfg);
+    if (e.target.closest('#suTgDetect')) return detectTelegram();
+    if (e.target.closest('[data-wa-add]')) { const l = e.target.closest('[data-key]').querySelector('.waList'); l.insertAdjacentHTML('beforeend', waRowHtml()); l.lastElementChild.querySelector('input').focus(); return; }
+    const del = e.target.closest('[data-wa-del]'); if (del) del.closest('.waRow').remove();
+  });
   $$('#ringOv [data-reply]').forEach((b) => b.addEventListener('click', () => replyRing(b.dataset.reply)));
   $('#ringClose').addEventListener('click', hideRing);
   $('#dbPrint').addEventListener('click', printPoster);
@@ -2062,7 +2307,7 @@ function wire() {
   $('#dbCopy').addEventListener('click', () => navigator.clipboard.writeText(loadDoorbell.url || '').then(() => toast('Enlace copiado')).catch(() => toast('No se pudo copiar')));
   $('#dbTest').addEventListener('click', async () => { const r = await api('/api/doorbell/test', { method: 'POST', admin: true }).catch(() => ({})); toast(r.ok ? 'Timbre de prueba enviado' : 'No se pudo probar'); });
   $('#dbRegen').addEventListener('click', async () => { const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); } });
-  $('#suTgDetect').addEventListener('click', detectTelegram);
+
   $('#adminClose').addEventListener('click', closeAdmin);
   let lp; const brand = $('#brand');
   brand.addEventListener('pointerdown', () => { lp = setTimeout(askAdmin, 3000); });

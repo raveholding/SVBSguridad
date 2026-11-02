@@ -50,6 +50,7 @@ class NtfyListener extends EventEmitter {
               const m = JSON.parse(line);
               if (m.event !== 'message') continue;
               let p; try { p = JSON.parse(m.message); } catch { p = { type: 'ring', msg: m.message }; }
+              if (p && typeof p === 'object') this.emit('data', p);
               if (p && p.type === 'ring') this.emit('ring', { id: String(p.id || m.id).slice(0, 40), name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), ntfyId: m.id });
             } catch { /* línea inválida */ }
           }

@@ -63,8 +63,15 @@ function readConfig(env = process.env) {
       page: env.DOORBELL_PAGE || 'https://raveholding.github.io/SVBSguridad/timbre.html',
       camera: int('DOORBELL_CAMERA', 1),
       cooldown: int('DOORBELL_COOLDOWN', 15),
+      whatsapp: env.DOORBELL_WHATSAPP || '',
     },
     telegramPoll: env.TELEGRAM_POLL !== '0',
+    whatsapp: {
+      to: env.WHATSAPP_TO || '',
+      events: env.WHATSAPP_EVENTS || 'importantes',
+      api: (env.CALLMEBOT_API || 'https://api.callmebot.com').replace(/\/$/, ''),
+    },
+    push: { enabled: env.PUSH_ENABLED !== '0', topic: env.PUSH_TOPIC || '', events: env.PUSH_EVENTS || 'todo' },
   };
 }
 

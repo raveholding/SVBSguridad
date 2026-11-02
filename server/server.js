@@ -19,10 +19,12 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { loadEnv, readConfig } = require('./lib/env');
 const { rtspUrl, redact, DEFAULT_RTSP_TEMPLATE } = require('./lib/dahua');
-const { discover } = require('./lib/discover');
+const { discover, candidateHosts, portOpen } = require('./lib/discover');
 const { DahuaEvents } = require('./lib/dahua-events');
 const { digestGet, parseKV } = require('./lib/dahua');
 const { NtfyListener, publish, REPLIES } = require('./lib/doorbell');
+const SCHEMA = require('./lib/settings-schema');
+const { parseRecipients, sendWhatsApp, sendPush } = require('./lib/notifiers');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -58,6 +60,10 @@ function createApp(cfg, opts = {}) {
   };
   const sse = new Set();
   const stateFile = path.join(dataDir, 'state.json');
+  const panelFile = path.join(dataDir, 'panel-settings.json');
+  // Ajustes del panel que se comparten (los PINs de respaldo y preferencias del dispositivo NO)
+  const SHARED_KEYS = ['biz', 'mode', 'logo', 'emergency', 'familyName', 'familyPhone', 'familyWa', 'officePhone', 'ringCall', 'wakeOn', 'wake', 'lang', 'sens', 'rate',
+    'chime', 'vol', 'relayMs', 'gridQ', 'motion', 'loiter', 'face', 'aiNotify', 'camNames', 'camOrder', 'ringCam', 'split'];
   try { state.armed = !!JSON.parse(fs.readFileSync(stateFile, 'utf8')).armed; } catch { /* primera vez */ }
   const saveState = () => fs.writeFileSync(stateFile, JSON.stringify({ armed: state.armed }));
   function broadcast(type, data) {
@@ -170,7 +176,7 @@ function createApp(cfg, opts = {}) {
     (async () => {
       let photo = null;
       try { photo = await snapshot(e.channel, true); } catch { /* sin foto */ }
-      await notify(`${e.always ? '⚠️' : '🚨'} ${e.label} en ${name} — ${cfg.businessName}${state.armed ? ' (sistema ARMADO)' : ''}`, photo);
+      await alertAll(`${e.always ? '⚠️' : '🚨'} ${e.label} en ${name} — ${cfg.businessName}${state.armed ? ' (sistema ARMADO)' : ''}`, photo, { kind: e.always ? 'alarm' : 'motion' });
     })();
   }
 
@@ -186,6 +192,7 @@ function createApp(cfg, opts = {}) {
     u.searchParams.set('t', d.topic);
     u.searchParams.set('n', cfg.businessName);
     if (d.ntfy !== 'https://ntfy.sh') u.searchParams.set('h', d.ntfy);
+    if (d.whatsapp) u.searchParams.set('w', d.whatsapp.replace(/\D/g, ''));
     return u.toString();
   }
   function startDoorbell() {
@@ -214,7 +221,7 @@ function createApp(cfg, opts = {}) {
     let photo = null;
     try { photo = await snapshot(cfg.doorbell.camera, true); } catch { /* sin cámara */ }
     const kb = { inline_keyboard: [[{ text: '🙂 Ya voy', callback_data: `r:${id}:voy` }, { text: '⏳ Un momento', callback_data: `r:${id}:momento` }], [{ text: '📦 Dejar en la puerta', callback_data: `r:${id}:deje` }, { text: '🚫 No atendemos', callback_data: `r:${id}:cerrado` }], [{ text: '🔓 Abrir puerta', callback_data: `r:${id}:pase` }]] };
-    await notify(`🔔 Tocan el timbre en ${cfg.businessName}${name ? `\n👤 ${name}` : ''}${msg ? `\n💬 ${msg}` : ''}\nRespondé con los botones:`, photo, kb);
+    await alertAll(`🔔 Tocan el timbre en ${cfg.businessName}${name ? `\n👤 ${name}` : ''}${msg ? `\n💬 ${msg}` : ''}\nRespondé con los botones:`, photo, { kind: 'ring', kb, ringId: id });
     return { ok: true, id };
   }
   async function replyRing(id, code, by) {
@@ -382,6 +389,46 @@ function createApp(cfg, opts = {}) {
       return { sent: false, reason: e.message };
     }
   }
+  // ───────────── Avisos a TODOS los canales del dueño (Telegram + WhatsApp + push) ─────────────
+  // kind: ring | sos | duress | alarm | motion | info | test
+  const IMPORTANT = new Set(['ring', 'sos', 'duress', 'alarm', 'test']);
+  const wants = (pref, kind) => pref === 'todo' || (pref === 'importantes' && IMPORTANT.has(kind)) || (pref === 'timbre' && (kind === 'ring' || kind === 'test'));
+  async function alertAll(text, photo, { kind = 'info', kb = null, ringId = null } = {}) {
+    const out = { telegram: await notify(text, photo, kb) };
+    const wa = parseRecipients(cfg.whatsapp.to);
+    if (wa.length && wants(cfg.whatsapp.events, kind)) {
+      let t = text.replace(/\nRespondé con los botones:?/, '');
+      if (kind === 'ring') t += '\nRespondé desde el panel, Telegram o la notificación push.';
+      out.whatsapp = await sendWhatsApp(cfg.whatsapp.api, wa, t);
+    }
+    if (cfg.push.enabled && cfg.push.topic && wants(cfg.push.events, kind)) {
+      const [title, ...rest] = text.split('\n');
+      const actions = ringId ? [{ label: 'Ya voy', body: { type: 'reply', id: ringId, code: 'voy' } }, { label: 'Un momento', body: { type: 'reply', id: ringId, code: 'momento' } }, { label: 'Dejar en puerta', body: { type: 'reply', id: ringId, code: 'deje' } }] : [];
+      out.push = await sendPush(cfg.doorbell.ntfy, cfg.push.topic, {
+        title: title.slice(0, 120), message: rest.join('\n').replace(/\nRespondé con los botones:?/, '').trim() || cfg.businessName,
+        priority: kind === 'duress' || kind === 'sos' ? 5 : kind === 'info' || kind === 'motion' ? 3 : 4,
+        tags: [{ ring: 'bell', sos: 'rotating_light', duress: 'rotating_light', alarm: 'warning', motion: 'eyes', test: 'white_check_mark' }[kind] || 'shield'],
+        photo, actions, controlTopic: cfg.push.topic + '-c',
+      });
+    }
+    return out;
+  }
+  // Botones de la notificación push → llegan por el tema de control
+  let pushCtl = null;
+  function startPush() {
+    if (pushCtl) { pushCtl.stop(); pushCtl = null; }
+    if (!cfg.push.enabled) return;
+    if (!cfg.push.topic) {
+      cfg.push.topic = 'rave-own-' + crypto.randomBytes(12).toString('hex');
+      try { writeEnv({ PUSH_TOPIC: cfg.push.topic }); } catch { /* sin permisos */ }
+    }
+    pushCtl = new NtfyListener({ base: cfg.doorbell.ntfy, topic: cfg.push.topic + '-c', log: (m) => log('[push]', m) });
+    pushCtl.on('data', (p) => {
+      if (p.type === 'reply' && p.code !== 'pase') replyRing(String(p.id || ''), String(p.code || ''), 'notificación push').catch(() => {});
+    });
+    pushCtl.start();
+  }
+
 
   // ───────────── Cerradura (ESP32) ─────────────
   async function triggerRelay(ms) {
@@ -508,7 +555,7 @@ function createApp(cfg, opts = {}) {
         addEvent({ type: 'ACCESS_DENIED', level: 'WARN', message: `PIN incorrecto (${source})`, ip });
         if (locked) {
           addEvent({ type: 'KEYPAD_LOCKOUT', level: 'HIGH', message: 'Teclado bloqueado 60s por 5 intentos fallidos', ip });
-          notify(`⚠️ ${cfg.businessName}: 5 PIN incorrectos seguidos. Teclado bloqueado 60s.`);
+          alertAll(`⚠️ ${cfg.businessName}: 5 PIN incorrectos seguidos. Teclado bloqueado 60s.`, null, { kind: 'alarm' });
         }
         return send(res, 403, { ok: false, result: locked ? 'locked' : 'denied', retryIn: locked ? 60 : 0 });
       }
@@ -519,7 +566,7 @@ function createApp(cfg, opts = {}) {
         addEvent({ type: 'CRITICAL_DURESS_EVENT', level: 'CRITICAL', message: 'Apertura con PIN de coacción', ip, source });
         (async () => {
           // 1) aviso inmediato, 2) tres fotos del canal 1 (puerta) como evidencia
-          await notify(`🚨 COACCIÓN en ${cfg.businessName}. Alguien abrió con el PIN de coacción a las ${new Date().toLocaleTimeString('es-AR')}. Llamá al 911.`);
+          await alertAll(`🚨 COACCIÓN en ${cfg.businessName}\nAlguien abrió con el PIN de coacción a las ${new Date().toLocaleTimeString('es-AR')}. Llamá al 911.`, null, { kind: 'duress' });
           for (let i = 0; i < 3; i++) {
             try {
               const photo = await snapshot(1, true);
@@ -562,8 +609,9 @@ function createApp(cfg, opts = {}) {
       if (b.snapshot && /^data:image\/jpeg;base64,/.test(b.snapshot)) photo = Buffer.from(b.snapshot.split(',')[1], 'base64');
       if (!photo && b.camera) { try { photo = await snapshot(parseInt(b.camera, 10) || 1, true); } catch { /* sin cámara */ } }
       addEvent({ type, level: String(b.level || 'HIGH').slice(0, 10), message: String(b.message || '').slice(0, 500) });
-      const n = await notify(`${b.emoji || '🔔'} ${cfg.businessName}: ${String(b.message || type).slice(0, 500)}`, photo);
-      return send(res, 200, { ok: true, notified: n.sent });
+      const kind = /SOS/.test(type) ? 'sos' : type === 'DOORBELL' ? 'ring' : /LOITER|TAMPER|LOCKOUT/.test(type) ? 'alarm' : 'info';
+      const n = await alertAll(`${b.emoji || '🔔'} ${cfg.businessName}: ${String(b.message || type).slice(0, 500)}`, photo, { kind });
+      return send(res, 200, { ok: true, notified: !!(n.telegram.sent || (n.whatsapp || []).some((x) => x.ok) || (n.push && n.push.ok)) });
     }
 
     const snap = pathname.match(/^\/api\/snapshot\/(\d+)$/);
@@ -672,7 +720,7 @@ function createApp(cfg, opts = {}) {
       state.armed = !!b.armed; saveState();
       addEvent({ type: state.armed ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: state.armed ? 'Sistema ARMADO: avisos de movimiento activos' : 'Sistema desarmado' });
       broadcast('arm', { armed: state.armed });
-      notify(state.armed ? `🔒 ${cfg.businessName}: sistema ARMADO` : `🔓 ${cfg.businessName}: sistema desarmado`);
+      alertAll(state.armed ? `🔒 ${cfg.businessName}: sistema ARMADO` : `🔓 ${cfg.businessName}: sistema desarmado`, null, { kind: 'info' });
       return send(res, 200, { ok: true, armed: state.armed });
     }
 
@@ -734,50 +782,127 @@ function createApp(cfg, opts = {}) {
     if (pathname === '/api/setup' && m === 'GET') {
       if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
       return send(res, 200, {
-        BUSINESS_NAME: cfg.businessName, CAM_NAMES: cfg.cam.names.join(','), CAM_CHANNELS: cfg.cam.channels, ESP32_URL: cfg.esp32Url, RELAY_MS: cfg.relayMs,
-        PANEL_USER: cfg.panelUser, telegram: !!(cfg.telegram.token && cfg.telegram.chatId), camPassSet: !!cfg.cam.pass, panelPassSet: !!cfg.panelPass,
-        defaultPins: { door: cfg.doorPin === '2580', duress: cfg.duressPin === '9999', admin: cfg.adminPin === '1234' }, envFile,
+        groups: SCHEMA.GROUPS, fields: SCHEMA.describe(cfg),
+        telegram: !!(cfg.telegram.token && cfg.telegram.chatId),
+        push: cfg.push.enabled && cfg.push.topic ? { server: cfg.doorbell.ntfy, topic: cfg.push.topic, link: `ntfy://${cfg.doorbell.ntfy.replace(/^https?:\/\//, '')}/${cfg.push.topic}`, web: `${cfg.doorbell.ntfy}/${cfg.push.topic}`, connected: !!(pushCtl && pushCtl.connected) } : null,
+        defaultPins: { door: cfg.doorPin === '2580', duress: cfg.duressPin === '9999', admin: cfg.adminPin === '1234' },
+        status: {
+          camera: { connected: !!state.camHost, host: state.camHost || null, events: state.dvrConnected, go2rtc: state.go2rtc.running, error: state.go2rtc.lastError || null },
+          door: cfg.esp32Url ? 'esp32' : 'simulado', doorbell: !!(bell && bell.connected), telegram: !!(cfg.telegram.token && cfg.telegram.chatId),
+        },
+        envFile,
       });
     }
     if (pathname === '/api/setup' && m === 'POST') {
       if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
       const b = await readBody(req);
-      const allowed = ['BUSINESS_NAME', 'DOOR_PIN', 'DURESS_PIN', 'ADMIN_PIN', 'CAM_PASS', 'CAM_NAMES', 'CAM_CHANNELS', 'ESP32_URL', 'ESP32_TOKEN', 'RELAY_MS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'PANEL_USER', 'PANEL_PASS'];
-      const ch = {};
-      for (const [k, v] of Object.entries(b)) {
-        if (!allowed.includes(k) || v === undefined || v === null || v === '') continue;
-        const val = String(v).trim();
-        if (/PIN$/.test(k) && !/^\d{4,8}$/.test(val)) return send(res, 400, { error: `${k}: de 4 a 8 números` });
-        ch[k] = val;
+      const ch = {}; const vals = {};
+      if (typeof b.WHATSAPP_TO === 'string' && b.WHATSAPP_TO.includes(':*')) {
+        const old = parseRecipients(cfg.whatsapp.to);
+        b.WHATSAPP_TO = b.WHATSAPP_TO.split(',').map((x) => { const [ph, k] = x.split(':'); if (k !== '*') return x; const o = old.find((r) => r.phone.replace('+', '') === ph.replace(/[^\d]/g, '')); return o ? `${ph}:${o.apikey}` : `${ph}:`; }).join(',');
       }
-      const pins = { door: ch.DOOR_PIN || cfg.doorPin, duress: ch.DURESS_PIN || cfg.duressPin, admin: ch.ADMIN_PIN || cfg.adminPin };
-      if (pins.door === pins.duress) return send(res, 400, { error: 'El PIN de puerta y el de coacción deben ser distintos' });
+      for (const [k, raw] of Object.entries(b)) {
+        const f = SCHEMA.FIELDS.find((x) => x.key === k);
+        if (!f) continue;
+        if ((raw === '' || raw === null || raw === undefined) && !f.clearable) continue; // vacío = sin cambios
+        const r = SCHEMA.normalize(f, raw);
+        if (r.error) return send(res, 400, { error: r.error, field: k });
+        vals[k] = r.value; ch[k] = SCHEMA.toEnv(f, r.value);
+      }
       if (!Object.keys(ch).length) return send(res, 400, { error: 'Sin cambios' });
+      const pins = { door: vals.DOOR_PIN || cfg.doorPin, duress: vals.DURESS_PIN || cfg.duressPin, admin: vals.ADMIN_PIN || cfg.adminPin };
+      if (pins.door === pins.duress) return send(res, 400, { error: 'El PIN de puerta y el de coacción deben ser distintos', field: 'DURESS_PIN' });
+      const panelUser = 'PANEL_USER' in vals ? vals.PANEL_USER : cfg.panelUser;
+      const panelPass = 'PANEL_PASS' in vals ? vals.PANEL_PASS : cfg.panelPass;
+      if (!!panelUser !== !!panelPass) return send(res, 400, { error: 'Para proteger el panel completá usuario y contraseña (o dejá los dos vacíos)', field: 'PANEL_PASS' });
       try { writeEnv(ch); } catch (e) { return send(res, 500, { error: 'No se pudo guardar .env: ' + e.message }); }
-      // aplicar en caliente
-      if (ch.BUSINESS_NAME) cfg.businessName = ch.BUSINESS_NAME;
-      if (ch.DOOR_PIN) cfg.doorPin = ch.DOOR_PIN;
-      if (ch.DURESS_PIN) cfg.duressPin = ch.DURESS_PIN;
-      if (ch.ADMIN_PIN) cfg.adminPin = ch.ADMIN_PIN;
-      if (ch.ESP32_URL) cfg.esp32Url = ch.ESP32_URL.replace(/\/$/, '');
-      if (ch.ESP32_TOKEN) cfg.esp32Token = ch.ESP32_TOKEN;
-      if (ch.RELAY_MS) cfg.relayMs = parseInt(ch.RELAY_MS, 10) || cfg.relayMs;
-      if (ch.TELEGRAM_BOT_TOKEN) cfg.telegram.token = ch.TELEGRAM_BOT_TOKEN;
-      if (ch.TELEGRAM_CHAT_ID) cfg.telegram.chatId = ch.TELEGRAM_CHAT_ID;
-      if (ch.PANEL_USER) cfg.panelUser = ch.PANEL_USER;
-      if (ch.PANEL_PASS) cfg.panelPass = ch.PANEL_PASS;
-      if (ch.TELEGRAM_BOT_TOKEN || ch.TELEGRAM_CHAT_ID) startTelegramPoll();
-      if (ch.BUSINESS_NAME) startDoorbell();
-      let camChanged = false;
-      if (ch.CAM_NAMES) cfg.cam.names = ch.CAM_NAMES.split(',').map((x) => x.trim()); // solo etiquetas: sin cortar el video
-      if (ch.CAM_CHANNELS) { cfg.cam.channels = Math.max(1, Math.min(16, parseInt(ch.CAM_CHANNELS, 10) || 4)); camChanged = true; }
-      if (ch.CAM_PASS) { cfg.cam.pass = ch.CAM_PASS; camChanged = true; }
-      if (camChanged) {
+      const applies = new Set();
+      for (const [k, v] of Object.entries(vals)) { const f = SCHEMA.FIELDS.find((x) => x.key === k); f.set(cfg, v); if (f.apply) applies.add(f.apply); }
+      if (applies.has('cam')) {
+        state.camHost = cfg.cam.host && cfg.cam.host !== 'auto' ? cfg.cam.host : '';
         if (!state.camHost && cfg.cam.pass) await resolveCameraHost().catch(() => {});
         restartGo2rtc(); startDvrEvents();
       }
+      if (applies.has('doorbell')) { startDoorbell(); startPush(); }
+      if (applies.has('push')) startPush();
+      if (applies.has('telegram')) startTelegramPoll();
       addEvent({ type: 'CONFIG_CHANGED', level: 'HIGH', message: `Configuración modificada: ${Object.keys(ch).map((k) => (/(PIN|PASS|TOKEN)$/.test(k) ? k + '=****' : k)).join(', ')}` });
-      return send(res, 200, { ok: true, saved: Object.keys(ch) });
+      broadcast('config', { keys: Object.keys(ch) });
+      return send(res, 200, { ok: true, saved: Object.keys(ch), camera: { connected: !!state.camHost } });
+    }
+    if (pathname === '/api/check/notify' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      let photo = null; try { photo = await snapshot(cfg.doorbell.camera, true); } catch { /* sin cámara */ }
+      const r = await alertAll(`✅ Prueba de avisos de ${cfg.businessName}\nSi te llegó este mensaje, los avisos funcionan.`, photo, { kind: 'test' });
+      addEvent({ type: 'NOTIFY_TEST', message: 'Prueba de avisos enviada' });
+      return send(res, 200, { telegram: r.telegram, whatsapp: r.whatsapp || [], push: r.push || null });
+    }
+    // ── Buscar la cerradura ESP32 en la red y vincularla sola ──
+    if (pathname === '/api/esp32/discover' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      const b = await readBody(req);
+      const port = parseInt(process.env.ESP32_SCAN_PORT, 10) || 80;
+      const hosts = candidateHosts(typeof b.scan === 'string' && /^[\d.,/ ]+$/.test(b.scan) ? b.scan : cfg.cam.scan);
+      const open = [];
+      for (let i = 0; i < hosts.length; i += 64) {
+        const chunk = await Promise.all(hosts.slice(i, i + 64).map(async (h) => ((await portOpen(h, port, 400)) ? h : null)));
+        open.push(...chunk.filter(Boolean));
+      }
+      const found = [];
+      for (const h of open) {
+        try {
+          const url = `http://${h}${port === 80 ? '' : ':' + port}`;
+          const r = await fetch(`${url}/status`, { signal: AbortSignal.timeout(1500) });
+          const j = await r.json();
+          if (j && j.device === 'svb-puerta') found.push({ url, ...j });
+        } catch { /* no es una cerradura SVB */ }
+      }
+      if (!found.length) return send(res, 200, { ok: false, scanned: hosts.length, error: 'No se encontró ninguna cerradura SVB en la red. Verificá que esté encendida y conectada al WiFi del local.' });
+      const free = found.find((f) => !f.paired);
+      const mine = found.find((f) => f.url === cfg.esp32Url);
+      if (!free) return send(res, 200, { ok: !!mine, found: found.map((f) => ({ url: f.url, id: f.id, paired: f.paired })), message: mine ? 'La cerradura ya está vinculada a este sistema.' : 'Hay una cerradura ya vinculada a otro sistema. Para volver a vincularla mantené apretado su botón BOOT 5 segundos y configurala de nuevo.' });
+      const token = crypto.randomBytes(24).toString('hex');
+      try {
+        const r = await fetch(`${free.url}/pair`, { method: 'POST', body: token, headers: { 'Content-Type': 'text/plain' }, signal: AbortSignal.timeout(3000) });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); return send(res, 200, { ok: false, error: j.error || `La cerradura rechazó el vínculo (HTTP ${r.status})` }); }
+      } catch (e) { return send(res, 200, { ok: false, error: e.message }); }
+      cfg.esp32Url = free.url; cfg.esp32Token = token;
+      writeEnv({ ESP32_URL: free.url, ESP32_TOKEN: token });
+      addEvent({ type: 'ESP32_PAIRED', level: 'HIGH', message: `Cerradura ${free.id} vinculada en ${free.url}` });
+      return send(res, 200, { ok: true, paired: true, url: free.url, id: free.id, door: free.door });
+    }
+    // ── Pruebas de conexión ──
+    if (pathname === '/api/check/esp32' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      if (!cfg.esp32Url) return send(res, 200, { ok: false, error: 'Sin ESP32 configurado (modo simulado)' });
+      try {
+        const r = await fetch(`${cfg.esp32Url}/status`, { signal: AbortSignal.timeout(4000) });
+        const j = await r.json().catch(() => ({}));
+        return send(res, 200, { ok: r.ok, info: j });
+      } catch (e) { return send(res, 200, { ok: false, error: e.name === 'TimeoutError' ? 'El ESP32 no responde' : e.message }); }
+    }
+    if (pathname === '/api/check/doorbell-page' && m === 'POST') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      try {
+        const r = await fetch(cfg.doorbell.page, { signal: AbortSignal.timeout(8000) });
+        const t = await r.text();
+        return send(res, 200, { ok: r.ok && t.includes('Portero digital'), status: r.status });
+      } catch (e) { return send(res, 200, { ok: false, error: e.message }); }
+    }
+    // ── Ajustes del panel compartidos entre todos los dispositivos ──
+    if (pathname === '/api/panel-settings' && m === 'GET') {
+      try { return send(res, 200, JSON.parse(fs.readFileSync(panelFile, 'utf8'))); } catch { return send(res, 200, { v: 0, settings: {} }); }
+    }
+    if (pathname === '/api/panel-settings' && m === 'PUT') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      const b = await readBody(req, 3 * 1024 * 1024);
+      const settings = {};
+      Object.entries(b.settings || {}).forEach(([k, v]) => { if (SHARED_KEYS.includes(k)) settings[k] = v; });
+      let v = 0; try { v = JSON.parse(fs.readFileSync(panelFile, 'utf8')).v || 0; } catch { /* nuevo */ }
+      const doc = { v: v + 1, by: String(b.device || '').slice(0, 40), at: new Date().toISOString(), settings };
+      fs.writeFileSync(panelFile, JSON.stringify(doc));
+      broadcast('settings', { v: doc.v, by: doc.by });
+      return send(res, 200, { ok: true, v: doc.v });
     }
     if (pathname === '/api/setup/telegram' && m === 'POST') {
       if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
@@ -837,6 +962,7 @@ function createApp(cfg, opts = {}) {
     startGo2rtc();
     startDvrEvents();
     startDoorbell();
+    startPush();
     startTelegramPoll();
     await new Promise((r) => server.listen(cfg.port, cfg.host, r));
     log(`SVB Seguridad · ${cfg.businessName} → http://localhost:${server.address().port}`);
@@ -847,6 +973,7 @@ function createApp(cfg, opts = {}) {
     if (child) child.kill();
     if (dvr) dvr.stop();
     if (bell) bell.stop();
+    if (pushCtl) pushCtl.stop();
     tgRun++; if (tgCtl) tgCtl.abort();
     sse.forEach((r) => r.end());
     await new Promise((r) => server.close(r));
