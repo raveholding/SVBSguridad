@@ -614,6 +614,10 @@ function createApp(cfg, opts = {}) {
           if (r.error) fail = `${r.error}${r.dist ? ` (distancia ${r.dist})` : ''}`;
           else { person = r.person; mode = 'person'; }
         }
+      } else if (body.nfc) { // tarjeta NFC propia de la persona
+        source = 'nfc';
+        person = access.findByNfc(body.nfc);
+        if (person) mode = 'person'; else fail = 'Tarjeta NFC no registrada';
       } else if (pin && safeEq(pin, cfg.duressPin)) mode = 'duress';
       else if (pin && safeEq(pin, cfg.doorPin)) mode = 'normal';
       else if (/^\d{4,8}$/.test(pin) && (person = access.findByPin(pin))) mode = 'person';
@@ -631,7 +635,7 @@ function createApp(cfg, opts = {}) {
           addEvent({ type: 'KEYPAD_LOCKOUT', level: 'HIGH', message: 'Teclado bloqueado 60s por 5 intentos fallidos', ip });
           alertAll(`⚠️ ${cfg.businessName}: 5 intentos de acceso fallidos seguidos. Teclado bloqueado 60s.`, null, { kind: 'alarm' });
         }
-        return send(res, 403, { ok: false, result: locked ? 'locked' : 'denied', retryIn: locked ? 60 : 0, reason: source === 'huella' || source === 'rostro' ? fail : undefined });
+        return send(res, 403, { ok: false, result: locked ? 'locked' : 'denied', retryIn: locked ? 60 : 0, reason: ['huella', 'rostro', 'nfc'].includes(source) ? fail : undefined });
       }
       state.failures.delete(ip);
       // Horario de atención: fuera de horario solo entran el PIN general, el dueño y (si se permite) los empleados.
@@ -850,7 +854,7 @@ function createApp(cfg, opts = {}) {
 
     if (pathname === '/api/discover' && m === 'POST') {
       if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
-      if (!cfg.cam.pass) return send(res, 400, { error: 'Falta CAM_PASS en .env' });
+      if (!cfg.cam.pass) return send(res, 400, { error: 'Falta la contraseña del grabador (Configuración → Grabador Dahua)' });
       const prev = state.camHost;
       state.camHost = '';
       await resolveCameraHost();
@@ -1009,7 +1013,7 @@ function createApp(cfg, opts = {}) {
       const panelUser = 'PANEL_USER' in vals ? vals.PANEL_USER : cfg.panelUser;
       const panelPass = 'PANEL_PASS' in vals ? vals.PANEL_PASS : cfg.panelPass;
       if (!!panelUser !== !!panelPass) return send(res, 400, { error: 'Para proteger el panel completá usuario y contraseña (o dejá los dos vacíos)', field: 'PANEL_PASS' });
-      try { writeEnv(ch); } catch (e) { return send(res, 500, { error: 'No se pudo guardar .env: ' + e.message }); }
+      try { writeEnv(ch); } catch (e) { return send(res, 500, { error: 'No se pudo guardar la configuración: ' + e.message }); }
       const applies = new Set();
       for (const [k, v] of Object.entries(vals)) { const f = SCHEMA.FIELDS.find((x) => x.key === k); f.set(cfg, v); if (f.apply) applies.add(f.apply); }
       if (applies.has('cam')) {

@@ -412,7 +412,7 @@ def main():
             page.click("[data-go='portero']")
             page.wait_for_function("document.querySelector('#dbUrl').textContent.includes('timbre.html?t=rave-')", timeout=8000)
             check("Portero activo y con enlace secreto", "activo" in page.inner_text("#dbState"))
-            db_url = page.inner_text("#dbUrl")
+            db_url = page.text_content("#dbUrl")
             page.locator("#dbQr").screenshot(path=os.path.join(SHOTS, "qr-portero.png"))
             with page.expect_popup() as pop:
                 page.click("#dbPrint")

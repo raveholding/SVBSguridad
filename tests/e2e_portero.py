@@ -76,7 +76,7 @@ try:
         pg.locator('#adminNav [data-go="portero"]').click(); pg.wait_for_timeout(1500)
         st = pg.inner_text('#dbState')
         check('Sección Portero funciona sin servidor', 'Portero activo en este equipo' in st, st)
-        url = pg.inner_text('#dbUrl')
+        url = pg.text_content("#dbUrl")
         check('QR del portero con enlace del cliente', url.startswith(WEB + '/timbre.html?t=rave-'), url)
         topic = pg.evaluate('S.dbTopic'); own = pg.evaluate('S.nTopic')
         check('Configuración de avisos visible', pg.locator('#nQr').is_visible() and pg.locator('#nWaList .waRow').count() == 1)

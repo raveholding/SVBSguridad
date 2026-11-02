@@ -52,7 +52,7 @@ flowchart LR
 | Módulo | Qué hace |
 |---|---|
 | **Teclado + PIN** | Abre la cerradura. 5 errores → bloqueo de 60 s y aviso al dueño. Validación del lado servidor. |
-| **Personas y accesos** | Cada dueño, empleado o proveedor entra con **su propio PIN** (guardado cifrado) y queda registrado quién abrió y a qué hora. Se pueden habilitar y deshabilitar. El PIN general sigue funcionando. |
+| **Personas y accesos** | Cada dueño, empleado o proveedor entra con **su propio PIN** (guardado cifrado) o **su tarjeta NFC** y queda registrado quién abrió y a qué hora. Se pueden habilitar y deshabilitar. El PIN general sigue funcionando. |
 | **Horario de atención** | Franjas por día (varias, también cruzando la medianoche), siempre abierto o cerrado manual. Fuera de horario se bloquean timbre, pases, NFC y proveedores; el cliente que toca el timbre ve el horario en su celular. El dueño y el PIN general entran siempre; los empleados, si se permite. Opcional: **armar el sistema al cerrar y desarmarlo al abrir**. |
 | **Huella del personal** | Passkeys (WebAuthn): huella del celular de la persona o del sensor del equipo. El servidor verifica la firma; la huella nunca sale del celular. Requiere consentimiento registrado. |
 | **Rostro del personal** | Reconocimiento facial con la cámara de puerta (canal Dahua o tablet), con parpadeo obligatorio. Solo se guarda una plantilla numérica en el servidor, sin fotos. |
@@ -134,9 +134,8 @@ flowchart LR
   P & T -- respuesta --> N -- "«Ya voy»" --> C
 ```
 
-1. **Activar la página pública (una vez):** GitHub → repositorio → **Settings → Pages** → Branch **main** / **(root)** → **Save**.
-2. Panel → ⚙ → **Portero QR / NFC** → **Imprimir cartel para la puerta**.
-3. (Opcional) Desde un Android con Chrome: **Grabar sticker NFC** (NTAG213/215).
+1. Panel → **Portero y avisos al celular** → **Imprimir cartel para la puerta**.
+2. (Opcional) Desde un Android con Chrome: **Grabar sticker NFC** (NTAG213/215).
 
 **Sin servidor también funciona:** si el panel se abre sin el servidor SVB (por ejemplo desde GitHub Pages en la tablet de la puerta), ese mismo equipo escucha los timbres, suena con la imagen de su cámara, avisa a los dueños y responde al cliente. En Panel → **Portero y avisos al celular** se cargan la notificación push (app ntfy, con foto y botones *Ya voy · Un momento · Dejar en puerta*) y los **WhatsApp que elijan los dueños** (CallMeBot), y se elige qué se avisa: timbre, SOS, coacción, intentos fallidos, alarmas de cámara y fuera de horario. El equipo tiene que quedar encendido, con el panel abierto y con internet.
 
@@ -160,7 +159,7 @@ npm run kiosk      # pantalla completa tipo tótem
 npm run dist       # genera el instalador .exe en desktop/dist
 ```
 
-La app incluye el servidor, abre el panel y permite accionar la cerradura por **USB** (ESP32 conectado a la PC; Admin → Relé → *Puerto serie*). El `.env` va junto al `.exe` instalado.
+La app incluye el servidor, abre el panel y permite accionar la cerradura por **USB** (también desde Chrome o Edge sin servidor: Admin → Relé y PINs → *Conectar cerradura por USB*) (ESP32 conectado a la PC; Admin → Relé → *Puerto serie*). El `.env` va junto al `.exe` instalado.
 
 ## Linux / Raspberry Pi
 
