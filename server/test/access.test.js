@@ -101,6 +101,15 @@ test('Personas con PIN propio, horario y pases con usos', async (t) => {
   const s = await req(port, 'POST', '/api/setup', { DURESS_PIN: '4321' }, admin);
   assert.strictEqual(s.status, 400); assert.match(s.body.error, /persona/);
 
+  // Tarjeta NFC propia (con horario abierto)
+  await req(port, 'PUT', '/api/hours', { mode: 'always' }, admin);
+  assert.strictEqual((await req(port, 'PUT', `/api/people/${juan.id}`, { nfc: '04:a2:19:7c:11:22:80' }, admin)).body.nfc, '04A2197C112280');
+  assert.match((await req(port, 'PUT', `/api/people/${prov.id}`, { nfc: '04a2197c112280' }, admin)).body.error, /otra persona/);
+  r = await req(port, 'POST', '/api/door/open', { nfc: '04-A2-19-7C-11-22-80' });
+  assert.strictEqual(r.body.result, 'open'); assert.strictEqual(r.body.visitor, 'Juan');
+  r = await req(port, 'POST', '/api/door/open', { nfc: '04:00:00:00:00:00:01' });
+  assert.strictEqual(r.body.result, 'denied'); assert.match(r.body.reason, /no registrada/);
+
   // Eliminar borra todo
   assert.strictEqual((await req(port, 'DELETE', `/api/people/${juan.id}`, null, admin)).status, 200);
   assert.strictEqual((await req(port, 'GET', '/api/people', null, admin)).body.people.length, 1);

@@ -150,9 +150,10 @@ class AccessStore {
   /** Vista para el panel: sin hashes de PIN ni plantillas faciales. */
   view(p) {
     return { id: p.id, name: p.name, role: p.role, on: p.on, hasPin: !!p.pin, consent: p.consent || 0, created: p.created,
-      pk: (p.pk || []).map((k) => ({ id: k.id, kind: k.kind, ts: k.ts, origin: k.origin })), face: p.face && p.face.d ? { n: p.face.d.length, ts: p.face.ts } : null, lastIn: p.lastIn || null };
+      nfc: p.nfc || '', pk: (p.pk || []).map((k) => ({ id: k.id, kind: k.kind, ts: k.ts, origin: k.origin })), face: p.face && p.face.d ? { n: p.face.d.length, ts: p.face.ts } : null, lastIn: p.lastIn || null };
   }
   get(id) { return this.people.find((p) => p.id === id); }
+  findByNfc(sn) { const k = normNfc(sn); return (k && this.people.find((p) => p.nfc === k)) || null; }
   findByPin(pin) { return this.people.find((p) => p.pin && checkPin(pin, p.pin)) || null; }
   create({ name, role }) {
     if (this.people.length >= 200) throw new Error('Máximo 200 personas');
@@ -167,6 +168,12 @@ class AccessStore {
       if (!BIO_ROLES.includes(p.role)) this.wipeBio(p); // un proveedor no usa biometría
     }
     if (b.on !== undefined) p.on = !!b.on;
+    if (b.nfc !== undefined) {
+      const k = b.nfc ? normNfc(b.nfc) : '';
+      if (b.nfc && !k) throw new Error('Número de tarjeta NFC no válido');
+      if (k && this.people.some((x) => x.id !== p.id && x.nfc === k)) throw new Error('Esa tarjeta NFC ya es de otra persona');
+      p.nfc = k;
+    }
     if (b.consent !== undefined) { if (b.consent) p.consent = p.consent || Date.now(); else this.wipeBio(p); }
     this.save(); return p;
   }
@@ -242,6 +249,8 @@ class AccessStore {
   }
   setHours(b) { this.hours = normalizeHours(b, this.hours); this.save(); }
 }
+/** Número de serie de la tarjeta (ej. "04:a2:19:7c") normalizado. */
+function normNfc(s) { const t = String(s || '').toUpperCase().replace(/[^0-9A-F]/g, ''); return t.length >= 8 && t.length <= 40 ? t : ''; }
 function cleanName(s) { const n = String(s || '').replace(/[\r\n<>]/g, '').trim().slice(0, 40); if (!n) throw new Error('Falta el nombre'); return n; }
 
 module.exports = { AccessStore, ROLES, BIO_ROLES, schedActive, isOpen, hoursText, normalizeHours, hashPin, checkPin, verifyAssertion, b64u, DEFAULT_HOURS };

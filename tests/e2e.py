@@ -369,7 +369,7 @@ def main():
             check("Telegram se conecta solo con el token", "Nico" in page.inner_text("#suTgOut") and "TELEGRAM_CHAT_ID=4242" in open(env["SVB_ENV_FILE"]).read())
             page.fill("[data-key='DOOR_PIN']", "4455"); page.fill("[data-key='DURESS_PIN']", "4455")
             page.click("[data-save='seguridad']")
-            page.wait_for_function("document.querySelector('[data-out=seguridad]').textContent.length > 3", timeout=5000)
+            page.wait_for_function("(t => t.length > 3 && !t.includes('Guardando'))(document.querySelector('[data-out=seguridad]').textContent)", timeout=5000)
             check("Valida PIN de puerta ≠ coacción", "distintos" in page.inner_text("[data-out='seguridad']"))
             page.fill("[data-key='DURESS_PIN']", "7788")
             page.click("[data-save='seguridad']")
@@ -412,7 +412,7 @@ def main():
             page.click("[data-go='portero']")
             page.wait_for_function("document.querySelector('#dbUrl').textContent.includes('timbre.html?t=rave-')", timeout=8000)
             check("Portero activo y con enlace secreto", "activo" in page.inner_text("#dbState"))
-            db_url = page.inner_text("#dbUrl")
+            db_url = page.text_content("#dbUrl")
             page.locator("#dbQr").screenshot(path=os.path.join(SHOTS, "qr-portero.png"))
             with page.expect_popup() as pop:
                 page.click("#dbPrint")

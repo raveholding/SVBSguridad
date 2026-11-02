@@ -183,7 +183,7 @@ main.wide .side{display:none}
 .flash .ring svg{width:80px;height:80px;stroke-width:1.2}
 .modal{background:var(--p1);border:1px solid var(--b2);border-radius:18px;padding:18px;width:min(380px,92vw)}
 #pinOv{z-index:70}
-#faceOv{z-index:72}
+#faceOv,#scanOv{z-index:72}
 .toast{position:fixed;left:50%;top:86px;transform:translateX(-50%) translateY(-20px);opacity:0;transition:.25s;z-index:80;background:var(--white);color:#000;padding:12px 18px;border-radius:12px;font-weight:600;max-width:90vw;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -484,27 +484,23 @@ html{touch-action:manipulation}
       <div id="cfgForm"><p class="muted small">Cargando…</p></div>
     </section>
 
-    <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero QR / NFC">
-      <h2>Portero digital: timbre con el celular del cliente</h2>
-      <p class="lead">Pegá este QR (y un sticker NFC) en la puerta. El cliente lo escanea con su celular, toca el timbre, suena aquí y te llega la foto a Telegram con botones para responder.</p>
-      <div id="dbState" class="small muted"></div>
+    <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero y avisos al celular">
+      <h2>Portero digital y avisos al celular</h2>
+      <p class="lead">Pegá este QR (y un sticker NFC) en la puerta. El cliente lo escanea con su celular y toca el timbre: suena en este equipo con la imagen de la cámara, les llega el aviso a los dueños (notificación con foto y botones, o WhatsApp) y la respuesta aparece en la pantalla del cliente.</p>
+      <div id="dbState" class="small"></div>
       <div class="poster-prev" style="margin-top:12px">
         <canvas id="dbQr" width="260" height="260" style="background:#fff;border-radius:10px"></canvas>
         <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
           <button class="btn primary" id="dbPrint">Imprimir cartel para la puerta</button>
           <button class="btn" id="dbNfc">Grabar sticker NFC</button>
           <button class="btn" id="dbCopy">Copiar enlace</button>
+          <button class="btn" id="dbOpen">Abrir la página del cliente</button>
           <button class="btn" id="dbTest">Probar timbre</button>
           <button class="btn ghost" id="dbRegen">Regenerar código (invalida QR viejos)</button>
         </div>
       </div>
-      <div id="dbUrl" class="small muted" style="margin-top:10px;word-break:break-all;user-select:text"></div>
-      <h3>Activación (una sola vez)</h3>
-      <ol>
-        <li>Entrá a <b>github.com/raveholding/SVBSguridad</b> → <b>Settings</b> → <b>Pages</b>.</li>
-        <li>En <b>Branch</b> elegí <b>main</b> y carpeta <b>/ (root)</b> → <b>Save</b>.</li>
-        <li>En 1–2 minutos la página del portero queda publicada. Probala escaneando el QR con tu celular <b>con los datos móviles</b> (sin WiFi).</li>
-      </ol>
+      <div id="dbUrl" hidden></div>
+      <div id="directCfg" style="margin-top:18px"></div>
       <h3>Sticker NFC</h3>
       <ol>
         <li>Comprá stickers NFC <b>NTAG213 o NTAG215</b> (los venden en Mercado Libre).</li>
@@ -558,7 +554,7 @@ html{touch-action:manipulation}
       </div>
       <label class="chk"><input type="checkbox" id="sFamilyWa">Enviar también mensaje de WhatsApp de auxilio al familiar</label>
       <label class="chk"><input type="checkbox" id="sRingCall">El timbre además llama al teléfono del dueño</label>
-      <p class="small muted">Las alertas al celular del dueño (con foto) se envían por Telegram desde el servidor. Ver <code>.env</code> → TELEGRAM_BOT_TOKEN.</p>
+      <p class="small muted">Los avisos al celular de los dueños (WhatsApp, notificación con foto y Telegram) se configuran en <b>Portero y avisos al celular</b> o en <b>★ Configuración → Avisos a los dueños</b>.</p>
       <button class="btn sm" id="sTgTest">Probar alerta Telegram</button>
     </section>
 
@@ -616,11 +612,12 @@ html{touch-action:manipulation}
       <p class="lead">Tiempo de apertura y modo de accionamiento.</p>
       <div class="row">
         <label class="f">Tiempo de relé: <span id="sRelayV"></span><input type="range" id="sRelay" min="100" max="10000" step="100"></label>
-        <label class="f">Accionamiento<select class="inp" id="sRelayMode"><option value="server">Servidor → ESP32 por WiFi</option><option value="serial">Puerto serie USB (app de escritorio)</option></select></label>
+        <label class="f">Accionamiento<select class="inp" id="sRelayMode"><option value="server">Servidor → ESP32 por WiFi</option><option value="serial">Cable USB a la cerradura (Chrome/Edge o app de escritorio)</option></select></label>
       </div>
-      <button class="btn sm" id="sRelayTest">Probar apertura</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="sRelayTest">Probar apertura</button><button class="btn sm" id="sSerial">Conectar cerradura por USB</button></div>
+      <p class="small muted" id="serialTxt">Con cable USB la cerradura abre aunque no haya servidor ni internet. En Chrome o Edge, tocá «Conectar cerradura por USB» una vez y elegí el puerto.</p>
       <h3 class="muted small" style="letter-spacing:2px;margin-top:24px">PINs DE RESPALDO (solo si el servidor no está disponible)</h3>
-      <p class="small muted">Con servidor activo, los PINs válidos son los del archivo <code>.env</code> (DOOR_PIN, DURESS_PIN, ADMIN_PIN).</p>
+      <p class="small muted">Con el servidor encendido valen los PINs de <b>★ Configuración → PINs y acceso al panel</b>.</p>
       <div class="row">
         <label class="f">PIN de puerta<input class="inp" id="sDoorPin" inputmode="numeric" maxlength="8"></label>
         <label class="f">PIN de coacción<input class="inp" id="sDuressPin" inputmode="numeric" maxlength="8"></label>
@@ -653,7 +650,7 @@ html{touch-action:manipulation}
 
     <section class="pane" data-pane="firmware" data-n="7" data-title="Firmware ESP32">
       <h2>Firmware ESP32 — cerradura</h2>
-      <p class="lead">Arduino IDE 2 · placa «ESP32 Dev Module». Completá WiFi y TOKEN (= ESP32_TOKEN del .env). Relé en GPIO 26, sensor de puerta GPIO 27, pulsador de salida GPIO 25.</p>
+      <p class="lead">Arduino IDE 2 · placa «ESP32 Dev Module». Se graba tal cual: el WiFi se configura desde el celular y la clave se carga sola con «Buscar y vincular cerradura». Relé en GPIO 26, sensor de puerta GPIO 27, pulsador de salida GPIO 25.</p>
       <div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn sm" id="fwCopy">Copiar</button><button class="btn sm" id="fwDl">Descargar .ino</button></div>
       <pre class="code" id="fwView"></pre>
     </section>
@@ -663,8 +660,8 @@ html{touch-action:manipulation}
       <div class="doc">
         <h3>Cómo se ven las cámaras de DMSS en este panel</h3>
         <p>DMSS usa P2P (la nube de Dahua) con el número de serie del grabador. Los navegadores no pueden abrir P2P ni RTSP directamente, por eso el <b>servidor SVB</b> (una PC o mini‑PC en el almacén) se conecta al grabador por la red local y convierte el video a WebRTC/MSE con <b>go2rtc</b>. DMSS sigue funcionando igual en paralelo.</p>
-        <h3>Datos que usa el servidor (archivo <code>.env</code>, nunca en GitHub)</h3>
-        <p><code>CAM_SERIAL</code> número de serie que muestra DMSS · <code>CAM_USER</code>/<code>CAM_PASS</code> usuario y contraseña del dispositivo · <code>CAM_HOST=auto</code> para que el servidor encuentre la IP solo, o la IP fija del grabador.</p>
+        <h3>Datos del grabador</h3>
+        <p>Se cargan en <b>★ Configuración → Grabador Dahua</b>: número de serie que muestra DMSS, usuario y contraseña del dispositivo. Con IP en «auto» el sistema encuentra el grabador solo.</p>
         <h3>URLs RTSP Dahua</h3>
         <p>Principal: <code>rtsp://USUARIO:CLAVE@IP:554/cam/realmonitor?channel=1&amp;subtype=0</code><br>Secundaria (liviana): <code>…channel=1&amp;subtype=1</code><br>Canal 2, 3, 4…: cambiar <code>channel=</code>.</p>
         <h3>Hikvision</h3>
@@ -1148,6 +1145,9 @@ const DEFAULTS = {
   relayMs: 3000, relayMode: 'server', doorPin: '2580', duressPin: '9999', adminPin: '1234',
   server: '', doorSrc: 'local', gridQ: 'sd', lowLatency: false, motion: 8, loiter: 10, face: true, aiNotify: true, ir: false, ai: true,
   camNames: {},
+  // Portero y avisos directos desde este equipo (cuando no hay servidor SVB)
+  dbOn: true, dbTopic: '', dbWa: '', dbPage: '', ntfyUrl: 'https://ntfy.sh', cmbUrl: 'https://api.callmebot.com',
+  nPush: false, nTopic: '', nWa: false, nRecips: [], nEv: { ring: true, sos: true, duress: true, lock: true, alarm: true, off: false },
 };
 const S = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('svb.settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
 function save() { try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } if (typeof pushShared === 'function') pushShared(); }
@@ -1221,7 +1221,7 @@ async function refreshStatus() {
     if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
     net.online = false; net.status = null;
   }
-  paintStatus(); paintAccess();
+  paintStatus(); paintAccess(); startDirect();
 }
 function setPill(id, state, title) {
   const p = $(id); p.classList.remove('on', 'warn');
@@ -1239,7 +1239,7 @@ function paintStatus() {
   const t = $('#camStatusTxt');
   if (t) {
     if (!net.online) t.textContent = 'Sin servidor: solo funciona la cámara de esta tablet/PC. Instalá el servidor SVB en una PC del almacén para ver las cámaras Dahua.';
-    else if (!cams.configured) t.textContent = 'Servidor conectado, pero todavía no encontró el grabador Dahua. Revisá CAM_PASS / CAM_SERIAL en .env o tocá «Buscar grabador».';
+    else if (!cams.configured) t.textContent = 'Servidor conectado, pero todavía no encontró el grabador Dahua. Revisá la contraseña y el número de serie en ★ Configuración → Grabador o tocá «Buscar grabador».';
     else t.textContent = `Grabador ${cams.serialHint || ''} en ${cams.host} · ${cams.channels.length} canales · go2rtc ${cams.go2rtc.running ? 'activo' : 'detenido'}${cams.go2rtc.error ? ' · ' + cams.go2rtc.error : ''}`;
   }
 }
@@ -1365,18 +1365,18 @@ function doorResult(r, source) {
   if (result === 'open') { localFails = 0; return grantAccess({ covert: r._c === 1, who: r.visitor || '', source }); }
   if (result === 'closed') {
     if (r.hours) setAccess({ text: r.hours });
-    if (r.offline) logEvent('OFFHOURS_DENIED', 'WARN', `Intento fuera de horario (${source})`, { sync: false }); else tick('OFFHOURS_DENIED', `Intento fuera de horario (${source})`);
+    if (r.offline) { logEvent('OFFHOURS_DENIED', 'WARN', `Intento fuera de horario (${source})`, { sync: false }); notifyDirect('off', `⛔ Fuera de horario · ${S.biz}`, `Intento de ingreso fuera de horario (${source}) a las ${hhmmNow()}.`); } else tick('OFFHOURS_DENIED', `Intento fuera de horario (${source})`);
     return closedFlash();
   }
   if (result === 'locked') {
     const retry = r.retryIn || 60;
     lockedUntil = Date.now() + retry * 1000;
     Sfx.err(); flash(null, 'TECLADO BLOQUEADO', `Demasiados intentos. Reintente en ${retry} s`, 3500);
-    if (r.offline) logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false });
+    if (r.offline) { logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false }); notifyDirect('lock', `⚠️ Intentos fallidos · ${S.biz}`, `5 intentos de acceso fallidos seguidos a las ${hhmmNow()}. Teclado bloqueado ${retry} s.`); }
     if (S.mode === 'corp') captureEvidence('LOCKOUT', 1);
     return;
   }
-  const what = source === 'huella' ? 'Huella no reconocida' : source === 'rostro' ? 'Rostro no reconocido' : 'PIN incorrecto';
+  const what = source === 'huella' ? 'Huella no reconocida' : source === 'rostro' ? 'Rostro no reconocido' : source === 'nfc' ? 'Tarjeta no registrada' : 'PIN incorrecto';
   Sfx.err(); flash(false, 'ACCESO DENEGADO', r.reason ? r.reason.replace(/^Huella rechazada: /, '') : what, r.reason ? 3200 : 2200);
   if (r.offline) logEvent('ACCESS_DENIED', 'WARN', `${what} (${source})`, { sync: false });
   else tick('ACCESS_DENIED', `${what} (${source})`);
@@ -1387,15 +1387,38 @@ async function grantAccess({ covert, who, source }) {
   Sfx.ok();
   flash(true, 'ACCESO CONCEDIDO', who ? `Bienvenido/a, ${who}` : 'Puerta liberada');
   if (who) speak(`Bienvenido ${who}. Puede pasar.`);
-  if (S.relayMode === 'serial' && isElectron && window.electronAPI.relay) window.electronAPI.relay(S.relayMs).catch(() => toast('Relé USB no responde'));
+  if (S.relayMode === 'serial') usbRelay(S.relayMs).catch(() => toast('La cerradura USB no responde'));
   if (covert) {
     logEvent('CRITICAL_DURESS_EVENT', 'CRITICAL', `Apertura bajo coacción (${source})`, { hidden: true, sync: false });
-    captureEvidence('DURESS', 3, true);
+    captureEvidence('DURESS', 3, true).then((sh) => { if (!net.online) notifyDirect('duress', `🚨 COACCIÓN · ${S.biz}`, `Alguien abrió con el PIN de coacción a las ${hhmmNow()}. Llamá al 911.`, sh[0] && sh[0].data); });
     tick('DOOR_OPEN', `Puerta abierta (${source})`); // ticker igual al normal
   } else {
     if (!net.online) logEvent(who ? 'VISITOR_ACCESS' : 'DOOR_OPEN', 'INFO', who ? `Acceso de visita: ${who}` : `Puerta abierta (${source})`, { sync: false });
     else tick('DOOR_OPEN', who ? `${who} (${source})` : `Puerta abierta (${source})`);
   }
+}
+
+/* ── Cerradura por cable USB (Web Serial en Chrome/Edge, o la app de escritorio) ── */
+let serialPort = null, serialW = null;
+async function serialOpen(port) {
+  if (!port.readable) await port.open({ baudRate: 115200 });
+  serialPort = port; serialW = port.writable.getWriter();
+  const t = $('#serialTxt'); if (t) t.textContent = '✔ Cerradura conectada por USB.';
+}
+async function usbRelay(ms) {
+  if (isElectron && window.electronAPI.relay) return window.electronAPI.relay(ms);
+  if (!serialW) {
+    const ports = 'serial' in navigator ? await navigator.serial.getPorts() : [];
+    if (!ports.length) throw new Error('sin cerradura USB conectada');
+    await serialOpen(ports[0]);
+  }
+  await serialW.write(new TextEncoder().encode(`OPEN ${ms}\n`));
+}
+async function connectSerial() {
+  if (isElectron) return toast('En la app de escritorio la cerradura USB se conecta sola');
+  if (!('serial' in navigator)) return toast('Conexión USB disponible en Chrome o Edge de computadora');
+  try { await serialOpen(await navigator.serial.requestPort()); S.relayMode = 'serial'; save(); loadForm(); toast('Cerradura USB conectada'); logEvent('USB_RELAY', 'INFO', 'Cerradura conectada por USB', { sync: true }); }
+  catch (e) { if (e.name !== 'NotFoundError') toast('USB: ' + e.message); }
 }
 
 /* ═══════════════════════════ CAPTURA DE EVIDENCIA ═══════════════════════════ */
@@ -1454,6 +1477,7 @@ async function fireSos() {
   const shot = (await captureEvidence('SOS', 1))[0];
   logEvent('SOS_911', 'CRITICAL', `Llamada de emergencia a ${S.emergency}`, { sync: false });
   if (net.online) api('/api/alert', { method: 'POST', body: { type: 'SOS_911', level: 'CRITICAL', emoji: '🚨', message: `BOTÓN SOS PRESIONADO. Se llamó al ${S.emergency}.`, snapshot: shot && shot.data, camera: shot ? undefined : 1 } }).catch(() => {});
+  else notifyDirect('sos', `🚨 SOS · ${S.biz}`, `BOTÓN SOS PRESIONADO a las ${hhmmNow()}. Se llamó al ${S.emergency}.`, shot && shot.data);
   dial(S.emergency);
 }
 function dial(number) {
@@ -1486,6 +1510,7 @@ async function ring() {
   speak(S.mode === 'corp' ? 'Avisando a la oficina, aguarde por favor.' : 'Avisando, aguarde por favor.');
   const shot = (await captureEvidence('TIMBRE', 1, true))[0];
   if (net.online) api('/api/alert', { method: 'POST', body: { type: 'DOORBELL', level: 'INFO', emoji: '🔔', message: 'Están tocando el timbre.', snapshot: shot && shot.data, camera: shot ? undefined : 1 } }).catch(() => {});
+  else notifyDirect('ring', `🔔 Timbre · ${S.biz}`, `Están tocando el timbre de la pantalla de la puerta (${hhmmNow()}).`, shot && shot.data);
   if (S.ringCall && S.officePhone) dial(S.officePhone);
 }
 
@@ -1566,6 +1591,15 @@ function showRing(r) {
 function hideRing() { curRing = null; clearInterval(ringChime); $('#ringOv').classList.remove('show'); $('#ringCam').innerHTML = ''; }
 async function replyRing(code) {
   if (!curRing) return;
+  if (curRing.direct) {
+    if (code === 'pase') {
+      const pin = await askPin('PIN para abrir'); if (!pin) return;
+      if (pin !== S.doorPin && pin !== S.adminPin) { Sfx.err(); toast('PIN incorrecto'); return; }
+      const id = curRing.id; await directReply(id, 'pase', 'panel'); return grantAccess({ covert: false, who: '', source: 'timbre' });
+    }
+    const ok = await directReply(curRing.id, code, 'panel');
+    toast(ok ? 'Respuesta enviada al celular del cliente' : 'Sin internet: no se pudo responder'); return;
+  }
   const body = { id: curRing.id, code };
   if (code === 'pase') { const pin = await askPin('PIN para abrir'); if (!pin) return; body.pin = pin; }
   const r = await api('/api/doorbell/reply', { method: 'POST', body }).catch((e) => ({ error: e.message }));
@@ -1573,9 +1607,14 @@ async function replyRing(code) {
   else { Sfx.err(); toast(r.error || 'No se pudo responder'); }
 }
 async function loadDoorbell() {
-  if (!net.online) { $('#dbState').innerHTML = '<div class="warn">Requiere el servidor SVB encendido.</div>'; return; }
+  if (!net.online) { // sin servidor: el portero funciona directo desde este equipo
+    loadDoorbell.url = directUrl();
+    drawQr($('#dbQr'), loadDoorbell.url); $('#dbUrl').textContent = loadDoorbell.url;
+    paintDirectState(); renderDirectCfg(); return;
+  }
+  renderDirectCfg();
   const d = await api('/api/doorbell', { admin: true }).catch(() => null);
-  if (!d || !d.url) { $('#dbState').innerHTML = '<div class="warn">Portero desactivado (DOORBELL=0 en .env).</div>'; return; }
+  if (!d || !d.url) { $('#dbState').innerHTML = '<div class="warn">Portero desactivado. Activalo en ★ Configuración → Portero digital.</div>'; return; }
   loadDoorbell.url = d.url;
   $('#dbState').innerHTML = d.connected ? '<span class="ok-msg">✔ Portero activo: escuchando timbres.</span>' : '<div class="warn">El servidor todavía no se conectó al relevo de timbres (ntfy.sh). Revisá internet en la PC.</div>';
   drawQr($('#dbQr'), d.url);
@@ -1602,6 +1641,236 @@ async function writeDoorbellNfc() {
   if (!('NDEFReader' in window)) return toast('Grabar NFC: abrí este panel en Chrome de un celular Android');
   try { toast('Apoyá el sticker NFC en la parte de atrás del celular…'); await new window.NDEFReader().write({ records: [{ recordType: 'url', data: loadDoorbell.url }] }); toast('Sticker NFC grabado ✔'); logEvent('NFC_DOORBELL', 'INFO', 'Sticker NFC del portero grabado', { sync: true }); }
   catch (e) { toast('NFC: ' + e.message); }
+}
+
+/* ═══════════════════════ PORTERO Y AVISOS DIRECTOS (sin servidor, como el portero Cannabismática) ═══════════════════════
+ * Si el servidor SVB no está, este mismo equipo escucha los timbres del QR/NFC por el relevo gratuito ntfy.sh,
+ * avisa a los dueños (notificación push con foto y botones, y WhatsApp por CallMeBot) y responde al cliente.
+ * Requiere que este equipo quede encendido, con el panel abierto y con internet.
+ */
+const REPLIES = { voy: 'Ya voy, aguarde un momento 🙂', momento: 'Estamos atendiendo, enseguida lo atendemos.', cerrado: 'Ahora no podemos atender. Disculpe las molestias.', pase: 'Puerta abierta, puede pasar.', deje: 'Por favor deje el pedido en la puerta. ¡Gracias!' };
+const NEV = { ring: 'Timbre (cliente en la puerta)', sos: 'Botón SOS', duress: 'Alerta silenciosa (PIN de coacción)', lock: 'Bloqueo por intentos fallidos', alarm: 'Alarmas de cámara (merodeo, lente tapado)', off: 'Intentos y timbres fuera de horario' };
+const hhmmNow = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+const ntfyBase = () => String(S.ntfyUrl || 'https://ntfy.sh').replace(/\/+$/, '');
+const rndTopic = (p) => p + Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+function ensureTopics() {
+  let ch = false;
+  if (!/^[\w-]{10,64}$/.test(S.dbTopic || '')) { S.dbTopic = rndTopic('rave-'); ch = true; }
+  if (!/^[\w-]{10,64}$/.test(S.nTopic || '')) { S.nTopic = rndTopic('rave-own-'); ch = true; }
+  if (ch) save();
+}
+function doorbellPage() {
+  if (S.dbPage) return S.dbPage;
+  const here = new URL('timbre.html', location.href);
+  return here.protocol === 'https:' ? here.origin + here.pathname : 'https://raveholding.github.io/SVBSguridad/timbre.html';
+}
+function directUrl() {
+  ensureTopics();
+  const u = new URL(doorbellPage());
+  u.searchParams.set('t', S.dbTopic); u.searchParams.set('n', S.biz);
+  if (ntfyBase() !== 'https://ntfy.sh') u.searchParams.set('h', ntfyBase());
+  const w = String(S.dbWa || '').replace(/\D/g, ''); if (w.length >= 8) u.searchParams.set('w', w);
+  return u.toString();
+}
+let directES = null, directKey = '', directState = 'off', lastDirectRing = 0;
+const seenRings = new Set(); const directRings = new Map();
+function startDirect() {
+  const want = !net.online && S.dbOn !== false;
+  if (want) ensureTopics();
+  const key = want ? `${ntfyBase()}|${S.dbTopic}|${S.nTopic}` : '';
+  if (key === directKey) return;
+  if (directES) { directES.close(); directES = null; }
+  directKey = key; directState = want ? 'conn' : 'off';
+  paintDirectState();
+  if (!want || !window.EventSource) return;
+  const es = new EventSource(`${ntfyBase()}/${[S.dbTopic, S.nTopic + '-c'].map(encodeURIComponent).join(',')}/sse?since=60s`);
+  es.onopen = () => { directState = 'ok'; paintDirectState(); flushDirectQ(); };
+  es.onerror = () => { directState = 'conn'; paintDirectState(); }; // EventSource reintenta solo
+  es.onmessage = (ev) => {
+    let m, p;
+    try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.event && m.event !== 'message') return;
+    try { p = JSON.parse(m.message); } catch { p = { type: 'ring', msg: String(m.message || '') }; }
+    if (p && typeof p === 'object') onDirectMsg(m, p);
+  };
+  directES = es;
+}
+function onDirectMsg(m, p) {
+  if (m.topic === S.dbTopic && p.type === 'ring') {
+    const id = String(p.id || m.id || '').slice(0, 40);
+    if (!id || seenRings.has(id)) return;
+    seenRings.add(id); if (seenRings.size > 200) seenRings.clear();
+    if (m.time && Date.now() / 1000 - m.time > 90) return; // timbre viejo (reconexión)
+    return onDirectRing({ id, name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), source: 'qr', direct: true, test: !!p.test });
+  }
+  if (m.topic === S.nTopic + '-c' && p.type === 'reply' && p.code !== 'pase') directReply(String(p.id || ''), String(p.code || ''), 'notificación push');
+}
+async function onDirectRing(r) {
+  if (!r.test && !accOpen()) {
+    publishReply(r.id, 'cerrado', `Estamos cerrados. Horario de atención: ${ACC.text}`);
+    logEvent('DOORBELL_OFFHOURS', 'INFO', `Timbre fuera de horario${r.name ? ': ' + r.name : ''}`, { sync: false });
+    notifyDirect('off', `🔕 Timbre fuera de horario · ${S.biz}`, `Tocaron el timbre a las ${hhmmNow()}${r.name ? ` (${r.name})` : ''}. Se le mostró el horario al cliente.`);
+    return;
+  }
+  if (Date.now() - lastDirectRing < 8000) { publishReply(r.id, 'momento'); return; } // timbre repetido
+  lastDirectRing = Date.now();
+  directRings.set(r.id, r); if (directRings.size > 50) directRings.delete(directRings.keys().next().value);
+  logEvent('DOORBELL_QR', 'INFO', `Timbre desde el celular del cliente${r.name ? ': ' + r.name : ''}${r.msg ? ' — ' + r.msg : ''}`, { sync: false });
+  showRing(r);
+  const shot = (await captureEvidence('TIMBRE', 1, true))[0];
+  notifyDirect('ring', `🔔 Tocan el timbre · ${S.biz}`, `${[r.name && '👤 ' + r.name, r.msg && '💬 ' + r.msg].filter(Boolean).join('\n') || 'Cliente en la puerta'}\nRespondé con los botones.`, shot && shot.data, r.id);
+}
+function publishReply(id, code, text) {
+  return fetch(`${ntfyBase()}/${encodeURIComponent(S.dbTopic + '-r')}`, { method: 'POST', body: JSON.stringify({ type: 'reply', id, code, text: text || REPLIES[code] }) }).then((r) => r.ok).catch(() => false);
+}
+async function directReply(id, code, by) {
+  const r = directRings.get(id);
+  if (!r || !REPLIES[code] || r.answered) return false;
+  r.answered = code;
+  const ok = await publishReply(id, code);
+  logEvent(code === 'pase' ? 'DOOR_OPEN' : 'DOORBELL_REPLY', 'INFO', `Respuesta al timbre (${by}): ${REPLIES[code]}`, { sync: false });
+  if (curRing && curRing.id === id) { hideRing(); if (by !== 'panel') toast(`Respondido (${by}): ${REPLIES[code]}`); }
+  return ok;
+}
+function paintDirectState() {
+  const el = $('#dbState'); if (!el || net.online) return;
+  el.innerHTML = directState === 'ok'
+    ? '<span class="ok-msg">✔ Portero activo en este equipo: escuchando timbres.</span> <span class="muted">Dejalo encendido, con el panel abierto y con internet.</span>'
+    : S.dbOn === false ? '<div class="warn">Portero apagado en este equipo.</div>'
+      : '<div class="warn">Conectando con el relevo de timbres (ntfy.sh)… Si no se conecta, revisá internet en este equipo.</div>';
+}
+
+/* ── Avisos directos: notificación push (ntfy) y WhatsApp (CallMeBot) ── */
+async function sendPushDirect({ title, body, photo, kind, ringId }) {
+  const base = ntfyBase(); const topic = S.nTopic;
+  try {
+    if (photo) {
+      const blob = await (await fetch(photo)).blob();
+      await fetch(`${base}/${encodeURIComponent(topic)}`, { method: 'PUT', body: blob, headers: { Filename: 'camara.jpg' } }).catch(() => null);
+    }
+    const payload = { topic, title, message: body, priority: kind === 'sos' || kind === 'duress' ? 5 : kind === 'off' ? 3 : 4,
+      tags: [{ ring: 'bell', sos: 'rotating_light', duress: 'rotating_light', alarm: 'warning', lock: 'warning', test: 'white_check_mark' }[kind] || 'shield'] };
+    if (ringId) payload.actions = [['voy', 'Ya voy'], ['momento', 'Un momento'], ['deje', 'Dejar en puerta']].map(([code, label]) => ({ action: 'http', label, url: `${base}/${encodeURIComponent(topic + '-c')}`, method: 'POST', body: JSON.stringify({ type: 'reply', id: ringId, code }), clear: true }));
+    const r = await fetch(base, { method: 'POST', body: JSON.stringify(payload) });
+    return r.ok;
+  } catch { return false; }
+}
+async function sendWaDirect(rc, text) {
+  const phone = '+' + String(rc.phone || '').replace(/\D/g, '');
+  const url = `${String(S.cmbUrl || 'https://api.callmebot.com').replace(/\/+$/, '')}/whatsapp.php?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(rc.key)}`;
+  try { await fetch(url, { mode: 'no-cors' }); return true; } catch { return false; } // CallMeBot no confirma por navegador
+}
+const NQKEY = 'svb.nq';
+const getQ = () => { try { return JSON.parse(localStorage.getItem(NQKEY) || '[]'); } catch { return []; } };
+const setQ = (q) => { try { localStorage.setItem(NQKEY, JSON.stringify(q.slice(-30))); } catch { /* lleno */ } };
+async function notifyDirect(kind, title, body, photo, ringId) {
+  if (net.online) return null; // con servidor avisa el servidor
+  const ev = { ...DEFAULTS.nEv, ...(S.nEv || {}) };
+  if (kind !== 'test' && !ev[kind]) return null;
+  const out = { push: null, wa: [] }; const ts = Date.now();
+  if (S.nPush && S.nTopic) {
+    out.push = await sendPushDirect({ title, body, photo, kind, ringId });
+    if (!out.push && kind !== 'test') setQ([...getQ(), { ch: 'push', title, body, kind, ts }]);
+  }
+  if (S.nWa) {
+    for (const rc of (S.nRecips || []).filter((x) => x.phone && x.key)) {
+      const ok = await sendWaDirect(rc, `${title}\n${body}`.replace(/\nRespondé con los botones\./, '\nRespondé desde el panel o la notificación push.'));
+      out.wa.push({ name: rc.name || rc.phone, ok });
+      if (!ok && kind !== 'test') setQ([...getQ(), { ch: 'wa', rid: rc.id, title, body, kind, ts }]);
+    }
+  }
+  const sum = `push ${out.push === null ? 'desactivada' : out.push ? 'enviada' : 'sin conexión (se reintenta)'} · WhatsApp ${out.wa.length ? out.wa.filter((x) => x.ok).length + ' de ' + out.wa.length : 'sin números'}`;
+  logEvent('NOTIFY', 'INFO', `Aviso (${NEV[kind] || 'prueba'}): ${sum}`, { sync: false, hidden: kind === 'duress' });
+  return out;
+}
+async function flushDirectQ() {
+  const q = getQ(); if (!q.length || net.online) return;
+  const keep = [];
+  for (const j of q) {
+    if (Date.now() - j.ts > 15 * 60000) continue;
+    const t = new Date(j.ts).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const body = `${j.body}\n(enviado con demora · ocurrió a las ${t})`;
+    let ok = false;
+    if (j.ch === 'push') ok = await sendPushDirect({ title: j.title, body, kind: j.kind });
+    else { const rc = (S.nRecips || []).find((x) => x.id === j.rid); ok = !rc || await sendWaDirect(rc, `${j.title}\n${body}`); }
+    if (!ok) keep.push(j);
+  }
+  setQ(keep);
+}
+setInterval(flushDirectQ, 30000); addEventListener('online', () => { flushDirectQ(); directKey = ''; startDirect(); });
+
+/* ── Configuración de avisos directos (panel) ── */
+function renderDirectCfg() {
+  const box = $('#directCfg'); if (!box) return;
+  if (net.online) {
+    box.innerHTML = `<div class="cfgcard"><h3>Avisos al celular de los dueños</h3><p class="help" style="margin:0 0 10px">Con el servidor SVB encendido, los avisos (WhatsApp, notificación push con foto y botones, y Telegram) los envía el servidor. Se configuran en <b>★ Configuración → Avisos a los dueños</b>.</p><button class="btn sm" data-dc="goalerts">Ir a Avisos a los dueños</button></div>`;
+    return;
+  }
+  ensureTopics();
+  const ev = { ...DEFAULTS.nEv, ...(S.nEv || {}) };
+  const sub = `${ntfyBase()}/${S.nTopic}`;
+  box.innerHTML = `<div class="cfgcard"><h3>Portero en este equipo</h3>
+      <p class="help">No hay servidor SVB: este equipo escucha los timbres del QR/NFC, avisa a los dueños y responde al cliente. Tiene que quedar encendido, con el panel abierto y con internet.</p>
+      <label class="chk"><input type="checkbox" data-dc-bind="dbOn" ${S.dbOn !== false ? 'checked' : ''}>Portero activo en este equipo</label>
+      <div class="cfgrow"><label class="f">WhatsApp del local para que el cliente escriba (opcional, botón en su pantalla)<input class="inp" data-dc-bind="dbWa" inputmode="tel" placeholder="+54 9 387 …" value="${esc(S.dbWa || '')}"></label></div></div>
+    <div class="cfgcard"><h3>1 · Notificación al celular (recomendado, gratis)</h3>
+      <p class="help">Con la app <b>ntfy</b> (Android y iPhone). Llega con la foto de la puerta y, en el timbre, con botones <i>Ya voy · Un momento · Dejar en puerta</i> que le responden al cliente.</p>
+      <label class="chk"><input type="checkbox" data-dc-bind="nPush" ${S.nPush ? 'checked' : ''}>Enviar notificaciones push</label>
+      <div class="poster-prev"><canvas id="nQr" width="190" height="190" style="background:#fff;border-radius:10px"></canvas>
+        <ol style="flex:1;min-width:240px"><li>Cada dueño instala <b>ntfy</b> desde Play Store o App Store.</li>
+          <li>En la app toca <b>+</b> y escribe este tema: <code style="user-select:all">${esc(S.nTopic)}</code> (servidor ${esc(ntfyBase())}). En Android también puede escanear el QR.</li>
+          <li>El tema funciona como contraseña: no lo compartas con clientes.</li></ol></div>
+      <div class="cfgacts"><button class="btn sm" data-dc="copytopic">Copiar tema</button><button class="btn sm ghost" data-dc="newtopic">Generar tema nuevo</button></div></div>
+    <div class="cfgcard"><h3>2 · WhatsApp a los números que elijan (gratis, CallMeBot)</h3>
+      <p class="help">Cada dueño lo activa una sola vez desde su WhatsApp: agenda el número de CallMeBot que figura en <b>callmebot.com</b>, le escribe <code>I allow callmebot to send me messages</code> y recibe su clave (apikey). Cargá abajo su número con código de país y esa clave. Es un servicio gratuito de uso personal: el mensaje puede demorar hasta un minuto y no lleva foto.</p>
+      <label class="chk"><input type="checkbox" data-dc-bind="nWa" ${S.nWa ? 'checked' : ''}>Enviar avisos por WhatsApp</label>
+      <div id="nWaList">${(S.nRecips || []).map((r) => `<div class="waRow" data-rid="${esc(r.id)}" style="grid-template-columns:1fr 1.2fr 1fr auto auto"><input class="inp" data-rf="name" placeholder="Nombre" value="${esc(r.name || '')}"><input class="inp" data-rf="phone" inputmode="tel" placeholder="+54 9 387 …" value="${esc(r.phone || '')}"><input class="inp" data-rf="key" inputmode="numeric" placeholder="Clave CallMeBot" value="${esc(r.key || '')}" autocomplete="off"><button class="btn sm" data-dc="watest">Probar</button><button class="btn sm ghost" data-dc="wadel" title="Quitar">✕</button></div>`).join('') || '<p class="small muted">Todavía no hay números cargados.</p>'}</div>
+      <div class="cfgacts"><button class="btn sm" data-dc="waadd">+ Agregar número</button></div></div>
+    <div class="cfgcard"><h3>3 · Qué se avisa</h3>${Object.entries(NEV).map(([k, t]) => `<label class="chk"><input type="checkbox" data-dc-ev="${k}" ${ev[k] ? 'checked' : ''}>${t}</label>`).join('')}
+      <div class="cfgacts"><button class="btn primary" data-dc="test">Enviar aviso de prueba a todos</button></div><div class="cfgout" id="nOut"></div>
+      <p class="small muted" style="margin:8px 0 0">Si se corta internet, los avisos quedan en cola y se reintentan durante 15 minutos.</p></div>`;
+  drawQr($('#nQr'), sub);
+}
+function waRecipFromRow(row) { return { id: row.dataset.rid, name: $('[data-rf="name"]', row).value.trim().slice(0, 30), phone: $('[data-rf="phone"]', row).value.replace(/[^\d+]/g, ''), key: $('[data-rf="key"]', row).value.trim() }; }
+function directCfgChange(e) {
+  const t = e.target;
+  if (t.dataset.dcBind) {
+    const k = t.dataset.dcBind; S[k] = t.type === 'checkbox' ? t.checked : t.value.trim(); save();
+    if (k === 'dbOn') { directKey = ''; startDirect(); }
+    if (k === 'dbWa' || k === 'dbOn') loadDoorbell();
+    toast('Guardado');
+  }
+  if (t.dataset.dcEv) { S.nEv = { ...DEFAULTS.nEv, ...(S.nEv || {}), [t.dataset.dcEv]: t.checked }; save(); toast('Guardado'); }
+  if (t.dataset.rf) {
+    const row = t.closest('[data-rid]'); const rc = waRecipFromRow(row);
+    S.nRecips = (S.nRecips || []).map((x) => (x.id === rc.id ? rc : x)); save();
+    if (rc.phone && !/^\+?\d{10,15}$/.test(rc.phone)) toast('Número con código de país, ej. +5493874000000');
+  }
+}
+async function directCfgClick(e) {
+  const b = e.target.closest('[data-dc]'); if (!b) return;
+  const a = b.dataset.dc;
+  if (a === 'goalerts') { showPane('setup'); const el = $('.cfgcard[data-group="alertas"]'); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (a === 'copytopic') return navigator.clipboard.writeText(S.nTopic).then(() => toast('Tema copiado')).catch(() => toast(S.nTopic));
+  if (a === 'newtopic') { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '¿Seguro? Los celulares suscriptos dejan de recibir'; return; } S.nTopic = ''; ensureTopics(); directKey = ''; startDirect(); renderDirectCfg(); return toast('Tema nuevo: volvé a suscribir los celulares'); }
+  if (a === 'waadd') { S.nRecips = [...(S.nRecips || []), { id: Math.random().toString(36).slice(2, 9), name: '', phone: '', key: '' }]; save(); renderDirectCfg(); return; }
+  const row = b.closest('[data-rid]');
+  if (a === 'wadel') { S.nRecips = (S.nRecips || []).filter((x) => x.id !== row.dataset.rid); save(); return renderDirectCfg(); }
+  if (a === 'watest') {
+    const rc = waRecipFromRow(row);
+    if (!/^\+?\d{10,15}$/.test(rc.phone) || !rc.key) return toast('Completá número con código de país y la clave');
+    const ok = await sendWaDirect(rc, `✅ Prueba de avisos de ${S.biz}: si te llegó este WhatsApp, los avisos funcionan.`);
+    return toast(ok ? `Enviado a ${rc.name || rc.phone}. Si no llega en 1–2 minutos, revisá número y clave.` : 'Sin internet en este equipo');
+  }
+  if (a === 'test') {
+    $('#nOut').textContent = 'Enviando…';
+    if (!S.nPush && !S.nWa) { $('#nOut').innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">Activá la notificación push o WhatsApp.</span>'; return; }
+    const shot = (await captureEvidence('PRUEBA', 1, true))[0];
+    const r = await notifyDirect('test', `✅ Prueba de avisos · ${S.biz}`, 'Si te llegó este aviso, las notificaciones funcionan.', shot && shot.data);
+    const lines = [`Notificación push: ${r.push === null ? '○ desactivada' : r.push ? '✔ enviada' : '✖ no se pudo enviar (¿internet?)'}`];
+    if (S.nWa) lines.push(r.wa.length ? r.wa.map((x) => `WhatsApp ${esc(x.name)}: ${x.ok ? '✔ enviado (llega en hasta 1 minuto)' : '✖ sin conexión'}`).join('<br>') : 'WhatsApp: ○ sin números con clave');
+    $('#nOut').innerHTML = lines.join('<br>');
+  }
 }
 
 /* ═══════════════════════════ MONITOR (estilo DMSS) ═══════════════════════════ */
@@ -1879,6 +2148,7 @@ function aiAlert(type, msg, cool = 30000) {
   if (S.mode === 'corp') Sfx.alarm();
   captureEvidence(type, 1, true).then((shots) => {
     if (net.online && S.aiNotify) api('/api/alert', { method: 'POST', body: { type, level: 'HIGH', emoji: '⚠️', message: msg, snapshot: shots[0] && shots[0].data, camera: shots[0] ? undefined : 1 } }).catch(() => {});
+    else if (!net.online && S.aiNotify) notifyDirect('alarm', `⚠️ Alerta · ${S.biz}`, `${msg} (${hhmmNow()})`, shots[0] && shots[0].data);
   });
 }
 function setTag(id, text, hot) { const t = $(id); t.textContent = text; t.classList.toggle('hot', !!hot); }
@@ -2041,8 +2311,10 @@ function closeScanner() {
   if (nfcAbort) { nfcAbort.abort(); nfcAbort = null; }
   $('#scanOv').classList.remove('show');
 }
-async function readNfc() {
-  if (!accOpen()) return closedFlash();
+let nfcLink = null; // en administración: leer la tarjeta para asignarla a una persona
+async function readNfc(link) {
+  nfcLink = typeof link === 'function' ? link : null;
+  if (!nfcLink && !accOpen()) return closedFlash();
   if (!('NDEFReader' in window)) { toast('NFC no disponible: requiere Chrome en Android con NFC'); return; }
   $('#scanTitle').textContent = 'ACERQUE SU TARJETA NFC'; $('#scanBox').style.display = 'none';
   $('#scanSub').textContent = 'Apoye la tarjeta o el llavero en la parte trasera del dispositivo.';
@@ -2055,7 +2327,10 @@ async function readNfc() {
       const txt = ev.message.records.filter((x) => x.recordType === 'text').map((x) => dec.decode(x.data)).join('');
       const code = parsePass(txt);
       closeScanner();
-      if (code) submitPin(code, 'nfc'); else { Sfx.err(); flash(false, 'TARJETA NO VÁLIDA', ''); logEvent('NFC_INVALID', 'WARN', 'Tag NFC desconocido', { sync: true }); }
+      if (nfcLink) { const f = nfcLink; nfcLink = null; return f(ev.serialNumber || ''); }
+      if (code) submitPin(code, 'nfc');
+      else if (ev.serialNumber && net.online) bioOpen({ nfc: ev.serialNumber }, 'nfc'); // tarjeta propia de una persona
+      else { Sfx.err(); flash(false, 'TARJETA NO VÁLIDA', net.online ? '' : 'Las tarjetas personales necesitan el servidor'); logEvent('NFC_INVALID', 'WARN', 'Tag NFC desconocido', { sync: true }); }
     };
   } catch (e) { $('#scanSub').textContent = 'NFC: ' + e.message; }
 }
@@ -2256,7 +2531,7 @@ async function cfgAction(act) {
   if (act === 'checkPage') {
     show('#cfgPageOut', 'Verificando…');
     const r = await api('/api/check/doorbell-page', { method: 'POST', admin: true, timeout: 20000 }).catch((e) => ({ error: e.message }));
-    return show('#cfgPageOut', r.ok ? '<span class="ok-msg">✔ La página del portero está publicada y funciona desde internet.</span>' : '<span class="warn" style="display:inline-block;padding:6px 10px">La página todavía no está publicada. Activá GitHub Pages (ver sección Portero QR / NFC).</span>');
+    return show('#cfgPageOut', r.ok ? '<span class="ok-msg">✔ La página del portero está publicada y funciona desde internet.</span>' : '<span class="warn" style="display:inline-block;padding:6px 10px">La página del timbre no responde desde internet. Revisá la conexión o consultá a soporte SVB.</span>');
   }
 }
 
@@ -2314,6 +2589,7 @@ function showPane(id) {
   $$('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === id));
   $$('#adminNav .nb').forEach((b) => b.classList.toggle('active', b.dataset.go === id));
   if (id === 'auditoria') { renderLog(); renderVault(); }
+  if (id === 'portero') loadDoorbell();
   if (id === 'bio') checkFaceModel();
   if (id === 'soporte') $('#devInfoTxt').textContent = `Cliente: ${S.biz}. Panel ${isElectron ? 'de escritorio' : 'web'} en ${location.origin}. Servidor ${net.online ? 'conectado' : 'no disponible'}. Personas cargadas: ${ACC.people || 0}. Horario: ${ACC.text}.`;
 }
@@ -2528,12 +2804,13 @@ function renderPeople() {
     <p class="small muted" style="margin:10px 0 0"><b>Dueño:</b> entra siempre. <b>Empleado:</b> fuera de horario solo si está permitido en «Horario de atención». <b>Proveedor:</b> solo en horario y sin biometría. El PIN general y el de coacción siguen funcionando igual.</p></div>
   ${PEOPLE.map((p) => `<div class="person ${p.on ? '' : 'off'}" data-pid="${p.id}">
     <div class="ph"><b>${esc(p.name)}</b><span class="chip">${esc(p.role)}</span><span class="chip ${p.hasPin ? 'ok' : ''}">${p.hasPin ? 'PIN cargado' : 'Sin PIN'}</span>
-      ${p.pk.length ? `<span class="chip ok">Huella ×${p.pk.length}</span>` : ''}${p.face ? '<span class="chip ok">Rostro</span>' : ''}${p.on ? '' : '<span class="chip">Deshabilitado</span>'}
+      ${p.nfc ? '<span class="chip ok">Tarjeta NFC</span>' : ''}${p.pk.length ? `<span class="chip ok">Huella ×${p.pk.length}</span>` : ''}${p.face ? '<span class="chip ok">Rostro</span>' : ''}${p.on ? '' : '<span class="chip">Deshabilitado</span>'}
       <span class="small muted">${p.lastIn ? 'Último ingreso: ' + fmtTime(p.lastIn) : 'Sin ingresos todavía'}</span></div>
     <div class="cfgrow">
       <label class="f">Nombre<input class="inp" data-pf="name" value="${esc(p.name)}" maxlength="40"></label>
       <label class="f">Rol<select class="inp" data-pf="role">${ROLES.map((x) => `<option ${x === p.role ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
       <label class="f">Nuevo PIN<input class="inp" data-pf="pin" type="password" inputmode="numeric" maxlength="8" placeholder="${p.hasPin ? 'sin cambios' : '4 a 8 números'}" autocomplete="new-password"></label>
+      <label class="f">Tarjeta NFC propia<span style="display:flex;gap:6px"><input class="inp" data-pf="nfc" value="${esc(p.nfc || '')}" placeholder="Número de la tarjeta"><button class="btn sm" data-pact="nfcread" title="Leer tarjeta">Leer</button></span></label>
     </div>
     <label class="chk"><input type="checkbox" data-pf="on" ${p.on ? 'checked' : ''}>Habilitado para entrar</label>
     <div class="cfgacts"><button class="btn sm primary" data-pact="save">Guardar cambios</button>${p.hasPin ? '<button class="btn sm" data-pact="nopin">Quitar PIN</button>' : ''}<button class="btn sm" data-pact="bio">Huella y rostro →</button><button class="btn sm ghost" data-pact="del">Eliminar</button><span class="cfgout" data-pout></span></div>
@@ -2558,6 +2835,10 @@ async function peopleClick(e) {
   const out = $('[data-pout]', card);
   const fail = (m) => { Sfx.err(); out.innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(m)}</span>`; };
   if (b.dataset.pact === 'bio') return showPane('bio');
+  if (b.dataset.pact === 'nfcread') {
+    if (!('NDEFReader' in window)) return fail('Leer tarjetas: abrí este panel en Chrome de un celular Android con NFC. También podés escribir el número.');
+    return readNfc((sn) => { if (!sn) return toast('No se pudo leer el número de la tarjeta'); const i = $('[data-pf="nfc"]', card); i.value = sn; toast('Tarjeta leída: tocá Guardar cambios'); });
+  }
   if (b.dataset.pact === 'del') {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '¿Seguro? Tocá de nuevo'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Eliminar'; }, 4000); return; }
     await api(`/api/people/${id}`, { method: 'DELETE', admin: true }); toast(`${p.name} eliminado/a`); return loadPeople();
@@ -2569,6 +2850,7 @@ async function peopleClick(e) {
     if (g('name').value.trim() !== p.name) body.name = g('name').value.trim();
     if (g('role').value !== p.role) body.role = g('role').value;
     if (g('on').checked !== p.on) body.on = g('on').checked;
+    const nfc = g('nfc').value.trim().toUpperCase().replace(/[^0-9A-F]/g, ''); if (nfc !== (p.nfc || '')) body.nfc = nfc;
     const pin = g('pin').value.trim();
     if (pin) { if (!/^\d{4,8}$/.test(pin)) return fail('El PIN debe tener de 4 a 8 números'); body.pin = pin; }
     if (body.role === 'Proveedor' && (p.pk.length || p.face) && b.dataset.sure !== '1') { b.dataset.sure = '1'; return fail('Un proveedor no usa biometría: se borrarán su huella y su rostro. Tocá Guardar de nuevo para confirmar.'); }
@@ -2815,7 +3097,7 @@ function wire() {
   $('#btnRing').addEventListener('click', ring);
   $('#btnFamily').addEventListener('click', callFamily);
   $('#btnScan').addEventListener('click', openScanner);
-  $('#btnNfc').addEventListener('click', readNfc);
+  $('#btnNfc').addEventListener('click', () => readNfc());
   $('#scanCancel').addEventListener('click', closeScanner);
   $('#btnMic').addEventListener('click', () => toggleVoice());
   $('#btnAdmin').addEventListener('click', askAdmin);
@@ -2833,8 +3115,24 @@ function wire() {
   $('#dbPrint').addEventListener('click', printPoster);
   $('#dbNfc').addEventListener('click', writeDoorbellNfc);
   $('#dbCopy').addEventListener('click', () => navigator.clipboard.writeText(loadDoorbell.url || '').then(() => toast('Enlace copiado')).catch(() => toast('No se pudo copiar')));
-  $('#dbTest').addEventListener('click', async () => { const r = await api('/api/doorbell/test', { method: 'POST', admin: true }).catch(() => ({})); toast(r.ok ? 'Timbre de prueba enviado' : 'No se pudo probar'); });
-  $('#dbRegen').addEventListener('click', async () => { const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); } });
+  $('#dbOpen').addEventListener('click', () => { if (loadDoorbell.url) window.open(loadDoorbell.url, '_blank'); });
+  $('#dbTest').addEventListener('click', async () => {
+    if (!net.online) { // prueba de punta a punta por el relevo, como un cliente real
+      if (S.dbOn === false) return toast('Activá el portero en este equipo');
+      const ok = await fetch(`${ntfyBase()}/${encodeURIComponent(S.dbTopic)}`, { method: 'POST', body: JSON.stringify({ type: 'ring', id: 'prueba-' + Date.now().toString(36), name: 'Prueba', msg: 'Timbre de prueba desde administración', test: true }) }).then((r) => r.ok).catch(() => false);
+      return toast(ok ? 'Timbre de prueba enviado: en segundos suena en este equipo' : 'Sin internet: no se pudo enviar');
+    }
+    const r = await api('/api/doorbell/test', { method: 'POST', admin: true }).catch(() => ({})); toast(r.ok ? 'Timbre de prueba enviado' : 'No se pudo probar');
+  });
+  $('#dbRegen').addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '¿Seguro? Hay que reimprimir el cartel'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Regenerar código (invalida QR viejos)'; }, 5000); return; }
+    b.dataset.sure = ''; b.textContent = 'Regenerar código (invalida QR viejos)';
+    if (!net.online) { S.dbTopic = ''; ensureTopics(); directKey = ''; startDirect(); loadDoorbell(); return toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); }
+    const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); }
+  });
+  $('#directCfg').addEventListener('change', directCfgChange);
+  $('#directCfg').addEventListener('click', directCfgClick);
 
   $('#adminClose').addEventListener('click', closeAdmin);
   // Acceso al panel: doble toque en una zona libre de la pantalla (en celulares mantener presionado solo selecciona).
@@ -2873,10 +3171,10 @@ function wire() {
   $('#chimeList').addEventListener('click', (e) => { const b = e.target.closest('[data-play]'); if (b) CHIMES[+b.dataset.play].play(); });
   $('#chimeList').addEventListener('change', (e) => { if (e.target.name === 'chime') { S.chime = +e.target.value; save(); } });
   $('#sRelayTest').addEventListener('click', async () => {
-    if (S.relayMode === 'serial' && isElectron && window.electronAPI.relay) { try { await window.electronAPI.relay(S.relayMs); toast('Relé USB accionado'); } catch (e) { toast('Error relé USB: ' + e.message); } return; }
+    if (S.relayMode === 'serial') { try { await usbRelay(S.relayMs); toast('Cerradura USB accionada'); } catch (e) { toast('Cerradura USB: ' + e.message); } return; }
     if (!net.online) return toast('Sin servidor: relé no disponible');
     const r = await api('/api/relay/test', { method: 'POST', admin: true, body: { ms: S.relayMs } });
-    toast(r.simulated ? `Relé simulado ${r.ms} ms (configurar ESP32_URL)` : r.ok ? `Puerta abierta ${r.ms} ms` : 'Error: ' + (r.error || r.status));
+    toast(r.simulated ? `Apertura simulada ${r.ms} ms: falta vincular la cerradura (★ Configuración → Cerradura)` : r.ok ? `Puerta abierta ${r.ms} ms` : 'Error: ' + (r.error || r.status));
   });
   $('#sDiscover').addEventListener('click', async () => {
     if (!net.online) return toast('Requiere servidor');
@@ -2917,6 +3215,7 @@ function wire() {
     try { await new window.NDEFReader().write({ records: [{ recordType: 'text', data: passText(lastPass) }] }); toast('Tag NFC grabado'); logEvent('NFC_WRITTEN', 'INFO', `Tag NFC para ${lastPass.name}`, { sync: true }); } catch (e) { toast('NFC: ' + e.message); }
   });
   $('#sysFull').addEventListener('click', toggleKiosk);
+  $('#sSerial').addEventListener('click', connectSerial);
   $('#sysInstall').addEventListener('click', async () => { if (installEvt) { installEvt.prompt(); installEvt = null; $('#sysInstall').disabled = true; } });
   $('#sysMin').addEventListener('click', () => window.electronAPI && window.electronAPI.minimize());
   $('#sysQuit').addEventListener('click', () => window.electronAPI && window.electronAPI.close());
