@@ -369,7 +369,7 @@ def main():
             check("Telegram se conecta solo con el token", "Nico" in page.inner_text("#suTgOut") and "TELEGRAM_CHAT_ID=4242" in open(env["SVB_ENV_FILE"]).read())
             page.fill("[data-key='DOOR_PIN']", "4455"); page.fill("[data-key='DURESS_PIN']", "4455")
             page.click("[data-save='seguridad']")
-            page.wait_for_function("document.querySelector('[data-out=seguridad]').textContent.length > 3", timeout=5000)
+            page.wait_for_function("(t => t.length > 3 && !t.includes('Guardando'))(document.querySelector('[data-out=seguridad]').textContent)", timeout=5000)
             check("Valida PIN de puerta ≠ coacción", "distintos" in page.inner_text("[data-out='seguridad']"))
             page.fill("[data-key='DURESS_PIN']", "7788")
             page.click("[data-save='seguridad']")

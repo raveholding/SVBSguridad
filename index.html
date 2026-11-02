@@ -484,27 +484,23 @@ html{touch-action:manipulation}
       <div id="cfgForm"><p class="muted small">Cargando…</p></div>
     </section>
 
-    <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero QR / NFC">
-      <h2>Portero digital: timbre con el celular del cliente</h2>
-      <p class="lead">Pegá este QR (y un sticker NFC) en la puerta. El cliente lo escanea con su celular, toca el timbre, suena aquí y te llega la foto a Telegram con botones para responder.</p>
-      <div id="dbState" class="small muted"></div>
+    <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero y avisos al celular">
+      <h2>Portero digital y avisos al celular</h2>
+      <p class="lead">Pegá este QR (y un sticker NFC) en la puerta. El cliente lo escanea con su celular y toca el timbre: suena en este equipo con la imagen de la cámara, les llega el aviso a los dueños (notificación con foto y botones, o WhatsApp) y la respuesta aparece en la pantalla del cliente.</p>
+      <div id="dbState" class="small"></div>
       <div class="poster-prev" style="margin-top:12px">
         <canvas id="dbQr" width="260" height="260" style="background:#fff;border-radius:10px"></canvas>
         <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
           <button class="btn primary" id="dbPrint">Imprimir cartel para la puerta</button>
           <button class="btn" id="dbNfc">Grabar sticker NFC</button>
           <button class="btn" id="dbCopy">Copiar enlace</button>
+          <button class="btn" id="dbOpen">Abrir la página del cliente</button>
           <button class="btn" id="dbTest">Probar timbre</button>
           <button class="btn ghost" id="dbRegen">Regenerar código (invalida QR viejos)</button>
         </div>
       </div>
       <div id="dbUrl" class="small muted" style="margin-top:10px;word-break:break-all;user-select:text"></div>
-      <h3>Activación (una sola vez)</h3>
-      <ol>
-        <li>Entrá a <b>github.com/raveholding/SVBSguridad</b> → <b>Settings</b> → <b>Pages</b>.</li>
-        <li>En <b>Branch</b> elegí <b>main</b> y carpeta <b>/ (root)</b> → <b>Save</b>.</li>
-        <li>En 1–2 minutos la página del portero queda publicada. Probala escaneando el QR con tu celular <b>con los datos móviles</b> (sin WiFi).</li>
-      </ol>
+      <div id="directCfg" style="margin-top:18px"></div>
       <h3>Sticker NFC</h3>
       <ol>
         <li>Comprá stickers NFC <b>NTAG213 o NTAG215</b> (los venden en Mercado Libre).</li>
@@ -1148,6 +1144,9 @@ const DEFAULTS = {
   relayMs: 3000, relayMode: 'server', doorPin: '2580', duressPin: '9999', adminPin: '1234',
   server: '', doorSrc: 'local', gridQ: 'sd', lowLatency: false, motion: 8, loiter: 10, face: true, aiNotify: true, ir: false, ai: true,
   camNames: {},
+  // Portero y avisos directos desde este equipo (cuando no hay servidor SVB)
+  dbOn: true, dbTopic: '', dbWa: '', dbPage: '', ntfyUrl: 'https://ntfy.sh', cmbUrl: 'https://api.callmebot.com',
+  nPush: false, nTopic: '', nWa: false, nRecips: [], nEv: { ring: true, sos: true, duress: true, lock: true, alarm: true, off: false },
 };
 const S = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('svb.settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
 function save() { try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } if (typeof pushShared === 'function') pushShared(); }
@@ -1221,7 +1220,7 @@ async function refreshStatus() {
     if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
     net.online = false; net.status = null;
   }
-  paintStatus(); paintAccess();
+  paintStatus(); paintAccess(); startDirect();
 }
 function setPill(id, state, title) {
   const p = $(id); p.classList.remove('on', 'warn');
@@ -1365,14 +1364,14 @@ function doorResult(r, source) {
   if (result === 'open') { localFails = 0; return grantAccess({ covert: r._c === 1, who: r.visitor || '', source }); }
   if (result === 'closed') {
     if (r.hours) setAccess({ text: r.hours });
-    if (r.offline) logEvent('OFFHOURS_DENIED', 'WARN', `Intento fuera de horario (${source})`, { sync: false }); else tick('OFFHOURS_DENIED', `Intento fuera de horario (${source})`);
+    if (r.offline) { logEvent('OFFHOURS_DENIED', 'WARN', `Intento fuera de horario (${source})`, { sync: false }); notifyDirect('off', `⛔ Fuera de horario · ${S.biz}`, `Intento de ingreso fuera de horario (${source}) a las ${hhmmNow()}.`); } else tick('OFFHOURS_DENIED', `Intento fuera de horario (${source})`);
     return closedFlash();
   }
   if (result === 'locked') {
     const retry = r.retryIn || 60;
     lockedUntil = Date.now() + retry * 1000;
     Sfx.err(); flash(null, 'TECLADO BLOQUEADO', `Demasiados intentos. Reintente en ${retry} s`, 3500);
-    if (r.offline) logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false });
+    if (r.offline) { logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false }); notifyDirect('lock', `⚠️ Intentos fallidos · ${S.biz}`, `5 intentos de acceso fallidos seguidos a las ${hhmmNow()}. Teclado bloqueado ${retry} s.`); }
     if (S.mode === 'corp') captureEvidence('LOCKOUT', 1);
     return;
   }
@@ -1390,7 +1389,7 @@ async function grantAccess({ covert, who, source }) {
   if (S.relayMode === 'serial' && isElectron && window.electronAPI.relay) window.electronAPI.relay(S.relayMs).catch(() => toast('Relé USB no responde'));
   if (covert) {
     logEvent('CRITICAL_DURESS_EVENT', 'CRITICAL', `Apertura bajo coacción (${source})`, { hidden: true, sync: false });
-    captureEvidence('DURESS', 3, true);
+    captureEvidence('DURESS', 3, true).then((sh) => { if (!net.online) notifyDirect('duress', `🚨 COACCIÓN · ${S.biz}`, `Alguien abrió con el PIN de coacción a las ${hhmmNow()}. Llamá al 911.`, sh[0] && sh[0].data); });
     tick('DOOR_OPEN', `Puerta abierta (${source})`); // ticker igual al normal
   } else {
     if (!net.online) logEvent(who ? 'VISITOR_ACCESS' : 'DOOR_OPEN', 'INFO', who ? `Acceso de visita: ${who}` : `Puerta abierta (${source})`, { sync: false });
@@ -1454,6 +1453,7 @@ async function fireSos() {
   const shot = (await captureEvidence('SOS', 1))[0];
   logEvent('SOS_911', 'CRITICAL', `Llamada de emergencia a ${S.emergency}`, { sync: false });
   if (net.online) api('/api/alert', { method: 'POST', body: { type: 'SOS_911', level: 'CRITICAL', emoji: '🚨', message: `BOTÓN SOS PRESIONADO. Se llamó al ${S.emergency}.`, snapshot: shot && shot.data, camera: shot ? undefined : 1 } }).catch(() => {});
+  else notifyDirect('sos', `🚨 SOS · ${S.biz}`, `BOTÓN SOS PRESIONADO a las ${hhmmNow()}. Se llamó al ${S.emergency}.`, shot && shot.data);
   dial(S.emergency);
 }
 function dial(number) {
@@ -1486,6 +1486,7 @@ async function ring() {
   speak(S.mode === 'corp' ? 'Avisando a la oficina, aguarde por favor.' : 'Avisando, aguarde por favor.');
   const shot = (await captureEvidence('TIMBRE', 1, true))[0];
   if (net.online) api('/api/alert', { method: 'POST', body: { type: 'DOORBELL', level: 'INFO', emoji: '🔔', message: 'Están tocando el timbre.', snapshot: shot && shot.data, camera: shot ? undefined : 1 } }).catch(() => {});
+  else notifyDirect('ring', `🔔 Timbre · ${S.biz}`, `Están tocando el timbre de la pantalla de la puerta (${hhmmNow()}).`, shot && shot.data);
   if (S.ringCall && S.officePhone) dial(S.officePhone);
 }
 
@@ -1566,6 +1567,15 @@ function showRing(r) {
 function hideRing() { curRing = null; clearInterval(ringChime); $('#ringOv').classList.remove('show'); $('#ringCam').innerHTML = ''; }
 async function replyRing(code) {
   if (!curRing) return;
+  if (curRing.direct) {
+    if (code === 'pase') {
+      const pin = await askPin('PIN para abrir'); if (!pin) return;
+      if (pin !== S.doorPin && pin !== S.adminPin) { Sfx.err(); toast('PIN incorrecto'); return; }
+      const id = curRing.id; await directReply(id, 'pase', 'panel'); return grantAccess({ covert: false, who: '', source: 'timbre' });
+    }
+    const ok = await directReply(curRing.id, code, 'panel');
+    toast(ok ? 'Respuesta enviada al celular del cliente' : 'Sin internet: no se pudo responder'); return;
+  }
   const body = { id: curRing.id, code };
   if (code === 'pase') { const pin = await askPin('PIN para abrir'); if (!pin) return; body.pin = pin; }
   const r = await api('/api/doorbell/reply', { method: 'POST', body }).catch((e) => ({ error: e.message }));
@@ -1573,7 +1583,12 @@ async function replyRing(code) {
   else { Sfx.err(); toast(r.error || 'No se pudo responder'); }
 }
 async function loadDoorbell() {
-  if (!net.online) { $('#dbState').innerHTML = '<div class="warn">Requiere el servidor SVB encendido.</div>'; return; }
+  if (!net.online) { // sin servidor: el portero funciona directo desde este equipo
+    loadDoorbell.url = directUrl();
+    drawQr($('#dbQr'), loadDoorbell.url); $('#dbUrl').textContent = loadDoorbell.url;
+    paintDirectState(); renderDirectCfg(); return;
+  }
+  renderDirectCfg();
   const d = await api('/api/doorbell', { admin: true }).catch(() => null);
   if (!d || !d.url) { $('#dbState').innerHTML = '<div class="warn">Portero desactivado (DOORBELL=0 en .env).</div>'; return; }
   loadDoorbell.url = d.url;
@@ -1602,6 +1617,236 @@ async function writeDoorbellNfc() {
   if (!('NDEFReader' in window)) return toast('Grabar NFC: abrí este panel en Chrome de un celular Android');
   try { toast('Apoyá el sticker NFC en la parte de atrás del celular…'); await new window.NDEFReader().write({ records: [{ recordType: 'url', data: loadDoorbell.url }] }); toast('Sticker NFC grabado ✔'); logEvent('NFC_DOORBELL', 'INFO', 'Sticker NFC del portero grabado', { sync: true }); }
   catch (e) { toast('NFC: ' + e.message); }
+}
+
+/* ═══════════════════════ PORTERO Y AVISOS DIRECTOS (sin servidor, como el portero Cannabismática) ═══════════════════════
+ * Si el servidor SVB no está, este mismo equipo escucha los timbres del QR/NFC por el relevo gratuito ntfy.sh,
+ * avisa a los dueños (notificación push con foto y botones, y WhatsApp por CallMeBot) y responde al cliente.
+ * Requiere que este equipo quede encendido, con el panel abierto y con internet.
+ */
+const REPLIES = { voy: 'Ya voy, aguarde un momento 🙂', momento: 'Estamos atendiendo, enseguida lo atendemos.', cerrado: 'Ahora no podemos atender. Disculpe las molestias.', pase: 'Puerta abierta, puede pasar.', deje: 'Por favor deje el pedido en la puerta. ¡Gracias!' };
+const NEV = { ring: 'Timbre (cliente en la puerta)', sos: 'Botón SOS', duress: 'Alerta silenciosa (PIN de coacción)', lock: 'Bloqueo por intentos fallidos', alarm: 'Alarmas de cámara (merodeo, lente tapado)', off: 'Intentos y timbres fuera de horario' };
+const hhmmNow = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+const ntfyBase = () => String(S.ntfyUrl || 'https://ntfy.sh').replace(/\/+$/, '');
+const rndTopic = (p) => p + Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+function ensureTopics() {
+  let ch = false;
+  if (!/^[\w-]{10,64}$/.test(S.dbTopic || '')) { S.dbTopic = rndTopic('rave-'); ch = true; }
+  if (!/^[\w-]{10,64}$/.test(S.nTopic || '')) { S.nTopic = rndTopic('rave-own-'); ch = true; }
+  if (ch) save();
+}
+function doorbellPage() {
+  if (S.dbPage) return S.dbPage;
+  const here = new URL('timbre.html', location.href);
+  return here.protocol === 'https:' ? here.origin + here.pathname : 'https://raveholding.github.io/SVBSguridad/timbre.html';
+}
+function directUrl() {
+  ensureTopics();
+  const u = new URL(doorbellPage());
+  u.searchParams.set('t', S.dbTopic); u.searchParams.set('n', S.biz);
+  if (ntfyBase() !== 'https://ntfy.sh') u.searchParams.set('h', ntfyBase());
+  const w = String(S.dbWa || '').replace(/\D/g, ''); if (w.length >= 8) u.searchParams.set('w', w);
+  return u.toString();
+}
+let directES = null, directKey = '', directState = 'off', lastDirectRing = 0;
+const seenRings = new Set(); const directRings = new Map();
+function startDirect() {
+  const want = !net.online && S.dbOn !== false;
+  if (want) ensureTopics();
+  const key = want ? `${ntfyBase()}|${S.dbTopic}|${S.nTopic}` : '';
+  if (key === directKey) return;
+  if (directES) { directES.close(); directES = null; }
+  directKey = key; directState = want ? 'conn' : 'off';
+  paintDirectState();
+  if (!want || !window.EventSource) return;
+  const es = new EventSource(`${ntfyBase()}/${[S.dbTopic, S.nTopic + '-c'].map(encodeURIComponent).join(',')}/sse?since=60s`);
+  es.onopen = () => { directState = 'ok'; paintDirectState(); flushDirectQ(); };
+  es.onerror = () => { directState = 'conn'; paintDirectState(); }; // EventSource reintenta solo
+  es.onmessage = (ev) => {
+    let m, p;
+    try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.event && m.event !== 'message') return;
+    try { p = JSON.parse(m.message); } catch { p = { type: 'ring', msg: String(m.message || '') }; }
+    if (p && typeof p === 'object') onDirectMsg(m, p);
+  };
+  directES = es;
+}
+function onDirectMsg(m, p) {
+  if (m.topic === S.dbTopic && p.type === 'ring') {
+    const id = String(p.id || m.id || '').slice(0, 40);
+    if (!id || seenRings.has(id)) return;
+    seenRings.add(id); if (seenRings.size > 200) seenRings.clear();
+    if (m.time && Date.now() / 1000 - m.time > 90) return; // timbre viejo (reconexión)
+    return onDirectRing({ id, name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), source: 'qr', direct: true, test: !!p.test });
+  }
+  if (m.topic === S.nTopic + '-c' && p.type === 'reply' && p.code !== 'pase') directReply(String(p.id || ''), String(p.code || ''), 'notificación push');
+}
+async function onDirectRing(r) {
+  if (!r.test && !accOpen()) {
+    publishReply(r.id, 'cerrado', `Estamos cerrados. Horario de atención: ${ACC.text}`);
+    logEvent('DOORBELL_OFFHOURS', 'INFO', `Timbre fuera de horario${r.name ? ': ' + r.name : ''}`, { sync: false });
+    notifyDirect('off', `🔕 Timbre fuera de horario · ${S.biz}`, `Tocaron el timbre a las ${hhmmNow()}${r.name ? ` (${r.name})` : ''}. Se le mostró el horario al cliente.`);
+    return;
+  }
+  if (Date.now() - lastDirectRing < 8000) { publishReply(r.id, 'momento'); return; } // timbre repetido
+  lastDirectRing = Date.now();
+  directRings.set(r.id, r); if (directRings.size > 50) directRings.delete(directRings.keys().next().value);
+  logEvent('DOORBELL_QR', 'INFO', `Timbre desde el celular del cliente${r.name ? ': ' + r.name : ''}${r.msg ? ' — ' + r.msg : ''}`, { sync: false });
+  showRing(r);
+  const shot = (await captureEvidence('TIMBRE', 1, true))[0];
+  notifyDirect('ring', `🔔 Tocan el timbre · ${S.biz}`, `${[r.name && '👤 ' + r.name, r.msg && '💬 ' + r.msg].filter(Boolean).join('\n') || 'Cliente en la puerta'}\nRespondé con los botones.`, shot && shot.data, r.id);
+}
+function publishReply(id, code, text) {
+  return fetch(`${ntfyBase()}/${encodeURIComponent(S.dbTopic + '-r')}`, { method: 'POST', body: JSON.stringify({ type: 'reply', id, code, text: text || REPLIES[code] }) }).then((r) => r.ok).catch(() => false);
+}
+async function directReply(id, code, by) {
+  const r = directRings.get(id);
+  if (!r || !REPLIES[code] || r.answered) return false;
+  r.answered = code;
+  const ok = await publishReply(id, code);
+  logEvent(code === 'pase' ? 'DOOR_OPEN' : 'DOORBELL_REPLY', 'INFO', `Respuesta al timbre (${by}): ${REPLIES[code]}`, { sync: false });
+  if (curRing && curRing.id === id) { hideRing(); if (by !== 'panel') toast(`Respondido (${by}): ${REPLIES[code]}`); }
+  return ok;
+}
+function paintDirectState() {
+  const el = $('#dbState'); if (!el || net.online) return;
+  el.innerHTML = directState === 'ok'
+    ? '<span class="ok-msg">✔ Portero activo en este equipo: escuchando timbres.</span> <span class="muted">Dejalo encendido, con el panel abierto y con internet.</span>'
+    : S.dbOn === false ? '<div class="warn">Portero apagado en este equipo.</div>'
+      : '<div class="warn">Conectando con el relevo de timbres (ntfy.sh)… Si no se conecta, revisá internet en este equipo.</div>';
+}
+
+/* ── Avisos directos: notificación push (ntfy) y WhatsApp (CallMeBot) ── */
+async function sendPushDirect({ title, body, photo, kind, ringId }) {
+  const base = ntfyBase(); const topic = S.nTopic;
+  try {
+    if (photo) {
+      const blob = await (await fetch(photo)).blob();
+      await fetch(`${base}/${encodeURIComponent(topic)}`, { method: 'PUT', body: blob, headers: { Filename: 'camara.jpg' } }).catch(() => null);
+    }
+    const payload = { topic, title, message: body, priority: kind === 'sos' || kind === 'duress' ? 5 : kind === 'off' ? 3 : 4,
+      tags: [{ ring: 'bell', sos: 'rotating_light', duress: 'rotating_light', alarm: 'warning', lock: 'warning', test: 'white_check_mark' }[kind] || 'shield'] };
+    if (ringId) payload.actions = [['voy', 'Ya voy'], ['momento', 'Un momento'], ['deje', 'Dejar en puerta']].map(([code, label]) => ({ action: 'http', label, url: `${base}/${encodeURIComponent(topic + '-c')}`, method: 'POST', body: JSON.stringify({ type: 'reply', id: ringId, code }), clear: true }));
+    const r = await fetch(base, { method: 'POST', body: JSON.stringify(payload) });
+    return r.ok;
+  } catch { return false; }
+}
+async function sendWaDirect(rc, text) {
+  const phone = '+' + String(rc.phone || '').replace(/\D/g, '');
+  const url = `${String(S.cmbUrl || 'https://api.callmebot.com').replace(/\/+$/, '')}/whatsapp.php?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(rc.key)}`;
+  try { await fetch(url, { mode: 'no-cors' }); return true; } catch { return false; } // CallMeBot no confirma por navegador
+}
+const NQKEY = 'svb.nq';
+const getQ = () => { try { return JSON.parse(localStorage.getItem(NQKEY) || '[]'); } catch { return []; } };
+const setQ = (q) => { try { localStorage.setItem(NQKEY, JSON.stringify(q.slice(-30))); } catch { /* lleno */ } };
+async function notifyDirect(kind, title, body, photo, ringId) {
+  if (net.online) return null; // con servidor avisa el servidor
+  const ev = { ...DEFAULTS.nEv, ...(S.nEv || {}) };
+  if (kind !== 'test' && !ev[kind]) return null;
+  const out = { push: null, wa: [] }; const ts = Date.now();
+  if (S.nPush && S.nTopic) {
+    out.push = await sendPushDirect({ title, body, photo, kind, ringId });
+    if (!out.push && kind !== 'test') setQ([...getQ(), { ch: 'push', title, body, kind, ts }]);
+  }
+  if (S.nWa) {
+    for (const rc of (S.nRecips || []).filter((x) => x.phone && x.key)) {
+      const ok = await sendWaDirect(rc, `${title}\n${body}`.replace(/\nRespondé con los botones\./, '\nRespondé desde el panel o la notificación push.'));
+      out.wa.push({ name: rc.name || rc.phone, ok });
+      if (!ok && kind !== 'test') setQ([...getQ(), { ch: 'wa', rid: rc.id, title, body, kind, ts }]);
+    }
+  }
+  const sum = `push ${out.push === null ? 'desactivada' : out.push ? 'enviada' : 'sin conexión (se reintenta)'} · WhatsApp ${out.wa.length ? out.wa.filter((x) => x.ok).length + ' de ' + out.wa.length : 'sin números'}`;
+  logEvent('NOTIFY', 'INFO', `Aviso (${NEV[kind] || 'prueba'}): ${sum}`, { sync: false, hidden: kind === 'duress' });
+  return out;
+}
+async function flushDirectQ() {
+  const q = getQ(); if (!q.length || net.online) return;
+  const keep = [];
+  for (const j of q) {
+    if (Date.now() - j.ts > 15 * 60000) continue;
+    const t = new Date(j.ts).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const body = `${j.body}\n(enviado con demora · ocurrió a las ${t})`;
+    let ok = false;
+    if (j.ch === 'push') ok = await sendPushDirect({ title: j.title, body, kind: j.kind });
+    else { const rc = (S.nRecips || []).find((x) => x.id === j.rid); ok = !rc || await sendWaDirect(rc, `${j.title}\n${body}`); }
+    if (!ok) keep.push(j);
+  }
+  setQ(keep);
+}
+setInterval(flushDirectQ, 30000); addEventListener('online', () => { flushDirectQ(); directKey = ''; startDirect(); });
+
+/* ── Configuración de avisos directos (panel) ── */
+function renderDirectCfg() {
+  const box = $('#directCfg'); if (!box) return;
+  if (net.online) {
+    box.innerHTML = `<div class="cfgcard"><h3>Avisos al celular de los dueños</h3><p class="help" style="margin:0 0 10px">Con el servidor SVB encendido, los avisos (WhatsApp, notificación push con foto y botones, y Telegram) los envía el servidor. Se configuran en <b>★ Configuración → Avisos a los dueños</b>.</p><button class="btn sm" data-dc="goalerts">Ir a Avisos a los dueños</button></div>`;
+    return;
+  }
+  ensureTopics();
+  const ev = { ...DEFAULTS.nEv, ...(S.nEv || {}) };
+  const sub = `${ntfyBase()}/${S.nTopic}`;
+  box.innerHTML = `<div class="cfgcard"><h3>Portero en este equipo</h3>
+      <p class="help">No hay servidor SVB: este equipo escucha los timbres del QR/NFC, avisa a los dueños y responde al cliente. Tiene que quedar encendido, con el panel abierto y con internet.</p>
+      <label class="chk"><input type="checkbox" data-dc-bind="dbOn" ${S.dbOn !== false ? 'checked' : ''}>Portero activo en este equipo</label>
+      <div class="cfgrow"><label class="f">WhatsApp del local para que el cliente escriba (opcional, botón en su pantalla)<input class="inp" data-dc-bind="dbWa" inputmode="tel" placeholder="+54 9 387 …" value="${esc(S.dbWa || '')}"></label></div></div>
+    <div class="cfgcard"><h3>1 · Notificación al celular (recomendado, gratis)</h3>
+      <p class="help">Con la app <b>ntfy</b> (Android y iPhone). Llega con la foto de la puerta y, en el timbre, con botones <i>Ya voy · Un momento · Dejar en puerta</i> que le responden al cliente.</p>
+      <label class="chk"><input type="checkbox" data-dc-bind="nPush" ${S.nPush ? 'checked' : ''}>Enviar notificaciones push</label>
+      <div class="poster-prev"><canvas id="nQr" width="190" height="190" style="background:#fff;border-radius:10px"></canvas>
+        <ol style="flex:1;min-width:240px"><li>Cada dueño instala <b>ntfy</b> desde Play Store o App Store.</li>
+          <li>En la app toca <b>+</b> y escribe este tema: <code style="user-select:all">${esc(S.nTopic)}</code> (servidor ${esc(ntfyBase())}). En Android también puede escanear el QR.</li>
+          <li>El tema funciona como contraseña: no lo compartas con clientes.</li></ol></div>
+      <div class="cfgacts"><button class="btn sm" data-dc="copytopic">Copiar tema</button><button class="btn sm ghost" data-dc="newtopic">Generar tema nuevo</button></div></div>
+    <div class="cfgcard"><h3>2 · WhatsApp a los números que elijan (gratis, CallMeBot)</h3>
+      <p class="help">Cada dueño lo activa una sola vez desde su WhatsApp: agenda el número de CallMeBot que figura en <b>callmebot.com</b>, le escribe <code>I allow callmebot to send me messages</code> y recibe su clave (apikey). Cargá abajo su número con código de país y esa clave. Es un servicio gratuito de uso personal: el mensaje puede demorar hasta un minuto y no lleva foto.</p>
+      <label class="chk"><input type="checkbox" data-dc-bind="nWa" ${S.nWa ? 'checked' : ''}>Enviar avisos por WhatsApp</label>
+      <div id="nWaList">${(S.nRecips || []).map((r) => `<div class="waRow" data-rid="${esc(r.id)}" style="grid-template-columns:1fr 1.2fr 1fr auto auto"><input class="inp" data-rf="name" placeholder="Nombre" value="${esc(r.name || '')}"><input class="inp" data-rf="phone" inputmode="tel" placeholder="+54 9 387 …" value="${esc(r.phone || '')}"><input class="inp" data-rf="key" inputmode="numeric" placeholder="Clave CallMeBot" value="${esc(r.key || '')}" autocomplete="off"><button class="btn sm" data-dc="watest">Probar</button><button class="btn sm ghost" data-dc="wadel" title="Quitar">✕</button></div>`).join('') || '<p class="small muted">Todavía no hay números cargados.</p>'}</div>
+      <div class="cfgacts"><button class="btn sm" data-dc="waadd">+ Agregar número</button></div></div>
+    <div class="cfgcard"><h3>3 · Qué se avisa</h3>${Object.entries(NEV).map(([k, t]) => `<label class="chk"><input type="checkbox" data-dc-ev="${k}" ${ev[k] ? 'checked' : ''}>${t}</label>`).join('')}
+      <div class="cfgacts"><button class="btn primary" data-dc="test">Enviar aviso de prueba a todos</button></div><div class="cfgout" id="nOut"></div>
+      <p class="small muted" style="margin:8px 0 0">Si se corta internet, los avisos quedan en cola y se reintentan durante 15 minutos.</p></div>`;
+  drawQr($('#nQr'), sub);
+}
+function waRecipFromRow(row) { return { id: row.dataset.rid, name: $('[data-rf="name"]', row).value.trim().slice(0, 30), phone: $('[data-rf="phone"]', row).value.replace(/[^\d+]/g, ''), key: $('[data-rf="key"]', row).value.trim() }; }
+function directCfgChange(e) {
+  const t = e.target;
+  if (t.dataset.dcBind) {
+    const k = t.dataset.dcBind; S[k] = t.type === 'checkbox' ? t.checked : t.value.trim(); save();
+    if (k === 'dbOn') { directKey = ''; startDirect(); }
+    if (k === 'dbWa' || k === 'dbOn') loadDoorbell();
+    toast('Guardado');
+  }
+  if (t.dataset.dcEv) { S.nEv = { ...DEFAULTS.nEv, ...(S.nEv || {}), [t.dataset.dcEv]: t.checked }; save(); toast('Guardado'); }
+  if (t.dataset.rf) {
+    const row = t.closest('[data-rid]'); const rc = waRecipFromRow(row);
+    S.nRecips = (S.nRecips || []).map((x) => (x.id === rc.id ? rc : x)); save();
+    if (rc.phone && !/^\+?\d{10,15}$/.test(rc.phone)) toast('Número con código de país, ej. +5493874000000');
+  }
+}
+async function directCfgClick(e) {
+  const b = e.target.closest('[data-dc]'); if (!b) return;
+  const a = b.dataset.dc;
+  if (a === 'goalerts') { showPane('setup'); const el = $('.cfgcard[data-group="alertas"]'); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (a === 'copytopic') return navigator.clipboard.writeText(S.nTopic).then(() => toast('Tema copiado')).catch(() => toast(S.nTopic));
+  if (a === 'newtopic') { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '¿Seguro? Los celulares suscriptos dejan de recibir'; return; } S.nTopic = ''; ensureTopics(); directKey = ''; startDirect(); renderDirectCfg(); return toast('Tema nuevo: volvé a suscribir los celulares'); }
+  if (a === 'waadd') { S.nRecips = [...(S.nRecips || []), { id: Math.random().toString(36).slice(2, 9), name: '', phone: '', key: '' }]; save(); renderDirectCfg(); return; }
+  const row = b.closest('[data-rid]');
+  if (a === 'wadel') { S.nRecips = (S.nRecips || []).filter((x) => x.id !== row.dataset.rid); save(); return renderDirectCfg(); }
+  if (a === 'watest') {
+    const rc = waRecipFromRow(row);
+    if (!/^\+?\d{10,15}$/.test(rc.phone) || !rc.key) return toast('Completá número con código de país y la clave');
+    const ok = await sendWaDirect(rc, `✅ Prueba de avisos de ${S.biz}: si te llegó este WhatsApp, los avisos funcionan.`);
+    return toast(ok ? `Enviado a ${rc.name || rc.phone}. Si no llega en 1–2 minutos, revisá número y clave.` : 'Sin internet en este equipo');
+  }
+  if (a === 'test') {
+    $('#nOut').textContent = 'Enviando…';
+    if (!S.nPush && !S.nWa) { $('#nOut').innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">Activá la notificación push o WhatsApp.</span>'; return; }
+    const shot = (await captureEvidence('PRUEBA', 1, true))[0];
+    const r = await notifyDirect('test', `✅ Prueba de avisos · ${S.biz}`, 'Si te llegó este aviso, las notificaciones funcionan.', shot && shot.data);
+    const lines = [`Notificación push: ${r.push === null ? '○ desactivada' : r.push ? '✔ enviada' : '✖ no se pudo enviar (¿internet?)'}`];
+    if (S.nWa) lines.push(r.wa.length ? r.wa.map((x) => `WhatsApp ${esc(x.name)}: ${x.ok ? '✔ enviado (llega en hasta 1 minuto)' : '✖ sin conexión'}`).join('<br>') : 'WhatsApp: ○ sin números con clave');
+    $('#nOut').innerHTML = lines.join('<br>');
+  }
 }
 
 /* ═══════════════════════════ MONITOR (estilo DMSS) ═══════════════════════════ */
@@ -1879,6 +2124,7 @@ function aiAlert(type, msg, cool = 30000) {
   if (S.mode === 'corp') Sfx.alarm();
   captureEvidence(type, 1, true).then((shots) => {
     if (net.online && S.aiNotify) api('/api/alert', { method: 'POST', body: { type, level: 'HIGH', emoji: '⚠️', message: msg, snapshot: shots[0] && shots[0].data, camera: shots[0] ? undefined : 1 } }).catch(() => {});
+    else if (!net.online && S.aiNotify) notifyDirect('alarm', `⚠️ Alerta · ${S.biz}`, `${msg} (${hhmmNow()})`, shots[0] && shots[0].data);
   });
 }
 function setTag(id, text, hot) { const t = $(id); t.textContent = text; t.classList.toggle('hot', !!hot); }
@@ -2314,6 +2560,7 @@ function showPane(id) {
   $$('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === id));
   $$('#adminNav .nb').forEach((b) => b.classList.toggle('active', b.dataset.go === id));
   if (id === 'auditoria') { renderLog(); renderVault(); }
+  if (id === 'portero') loadDoorbell();
   if (id === 'bio') checkFaceModel();
   if (id === 'soporte') $('#devInfoTxt').textContent = `Cliente: ${S.biz}. Panel ${isElectron ? 'de escritorio' : 'web'} en ${location.origin}. Servidor ${net.online ? 'conectado' : 'no disponible'}. Personas cargadas: ${ACC.people || 0}. Horario: ${ACC.text}.`;
 }
@@ -2833,8 +3080,24 @@ function wire() {
   $('#dbPrint').addEventListener('click', printPoster);
   $('#dbNfc').addEventListener('click', writeDoorbellNfc);
   $('#dbCopy').addEventListener('click', () => navigator.clipboard.writeText(loadDoorbell.url || '').then(() => toast('Enlace copiado')).catch(() => toast('No se pudo copiar')));
-  $('#dbTest').addEventListener('click', async () => { const r = await api('/api/doorbell/test', { method: 'POST', admin: true }).catch(() => ({})); toast(r.ok ? 'Timbre de prueba enviado' : 'No se pudo probar'); });
-  $('#dbRegen').addEventListener('click', async () => { const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); } });
+  $('#dbOpen').addEventListener('click', () => { if (loadDoorbell.url) window.open(loadDoorbell.url, '_blank'); });
+  $('#dbTest').addEventListener('click', async () => {
+    if (!net.online) { // prueba de punta a punta por el relevo, como un cliente real
+      if (S.dbOn === false) return toast('Activá el portero en este equipo');
+      const ok = await fetch(`${ntfyBase()}/${encodeURIComponent(S.dbTopic)}`, { method: 'POST', body: JSON.stringify({ type: 'ring', id: 'prueba-' + Date.now().toString(36), name: 'Prueba', msg: 'Timbre de prueba desde administración', test: true }) }).then((r) => r.ok).catch(() => false);
+      return toast(ok ? 'Timbre de prueba enviado: en segundos suena en este equipo' : 'Sin internet: no se pudo enviar');
+    }
+    const r = await api('/api/doorbell/test', { method: 'POST', admin: true }).catch(() => ({})); toast(r.ok ? 'Timbre de prueba enviado' : 'No se pudo probar');
+  });
+  $('#dbRegen').addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '¿Seguro? Hay que reimprimir el cartel'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Regenerar código (invalida QR viejos)'; }, 5000); return; }
+    b.dataset.sure = ''; b.textContent = 'Regenerar código (invalida QR viejos)';
+    if (!net.online) { S.dbTopic = ''; ensureTopics(); directKey = ''; startDirect(); loadDoorbell(); return toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); }
+    const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); }
+  });
+  $('#directCfg').addEventListener('change', directCfgChange);
+  $('#directCfg').addEventListener('click', directCfgClick);
 
   $('#adminClose').addEventListener('click', closeAdmin);
   // Acceso al panel: doble toque en una zona libre de la pantalla (en celulares mantener presionado solo selecciona).

@@ -138,6 +138,8 @@ flowchart LR
 2. Panel → ⚙ → **Portero QR / NFC** → **Imprimir cartel para la puerta**.
 3. (Opcional) Desde un Android con Chrome: **Grabar sticker NFC** (NTAG213/215).
 
+**Sin servidor también funciona:** si el panel se abre sin el servidor SVB (por ejemplo desde GitHub Pages en la tablet de la puerta), ese mismo equipo escucha los timbres, suena con la imagen de su cámara, avisa a los dueños y responde al cliente. En Panel → **Portero y avisos al celular** se cargan la notificación push (app ntfy, con foto y botones *Ya voy · Un momento · Dejar en puerta*) y los **WhatsApp que elijan los dueños** (CallMeBot), y se elige qué se avisa: timbre, SOS, coacción, intentos fallidos, alarmas de cámara y fuera de horario. El equipo tiene que quedar encendido, con el panel abierto y con internet.
+
 Funciona con los datos móviles del cliente, sin abrir puertos del router. El enlace lleva un código secreto; si alguien abusa, **Regenerar código** invalida los carteles viejos. Comandos de Telegram: `/foto` `/armar` `/desarmar` `/estado`.
 
 ## Actualizar
@@ -181,6 +183,7 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 cd server && npm run setup && npm test     # 17 pruebas: personas, horario, huella (passkeys), rostro, reintento de avisos, configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
 python3 tests/e2e.py                       # 88 pruebas de punta a punta con navegador real
+python3 tests/e2e_portero.py               # 21 pruebas: portero y avisos sin servidor (timbre del cliente, push con foto y botones, WhatsApp, horario, SOS)
 python3 tests/e2e_accesos.py               # 22 pruebas: doble toque, personas, horario, huella (autenticador virtual), rostro, lector QR, móvil
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
