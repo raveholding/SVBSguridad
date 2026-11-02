@@ -328,7 +328,7 @@ def main():
             page.click("#adminKeys .key[data-k='OK']")
             page.wait_for_selector("#adminOv.show", timeout=5000)
             check("PIN 1234 abre el panel de ingeniería", True)
-            check("13 secciones de administración", page.locator("#adminNav .nb").count() == 13)
+            check("17 secciones de administración", page.locator("#adminNav .nb").count() == 17)
             page.click("[data-go='firmware']")
             check("Firmware ESP32 visible", "WebServer server(80)" in page.inner_text("#fwView"))
             page.click("[data-go='camaras']")
@@ -359,7 +359,7 @@ def main():
             page.click("[data-go='setup']")
             page.wait_for_selector("#cfgForm .cfgcard", timeout=8000)
             check("Centro de configuración con 6 grupos", page.locator("#cfgForm .cfgcard").count() == 6)
-            check("Aviso de PINs de fábrica", "PINs de fábrica" in page.inner_text("#setupWarn"))
+            check("Aviso de PINs de fábrica (puesta en marcha)", "PINs de fábrica" in page.inner_text("#setupCheck"))
             page.fill("#suTgToken", "123456:ABCdefGHIjklMNOpqrSTUvwxYZ12345")
             page.click("#suTgDetect")
             try:

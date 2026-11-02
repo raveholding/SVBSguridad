@@ -183,6 +183,7 @@ main.wide .side{display:none}
 .flash .ring svg{width:80px;height:80px;stroke-width:1.2}
 .modal{background:var(--p1);border:1px solid var(--b2);border-radius:18px;padding:18px;width:min(380px,92vw)}
 #pinOv{z-index:70}
+#faceOv{z-index:72}
 .toast{position:fixed;left:50%;top:86px;transform:translateX(-50%) translateY(-20px);opacity:0;transition:.25s;z-index:80;background:var(--white);color:#000;padding:12px 18px;border-radius:12px;font-weight:600;max-width:90vw;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -229,6 +230,44 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
 .scan-box video{width:100%;height:100%;object-fit:cover}
 .scan-box::after{content:"";position:absolute;inset:18%;border:2px solid var(--white);border-radius:14px}
 
+/* ── Horario, huella y rostro, personas (traído del portero Cannabismática) ── */
+html{touch-action:manipulation}
+.pill.closed{color:#000;background:var(--silver);border-color:var(--silver);font-weight:600}
+.pill.closed i{background:#000}
+.hoursline{font-size:12px;color:var(--muted);margin:-2px 0 10px;text-align:center;font-family:var(--mono);letter-spacing:.3px;line-height:1.4}
+.hoursline.closed{color:#000;background:var(--silver);border-radius:10px;padding:8px;font-weight:700}
+.bio-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px}
+.bio-acts[hidden],.bio-acts [hidden]{display:none}
+.btn.blocked{opacity:.45}
+.facebox{position:relative;width:min(560px,92vw);aspect-ratio:4/3;border:2px solid var(--white);border-radius:18px;overflow:hidden;background:#000}
+.facebox canvas{width:100%;height:100%;object-fit:cover;display:block}
+.facebox.mirror canvas{transform:scaleX(-1)}
+.facebox .fprog{position:absolute;left:12px;right:12px;bottom:12px;height:6px;border-radius:3px;background:#fff3;overflow:hidden}
+.facebox .fprog i{display:block;height:100%;width:0;background:var(--white);transition:width .3s}
+.person{background:var(--p1);border:1px solid var(--b1);border-radius:16px;padding:16px;margin-bottom:12px}
+.person.off{opacity:.55}
+.person .ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.person .ph b{color:var(--white);font-size:17px;font-weight:600;margin-right:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--b2);font-size:12px;color:var(--muted);background:#050505}
+.chip.ok{color:#000;background:var(--silver);border-color:var(--silver);font-weight:600}
+.chip button{background:none;border:0;color:inherit;cursor:pointer;padding:0 2px;font-size:14px;min-height:28px}
+.dayrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--b1)}
+.dayrow>b{width:44px;color:var(--white)}
+.dayrow .slots{display:flex;gap:10px;flex-wrap:wrap;flex:1;align-items:center}
+.slot{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.slot .inp{width:128px;min-height:46px;padding:8px 10px}
+.svbcard{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--p1);border:1px solid var(--b2);border-radius:16px;padding:18px;margin-bottom:16px}
+.svbcard .mk{width:64px;height:64px;border-radius:14px;background:var(--white);color:#000;display:grid;place-items:center;font-weight:800;font-size:20px;letter-spacing:1px;flex:none}
+.svbcard .tx{flex:1;min-width:220px}
+.svbcard .tx b{display:block;color:var(--white);font-size:16px;margin-bottom:4px}
+.svbcard .tx span{color:var(--muted);font-size:13px}
+.svbcard .ct{display:flex;flex-direction:column;gap:8px;min-width:230px}
+.svbcard a{text-decoration:none}
+.checklist .ci{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 0;border-top:1px solid var(--b1);font-size:14px;color:var(--silver)}
+.checklist .ci.done{color:var(--muted)}
+.devline{font-size:11px;color:var(--dim);text-align:center;letter-spacing:.4px;padding:2px 0 4px}
+.devline a{color:var(--muted);text-decoration:none}
+
 @media (max-width:900px){
   html,body{overflow:auto;height:auto}
   .app{height:auto;min-height:100%}
@@ -271,6 +310,8 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
   <symbol id="ic-nfc" viewBox="0 0 24 24"><path d="M6 8.3a8 8 0 0 1 0 7.4M10 6a12 12 0 0 1 0 12M14 4a16 16 0 0 1 0 16M18 2.5a20 20 0 0 1 0 19"/></symbol>
   <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="ic-ai" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="ic-finger" viewBox="0 0 24 24"><path d="M7.5 4.6A8 8 0 0 1 20 11v2M4 11a8 8 0 0 1 1.3-4.4M4 15v-2M12 11v4a6 6 0 0 1-1 3.3M8 11a4 4 0 0 1 8 0v2a10 10 0 0 1-.6 3.5M16 20.5a13 13 0 0 0 .8-2.5M8 15a9 9 0 0 1-1.1 4.3"/></symbol>
+  <symbol id="ic-face" viewBox="0 0 24 24"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></symbol>
   <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
@@ -291,11 +332,12 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
 
 <div class="app" id="app">
   <header class="top">
-    <div class="brand" id="brand" title="Mantener presionado 3 s: administración">
+    <div class="brand" id="brand" title="Doble toque en una zona libre de la pantalla: administración">
       <img id="logo" src="assets/rave-logo.jpg" alt="Logo">
       <div><b id="bizName">Almacén Rave</b><small id="modeLabel">Modo corporativo · alta seguridad</small></div>
     </div>
     <div class="pills">
+      <span class="pill on" id="stHours" title="Horario de atención"><i></i><span>Abierto</span></span>
       <span class="pill" id="stServer"><i></i>Servidor</span>
       <span class="pill" id="stCams"><i></i>Cámaras</span>
       <span class="pill" id="stDoor"><i></i>Cerradura</span>
@@ -360,8 +402,13 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
     <aside class="side">
       <div class="card">
         <h3>Acceso</h3>
+        <div class="hoursline" id="hoursLine" hidden></div>
         <div class="display" id="pinDisplay"><span>Ingrese PIN</span></div>
         <div class="keys" id="keypad"></div>
+        <div class="bio-acts" id="bioActs" hidden>
+          <button class="btn" id="btnPk" hidden><svg class="i"><use href="#ic-finger"/></svg>Huella</button>
+          <button class="btn" id="btnFace" hidden><svg class="i"><use href="#ic-face"/></svg>Rostro</button>
+        </div>
       </div>
       <div class="card">
         <h3>Asistencia</h3>
@@ -373,6 +420,7 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
           <button class="btn" id="btnNfc"><svg class="i"><use href="#ic-nfc"/></svg>Tarjeta NFC</button>
         </div>
       </div>
+      <div class="devline">Sistema VB · <a id="devLine" href="https://wa.me/5493874484132" target="_blank" rel="noopener">Vincular Business · (387) 4484132</a></div>
     </aside>
   </main>
 
@@ -412,6 +460,15 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
   <button class="btn" id="scanCancel" style="min-width:220px">Cerrar</button>
 </div>
 
+<!-- Reconocimiento facial del personal -->
+<div class="ov-full center" id="faceOv">
+  <div class="big-t" id="faceTitle" style="font-size:clamp(18px,3vw,30px)">RECONOCIMIENTO FACIAL</div>
+  <div class="facebox" id="faceBox"><canvas id="faceCv" width="640" height="480"></canvas><div class="fprog"><i id="faceProg"></i></div></div>
+  <div class="sub-t" id="faceSub" style="font-size:18px;color:var(--white)">Preparando…</div>
+  <div class="small muted">No se guardan fotos ni videos.</div>
+  <button class="btn" id="faceCancel" style="min-width:220px">Cancelar</button>
+</div>
+
 <!-- Panel admin -->
 <div class="ov-full admin" id="adminOv">
   <nav id="adminNav"></nav>
@@ -421,6 +478,7 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
     <section class="pane setup" data-pane="setup" data-n="★" data-title="Configuración">
       <h2>Centro de configuración</h2>
       <p class="lead">Todo el sistema se configura desde acá: se guarda en el servidor y se aplica al instante en todos los equipos (PC, tablet y celulares).</p>
+      <div id="setupCheck"></div>
       <div id="setupWarn"></div>
       <div class="cfgstat" id="cfgStatus"></div>
       <div id="cfgForm"><p class="muted small">Cargando…</p></div>
@@ -453,6 +511,24 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
         <li>Desde un celular Android con Chrome, abrí este panel, tocá <b>Grabar sticker NFC</b> y apoyá el sticker atrás del celular.</li>
         <li>Pegalo en la puerta junto al QR: los clientes acercan el celular y se abre el timbre (Android y iPhone XS o más nuevo).</li>
       </ol>
+    </section>
+
+    <section class="pane setup" data-pane="horario" data-n="⏰" data-title="Horario de atención">
+      <h2>Horario de atención</h2>
+      <p class="lead">Fuera de horario se bloquean el timbre (el cliente ve el horario en su celular), los pases de visita, la tarjeta NFC y los proveedores. El dueño y el PIN general entran siempre, y el botón SOS funciona siempre.</p>
+      <div id="hoursForm"><p class="muted small">Cargando…</p></div>
+    </section>
+
+    <section class="pane setup" data-pane="personas" data-n="👤" data-title="Personas y accesos">
+      <h2>Personas y accesos</h2>
+      <p class="lead">Cada persona entra con su propio PIN y queda registrado quién abrió y a qué hora. Los PIN se guardan cifrados en el servidor. Dueños y empleados pueden entrar además con huella o rostro (sección siguiente).</p>
+      <div id="peopleBox"><p class="muted small">Cargando…</p></div>
+    </section>
+
+    <section class="pane setup" data-pane="bio" data-n="🖐" data-title="Huella y rostro">
+      <h2>Huella y rostro del personal</h2>
+      <p class="lead">Ingreso opcional para dueños y empleados cargados en Personas y accesos, con su consentimiento. Desactivado de fábrica.</p>
+      <div id="bioBox"><p class="muted small">Cargando…</p></div>
     </section>
 
     <section class="pane" data-pane="marca" data-n="0" data-title="Marca y perfil">
@@ -506,10 +582,11 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
 
     <section class="pane" data-pane="nfcqr" data-n="3" data-title="Pases NFC & QR">
       <h2>Pases temporales: QR y NFC</h2>
-      <p class="lead">Generá un código de 6 dígitos con vencimiento para proveedores o visitas. Sirve tipeado, como QR o grabado en un tag NFC.</p>
+      <p class="lead">Generá un código de 6 dígitos con vencimiento y cantidad de usos para proveedores o visitas. Sirve tipeado, como QR (cámara o lector QR USB/Bluetooth) o grabado en un tag NFC. Solo funciona dentro del horario de atención.</p>
       <div class="row">
         <label class="f">Nombre<input class="inp" id="vName" placeholder="Proveedor / visita"></label>
         <label class="f">Validez (horas)<input class="inp" id="vHours" type="number" min="1" max="720" value="8"></label>
+        <label class="f">Usos permitidos<select class="inp" id="vMax"><option value="0">Sin límite</option><option value="1">1 ingreso</option><option value="2">2 ingresos</option><option value="3">3 ingresos</option><option value="5">5 ingresos</option><option value="10">10 ingresos</option></select></label>
         <div style="display:flex;align-items:end"><button class="btn primary" id="vCreate" style="width:100%">Crear pase</button></div>
       </div>
       <div class="qrbox" id="vOut" style="display:none">
@@ -567,7 +644,7 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
         <label class="f">Merodeo: segundos <span id="sLoitV"></span><input type="range" id="sLoit" min="5" max="60" step="1"></label>
       </div>
       <label class="chk"><input type="checkbox" id="sLowLat">Baja latencia WebRTC (solo en la red del almacén; requiere puerto 8555 abierto en el firewall de la PC)</label>
-      <label class="chk"><input type="checkbox" id="sFace">Reconocimiento facial manos libres (simulado: detecta rostro y saluda; no abre la puerta)</label>
+      <label class="chk"><input type="checkbox" id="sFace">Saludo manos libres (detecta un rostro y saluda; para abrir con el rostro usá «Huella y rostro»)</label>
       <label class="chk"><input type="checkbox" id="sAiNotify">Enviar alertas de IA al dueño (merodeo / sabotaje)</label>
       <div id="discOut" class="small muted" style="margin-top:12px;user-select:text"></div>
       <h3 class="muted small" style="letter-spacing:2px;margin-top:22px">GRABADOR</h3>
@@ -600,6 +677,10 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
         <p>Frigate puede leer las mismas URLs RTSP y publicar eventos por MQTT. Útil si más adelante se quiere detección de personas/vehículos con Coral TPU.</p>
         <h3>Ver desde fuera del almacén</h3>
         <p>No abrir puertos en el router. Instalar <b>Tailscale</b> en el servidor y en el celular del dueño, y entrar a <code>http://NOMBRE-TAILSCALE:8080</code>. DMSS también sigue disponible.</p>
+        <h3>Huella del personal: dirección segura (https)</h3>
+        <p>Los navegadores solo permiten passkeys (huella) en direcciones seguras. Funciona sin hacer nada en la <b>PC del servidor</b> con Chrome o Edge (<code>http://localhost:8080</code>). Para la tablet de la puerta: en la PC del servidor ejecutar <code>tailscale serve --bg 8080</code> y abrir el panel en <code>https://NOMBRE-PC.TU-RED.ts.net</code> desde la tablet (con Tailscale instalado). Las huellas quedan registradas para esa dirección: si se cambia, hay que volver a registrarlas.</p>
+        <h3>Reconocimiento facial</h3>
+        <p>Usa la cámara de puerta elegida en «Cámaras e IA» (un canal del grabador Dahua o la cámara de la tablet) y los modelos de la carpeta <code>face/</code> (unos 8 MB, se cargan solo al usarlo). Con un canal Dahua funciona aunque el panel se abra por <code>http://IP:8080</code>; con la cámara de la tablet hace falta https o localhost.</p>
       </div>
     </section>
 
@@ -608,6 +689,7 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       <p class="lead">Eventos de este panel y del servidor. Las fotos se guardan en este equipo (IndexedDB).</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
         <button class="btn sm" id="logExport">Exportar log JSON</button>
+        <button class="btn sm" id="logCsv">Exportar log CSV (Excel)</button>
         <button class="btn sm" id="vaultExport">Exportar evidencia JSON</button>
         <button class="btn sm" id="logRefresh">Actualizar</button>
         <button class="btn sm ghost" id="vaultClear">Vaciar bóveda</button>
@@ -615,6 +697,16 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
       <table class="t"><thead><tr><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Detalle</th><th>Origen</th></tr></thead><tbody id="logBody"></tbody></table>
       <h3 class="muted small" style="letter-spacing:2px;margin-top:24px">EVIDENCIA FOTOGRÁFICA</h3>
       <div class="vault" id="vaultGrid"></div>
+    </section>
+
+    <section class="pane" data-pane="soporte" data-n="SVB" data-title="Soporte y desarrollador">
+      <h2>Soporte y desarrollador</h2>
+      <p class="lead">Datos de contacto para soporte, ajustes y nuevas funciones.</p>
+      <div class="svbcard"><div class="mk">SVB</div>
+        <div class="tx"><b>Desarrollado por Vincular Business · Sistema VB</b><span>Software de gestión, digitalización y seguridad para comercios y servicios · Salta, Argentina</span></div>
+        <div class="ct"><a class="btn sm primary" id="devWa" href="https://wa.me/5493874484132" target="_blank" rel="noopener"><svg class="i"><use href="#ic-wa"/></svg>WhatsApp (387) 4484132</a><a class="btn sm" href="mailto:vincularbusiness@gmail.com">vincularbusiness@gmail.com</a></div>
+      </div>
+      <div class="cfgcard"><h3>SVB Seguridad v1.1</h3><p class="help" id="devInfoTxt" style="margin:0"></p></div>
     </section>
 
     <section class="pane" data-pane="sistema" data-n="10" data-title="Sistema">
@@ -627,7 +719,7 @@ tr.crit td{color:var(--white);font-weight:600;background:#111}
         <button class="btn sm" id="sysQuit" disabled>Cerrar app</button>
         <button class="btn sm ghost" id="sysReset">Restablecer ajustes</button>
       </div>
-      <p class="small muted" style="margin-top:16px">SVB Seguridad v1.0 · Sistema Vincular Business</p>
+      <p class="small muted" style="margin-top:16px">SVB Seguridad v1.1 · Sistema Vincular Business · WhatsApp (387) 4484132 · vincularbusiness@gmail.com</p>
     </section>
   </div>
 </div>
@@ -1123,12 +1215,13 @@ async function refreshStatus() {
     if (st._status !== 200) throw new Error();
     const first = !net.online;
     net.online = true; net.status = st;
+    if (st.access) setAccess(st.access);
     if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); connectLive(); pullShared(); MON.armed = !!st.armed; paintArm(); }
   } catch {
     if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
     net.online = false; net.status = null;
   }
-  paintStatus();
+  paintStatus(); paintAccess();
 }
 function setPill(id, state, title) {
   const p = $(id); p.classList.remove('on', 'warn');
@@ -1197,6 +1290,8 @@ function applyBrand() {
   $('#ringLabel').textContent = S.mode === 'corp' ? 'Llamar a oficina' : 'Tocar timbre';
   $('#familyLabel').textContent = 'Llamar ' + (S.familyName || 'familiar');
   document.title = `SVB Seguridad · ${S.biz}`;
+  const wa = `https://wa.me/5493874484132?text=${encodeURIComponent(`Hola Vincular Business, consulto por SVB Seguridad de ${S.biz}`)}`;
+  $('#devWa').href = wa; $('#devLine').href = wa;
 }
 function setView(v) {
   $$('.tab[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
@@ -1223,8 +1318,15 @@ function onDoorKey(k) {
   else if (pin.length < 8) pin += k;
   renderDots($('#pinDisplay'), pin.length, 'Ingrese PIN');
 }
+const scanKb = { b: '', t: 0 }; // lector de QR USB/Bluetooth: tipea "SVB1|123456|…" + Enter muy rápido
 addEventListener('keydown', (e) => {
-  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show') || $('#pbOv').classList.contains('show') || $('#ringOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
+  if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show') || $('#pbOv').classList.contains('show') || $('#ringOv').classList.contains('show') || $('#faceOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
+  const now = Date.now();
+  if (e.key.length === 1) { if (now - scanKb.t > 80) scanKb.b = ''; scanKb.t = now; scanKb.b += e.key; }
+  if (e.key === 'Enter') {
+    const m = scanKb.b.match(/SVB1\W?(\d{6})/i); scanKb.b = '';
+    if (m) { e.preventDefault(); pin = ''; renderDots($('#pinDisplay'), 0, 'Ingrese PIN'); if (!accOpen()) return closedFlash(); return submitPin(m[1], 'lector QR'); }
+  }
   if (/^\d$/.test(e.key)) onDoorKey(e.key);
   else if (e.key === 'Enter') onDoorKey('OK');
   else if (e.key === 'Backspace' || e.key === 'Escape') onDoorKey('C');
@@ -1235,38 +1337,56 @@ function localVisitors() { try { return JSON.parse(localStorage.getItem('svb.vis
 async function submitPin(p, source) {
   if (!p) return;
   if (Date.now() < lockedUntil) { flash(null, 'TECLADO BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
-  let result = 'denied', covert = false, who = '', retry = 0;
   if (net.online) {
-    try {
-      const r = await api('/api/door/open', { method: 'POST', body: { pin: p, source, ms: S.relayMs } });
-      result = r.result || 'denied'; covert = r._c === 1; who = r.visitor || ''; retry = r.retryIn || 0;
-      if (r.relay && r.relay.ok === false) toast('Atención: la cerradura (ESP32) no respondió');
-    } catch { net.online = false; }
+    try { return doorResult(await api('/api/door/open', { method: 'POST', body: { pin: p, source, ms: S.relayMs } }), source); } catch { net.online = false; }
   }
-  if (!net.online) { // modo autónomo
-    const v = localVisitors().find((x) => x.code === p);
-    if (p === S.duressPin) { result = 'open'; covert = true; }
-    else if (p === S.doorPin) result = 'open';
-    else if (v) { result = 'open'; who = v.name; }
-    else if (++localFails >= 5) { result = 'locked'; retry = 60; localFails = 0; }
+  // modo autónomo (sin servidor): PINs de respaldo y pases guardados en este equipo
+  let result = 'denied', covert = false, who = '', retry = 0;
+  const v = localVisitors().find((x) => x.code === p && !(x.max && (x.used || 0) >= x.max));
+  if (p === S.duressPin) { result = 'open'; covert = true; }
+  else if (p === S.doorPin) result = 'open';
+  else if (v) {
+    who = v.name; result = accOpen() ? 'open' : 'closed';
+    if (result === 'open') { const all = JSON.parse(localStorage.getItem('svb.visitors') || '[]'); const x = all.find((y) => y.id === v.id); if (x) { x.used = (x.used || 0) + 1; localStorage.setItem('svb.visitors', JSON.stringify(all)); } }
+  } else if (++localFails >= 5) { result = 'locked'; retry = 60; localFails = 0; }
+  return doorResult({ result, _c: covert ? 1 : 0, visitor: who, retryIn: retry, offline: true }, source);
+}
+/** Huella o rostro: siempre los valida el servidor. */
+async function bioOpen(body, source) {
+  if (Date.now() < lockedUntil) { flash(null, 'BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
+  if (!net.online) { toast('La huella y el rostro necesitan el servidor SVB encendido'); return; }
+  const r = await api('/api/door/open', { method: 'POST', body: { ...body, source, ms: S.relayMs }, timeout: 15000 }).catch(() => null);
+  if (!r) { toast('El servidor no respondió'); return; }
+  return doorResult(r, source);
+}
+function doorResult(r, source) {
+  const result = r.result || 'denied';
+  if (r.relay && r.relay.ok === false) toast('Atención: la cerradura (ESP32) no respondió');
+  if (result === 'open') { localFails = 0; return grantAccess({ covert: r._c === 1, who: r.visitor || '', source }); }
+  if (result === 'closed') {
+    if (r.hours) setAccess({ text: r.hours });
+    if (r.offline) logEvent('OFFHOURS_DENIED', 'WARN', `Intento fuera de horario (${source})`, { sync: false }); else tick('OFFHOURS_DENIED', `Intento fuera de horario (${source})`);
+    return closedFlash();
   }
-  if (result === 'open') { localFails = 0; return grantAccess({ covert, who, source }); }
   if (result === 'locked') {
+    const retry = r.retryIn || 60;
     lockedUntil = Date.now() + retry * 1000;
     Sfx.err(); flash(null, 'TECLADO BLOQUEADO', `Demasiados intentos. Reintente en ${retry} s`, 3500);
-    if (!net.online) logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false });
+    if (r.offline) logEvent('KEYPAD_LOCKOUT', 'HIGH', 'Teclado bloqueado por intentos fallidos', { sync: false });
     if (S.mode === 'corp') captureEvidence('LOCKOUT', 1);
     return;
   }
-  Sfx.err(); flash(false, 'ACCESO DENEGADO', 'PIN incorrecto');
-  if (!net.online) logEvent('ACCESS_DENIED', 'WARN', `PIN incorrecto (${source})`, { sync: false });
-  else tick('ACCESS_DENIED', `PIN incorrecto (${source})`);
+  const what = source === 'huella' ? 'Huella no reconocida' : source === 'rostro' ? 'Rostro no reconocido' : 'PIN incorrecto';
+  Sfx.err(); flash(false, 'ACCESO DENEGADO', r.reason ? r.reason.replace(/^Huella rechazada: /, '') : what, r.reason ? 3200 : 2200);
+  if (r.offline) logEvent('ACCESS_DENIED', 'WARN', `${what} (${source})`, { sync: false });
+  else tick('ACCESS_DENIED', `${what} (${source})`);
 }
 
 async function grantAccess({ covert, who, source }) {
   // Para el que mira la pantalla, coacción y apertura normal son idénticas (sin alarma ni aviso).
   Sfx.ok();
   flash(true, 'ACCESO CONCEDIDO', who ? `Bienvenido/a, ${who}` : 'Puerta liberada');
+  if (who) speak(`Bienvenido ${who}. Puede pasar.`);
   if (S.relayMode === 'serial' && isElectron && window.electronAPI.relay) window.electronAPI.relay(S.relayMs).catch(() => toast('Relé USB no responde'));
   if (covert) {
     logEvent('CRITICAL_DURESS_EVENT', 'CRITICAL', `Apertura bajo coacción (${source})`, { hidden: true, sync: false });
@@ -1274,7 +1394,7 @@ async function grantAccess({ covert, who, source }) {
     tick('DOOR_OPEN', `Puerta abierta (${source})`); // ticker igual al normal
   } else {
     if (!net.online) logEvent(who ? 'VISITOR_ACCESS' : 'DOOR_OPEN', 'INFO', who ? `Acceso de visita: ${who}` : `Puerta abierta (${source})`, { sync: false });
-    else tick(who ? 'VISITOR_ACCESS' : 'DOOR_OPEN', who ? `Visita: ${who}` : `Puerta abierta (${source})`);
+    else tick('DOOR_OPEN', who ? `${who} (${source})` : `Puerta abierta (${source})`);
   }
 }
 
@@ -1360,6 +1480,7 @@ async function callFamily() {
   dial(S.familyPhone);
 }
 async function ring() {
+  if (!accOpen()) { logEvent('OFFHOURS_DENIED', 'WARN', 'Timbre del panel fuera de horario', { sync: true }); return closedFlash(); }
   CHIMES[S.chime].play();
   logEvent('DOORBELL', 'INFO', 'Timbre presionado', { sync: false });
   speak(S.mode === 'corp' ? 'Avisando a la oficina, aguarde por favor.' : 'Avisando, aguarde por favor.');
@@ -1695,6 +1816,7 @@ function connectLive() {
   liveES.addEventListener('ring', (e) => showRing(JSON.parse(e.data)));
   liveES.addEventListener('settings', (e) => { const d = JSON.parse(e.data); if (d.by !== S.deviceId) pullShared(); });
   liveES.addEventListener('config', () => refreshStatus());
+  liveES.addEventListener('access', (e) => setAccess(JSON.parse(e.data)));
   liveES.addEventListener('ring-reply', (e) => { const d = JSON.parse(e.data); if (curRing && curRing.id === d.id) { hideRing(); toast(`Respondido (${d.by}): ${d.text}`); } });
   liveES.onerror = () => { if (liveES && liveES.readyState === 2) { liveES = null; setTimeout(connectLive, 5000); } };
   api('/api/dvr/events').then((l) => { if (Array.isArray(l)) l.slice().reverse().forEach((e) => addDvrEvent(e, false)); }).catch(() => {});
@@ -1813,7 +1935,7 @@ function aiStep() {
   const fx = ov.width / v.videoWidth, fy = ov.height / v.videoHeight;
   AI.faces.forEach((f) => { const b = f.boundingBox; octx.strokeRect(b.x * fx, b.y * fy, b.width * fx, b.height * fy); octx.fillText('ROSTRO', b.x * fx + 4, b.y * fy - 6); });
 
-  // Rostro: FaceDetector nativo si existe; si no, estimación por movimiento centrado (simulado)
+  // Rostro: FaceDetector nativo si existe; si no, estimación por movimiento centrado
   if (S.face) {
     if (AI.fd && !AI.faceBusy) { AI.faceBusy = true; AI.fd.detect(v).then((f) => { AI.faces = f; }).catch(() => { AI.fd = null; }).finally(() => { AI.faceBusy = false; }); }
     const faceNow = AI.fd ? AI.faces.length > 0 : (activity > 0.4 && (minX + maxX) / 2 > W * 0.3 && (minX + maxX) / 2 < W * 0.7);
@@ -1822,7 +1944,7 @@ function aiStep() {
     setTag('#tFace', faceNow ? (steady ? 'Rostro detectado' : 'Analizando…') : 'Rostro —', steady);
     if (steady && (!AI.last.face || now - AI.last.face > 60000)) {
       AI.last.face = now;
-      logEvent('FACE_PRESENCE', 'INFO', AI.fd ? 'Rostro detectado frente a la puerta' : 'Rostro detectado (simulado)', { sync: false });
+      logEvent('FACE_PRESENCE', 'INFO', AI.fd ? 'Rostro detectado frente a la puerta' : 'Presencia detectada frente a la puerta', { sync: false });
       speak(`Bienvenido a ${S.biz}. Ingrese su código o toque el timbre.`);
     }
   } else setTag('#tFace', 'Rostro off');
@@ -1859,6 +1981,9 @@ function handleVoice(raw, conf = 1) {
     speak('Por seguridad, ingrese su PIN en el teclado o dígalo después de abrir puerta.');
     renderDots($('#pinDisplay'), 0, 'Diga o tipee su PIN'); return;
   }
+  if (/\b(horarios?|a que hora|abren|cierran)\b/.test(t)) { speak(`${accOpen() ? 'Estamos abiertos' : 'Estamos cerrados'}. Horario de atención: ${speakHours()}.`); return; }
+  if (/\b(huella)\b/.test(t) && ACC.pk) { staffPk(); return; }
+  if (/\b(rostro|reconocimiento|cara)\b/.test(t) && ACC.face) { faceRecognize(); return; }
   if (/\b(ver )?camaras?\b/.test(t)) { setView('cctv'); speak('Mostrando cámaras.'); return; }
   if (/\bver puerta\b/.test(t)) { setView('door'); return; }
   if (/\b(timbre|tocar)\b/.test(t) || /^llamar?$/.test(t) || /\bllamar (a la )?(oficina|residente|dueno)\b/.test(t)) { ring(); return; }
@@ -1894,6 +2019,7 @@ const passText = (v) => `SVB1|${v.code}|${v.expires}|${v.name}`;
 function parsePass(t) { const m = String(t).match(/^SVB1\|(\d{6})\|/); return m ? m[1] : null; }
 let scanStream = null, scanLoop = null, nfcAbort = null;
 async function openScanner() {
+  if (!accOpen()) return closedFlash();
   $('#scanTitle').textContent = 'ESCANEE SU PASE QR'; $('#scanBox').style.display = '';
   $('#scanSub').textContent = 'Acerque el código QR a la cámara. También puede tipear el código de 6 dígitos en el teclado.';
   $('#scanOv').classList.add('show');
@@ -1916,6 +2042,7 @@ function closeScanner() {
   $('#scanOv').classList.remove('show');
 }
 async function readNfc() {
+  if (!accOpen()) return closedFlash();
   if (!('NDEFReader' in window)) { toast('NFC no disponible: requiere Chrome en Android con NFC'); return; }
   $('#scanTitle').textContent = 'ACERQUE SU TARJETA NFC'; $('#scanBox').style.display = 'none';
   $('#scanSub').textContent = 'Apoye la tarjeta o el llavero en la parte trasera del dispositivo.';
@@ -1935,6 +2062,7 @@ async function readNfc() {
 
 /* ═══════════════════════════ PANEL DE ADMINISTRACIÓN ═══════════════════════════ */
 let adminPinBuf = '', pinMode = 'admin', pinResolve = null, pinHint = 'PIN de ingeniería';
+let ghostGuardUntil = 0; // solo tras abrir con doble toque
 function openPinOv(title, hint) {
   adminPinBuf = ''; pinHint = hint; $('#pinTitle').textContent = title;
   renderDots($('#adminDisplay'), 0, hint); $('#pinOv').classList.add('show');
@@ -1943,6 +2071,7 @@ function askAdmin() { pinMode = 'admin'; openPinOv('Administración', 'PIN de in
 function askPin(title) { return new Promise((res) => { pinMode = 'ask'; pinResolve = res; openPinOv(title, 'Ingrese PIN'); }); }
 function closePinOv() { $('#pinOv').classList.remove('show'); if (pinResolve) { const r = pinResolve; pinResolve = null; r(null); } }
 async function onAdminKey(k) {
+  if (Date.now() < ghostGuardUntil) return; // toque fantasma del doble toque que abrió el teclado
   if (k === 'C') adminPinBuf = '';
   else if (k !== 'OK' && adminPinBuf.length < 8) adminPinBuf += k;
   renderDots($('#adminDisplay'), adminPinBuf.length, pinHint);
@@ -1960,7 +2089,7 @@ async function onAdminKey(k) {
 function openAdmin() {
   $('#adminOv').classList.add('show');
   logEvent('ADMIN_OPEN', 'INFO', 'Ingreso a administración', { sync: true });
-  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions(); loadSetup(); loadDevice(); loadDoorbell();
+  loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions(); loadSetup(); loadDevice(); loadDoorbell(); loadHours(); loadPeople();
   drawQr($('#linkQr'), base() || location.href);
   $('#linkTxt').textContent = (base() || location.href) + ' — escanear con el celular del dueño (misma red WiFi o Tailscale).';
 }
@@ -2025,12 +2154,19 @@ async function loadSetup() {
   const r = await api('/api/setup', { admin: true }).catch(() => null);
   if (!r || !r.fields) { form.innerHTML = '<div class="warn">No se pudo leer la configuración.</div>'; return; }
   CFG = r;
-  const w = [];
   const d = Object.entries(r.defaultPins || {}).filter(([, v]) => v).map(([k]) => ({ door: 'puerta', duress: 'coacción', admin: 'administración' }[k]));
-  if (d.length) w.push(`Todavía usás los PINs de fábrica de: <b>${d.join(', ')}</b>. Cambialos en «PINs y acceso al panel».`);
   const waCount = (fieldVal('WHATSAPP_TO') || []).length;
-  if (!r.telegram && !waCount && !r.push) w.push('Ningún aviso al celular configurado: cargá un WhatsApp o activá la notificación push.');
-  $('#setupWarn').innerHTML = w.map((x) => `<div class="warn">${x}</div>`).join('');
+  $('#setupWarn').innerHTML = '';
+  const ppl = await api('/api/people', { admin: true }).catch(() => null);
+  paintChecklist([
+    [d.length ? `Cambiar los PINs de fábrica (${d.join(', ')})` : 'Cambiar los PINs de fábrica', !d.length, 'seguridad'],
+    ['Cargar al menos una persona con su PIN', !!(ppl && ppl.people && ppl.people.some((x) => x.hasPin)), 'personas'],
+    ['Revisar el horario de atención', !!(ppl && ppl.info && ppl.info.mode !== 'always') || !!S.hoursOk, 'horario'],
+    ['Cargar el contacto de confianza para emergencias', !!S.familyPhone, 'contactos'],
+    ['Activar avisos al celular (WhatsApp, push o Telegram)', !!(r.telegram || waCount || r.push), 'alertas'],
+    ['Conectar el grabador Dahua', !!r.status.camera.connected, 'grabador'],
+    ['Vincular la cerradura ESP32', r.status.door === 'esp32', 'cerradura'],
+  ]);
   const st = r.status;
   const chip = (ok, t) => `<span class="${ok ? 'ok' : ''}">${ok ? '✔' : '○'} ${t}</span>`;
   $('#cfgStatus').innerHTML = chip(st.camera.connected, st.camera.connected ? `Grabador ${st.camera.host}` : 'Grabador sin conectar') + chip(st.door === 'esp32', st.door === 'esp32' ? 'Cerradura ESP32' : 'Cerradura simulada')
@@ -2178,6 +2314,8 @@ function showPane(id) {
   $$('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === id));
   $$('#adminNav .nb').forEach((b) => b.classList.toggle('active', b.dataset.go === id));
   if (id === 'auditoria') { renderLog(); renderVault(); }
+  if (id === 'bio') checkFaceModel();
+  if (id === 'soporte') $('#devInfoTxt').textContent = `Cliente: ${S.biz}. Panel ${isElectron ? 'de escritorio' : 'web'} en ${location.origin}. Servidor ${net.online ? 'conectado' : 'no disponible'}. Personas cargadas: ${ACC.people || 0}. Horario: ${ACC.text}.`;
 }
 const BIND = { sBiz: 'biz', sMode: 'mode', sEmergency: 'emergency', sFamilyName: 'familyName', sFamilyPhone: 'familyPhone', sFamilyWa: 'familyWa', sOfficePhone: 'officePhone', sRingCall: 'ringCall',
   sVoiceOn: 'voiceOn', sWakeOn: 'wakeOn', sWake: 'wake', sLang: 'lang', sVoice: 'voice', sSens: 'sens', sRate: 'rate', sVol: 'vol', sRelay: 'relayMs', sRelayMode: 'relayMode',
@@ -2236,24 +2374,414 @@ function download(name, data, type = 'application/json') {
 async function renderVisitors() {
   let list = localVisitors().map((v) => ({ ...v, where: 'local' }));
   if (net.online && net.adminPin) { try { const r = await api('/api/visitors', { admin: true }); if (Array.isArray(r)) list = r.map((v) => ({ ...v, where: 'servidor' })); } catch { /* offline */ } }
-  $('#vList').innerHTML = list.map((v) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(v.name)}</b> <span class="muted small">· vence ${fmtTime(v.expires)}</span></div><span class="codebig" style="font-size:18px;letter-spacing:3px">${esc(v.code)}</span><button class="btn sm" data-del="${esc(v.id)}">Revocar</button></div>`).join('') || '<p class="muted small">No hay pases activos.</p>';
+  $('#vList').innerHTML = list.map((v) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(v.name)}</b> <span class="muted small">· vence ${fmtTime(v.expires)} · ${v.max ? `usos ${v.used || 0}/${v.max}` : 'usos sin límite'}${v.max && (v.used || 0) >= v.max ? ' · AGOTADO' : ''}</span></div><span class="codebig" style="font-size:18px;letter-spacing:3px">${esc(v.code)}</span><button class="btn sm" data-del="${esc(v.id)}">Revocar</button></div>`).join('') || '<p class="muted small">No hay pases activos.</p>';
 }
 let lastPass = null;
 async function createPass() {
   const name = $('#vName').value.trim() || 'Visita';
   const hours = Math.max(1, Math.min(720, parseInt($('#vHours').value, 10) || 8));
+  const max = parseInt($('#vMax').value, 10) || 0;
   let v = null;
-  if (net.online) { try { const r = await api('/api/visitors', { method: 'POST', admin: true, body: { name, hours } }); if (r.code) v = r; } catch { /* offline */ } }
+  if (net.online) { try { const r = await api('/api/visitors', { method: 'POST', admin: true, body: { name, hours, max } }); if (r.code) v = r; } catch { /* offline */ } }
   if (!v) {
     let code; do { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); } while (code === S.doorPin || code === S.duressPin);
-    v = { id: String(Date.now()), name, code, expires: new Date(Date.now() + hours * 3600e3).toISOString() };
+    v = { id: String(Date.now()), name, code, expires: new Date(Date.now() + hours * 3600e3).toISOString(), max, used: 0 };
     localStorage.setItem('svb.visitors', JSON.stringify([...localVisitors(), v]));
     logEvent('VISITOR_CREATED', 'INFO', `Pase temporal para ${name} (${hours} h)`, { sync: false });
   }
   lastPass = v;
-  $('#vOut').style.display = 'flex'; $('#vCode').textContent = v.code; $('#vExp').textContent = 'Vence: ' + fmtTime(v.expires);
+  $('#vOut').style.display = 'flex'; $('#vCode').textContent = v.code; $('#vExp').textContent = 'Vence: ' + fmtTime(v.expires) + (v.max ? ` · ${v.max} ingreso${v.max > 1 ? 's' : ''}` : '');
   drawQr($('#vQr'), passText(v));
   renderVisitors();
+}
+
+/* ═══════════════════════════ HORARIO, PERSONAS, HUELLA Y ROSTRO (del portero Cannabismática) ═══════════════════════════ */
+const DAYN = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const ACC = Object.assign({ open: true, mode: 'always', text: 'Las 24 horas', sched: {}, pk: false, face: false, faceLive: true, people: 0 },
+  (() => { try { return JSON.parse(localStorage.getItem('svb.access') || '{}'); } catch { return {}; } })());
+function setAccess(info) {
+  if (!info) return;
+  Object.assign(ACC, info);
+  try { localStorage.setItem('svb.access', JSON.stringify(ACC)); } catch { /* lleno */ }
+  paintAccess();
+}
+const hm = (x) => { const [a, b] = String(x || '0:0').split(':').map(Number); return a * 60 + b; };
+function schedActive(sched, d = new Date()) {
+  const m = d.getHours() * 60 + d.getMinutes(); const day = d.getDay(); const prev = (day + 6) % 7;
+  const hit = (list, over) => (list || []).some((r) => { const f = hm(r.from); const t = hm(r.to); if (f < t) return !over && m >= f && m < t; return over ? m < t : m >= f; });
+  return hit(sched[day], false) || hit(sched[prev], true);
+}
+/** Se calcula en este equipo para que funcione aunque se corte el servidor (usa el último horario recibido). */
+function accOpen(d = new Date()) { if (ACC.mode === 'off') return false; if (ACC.mode === 'sched') return schedActive(ACC.sched || {}, d); return true; }
+const speakHours = () => String(ACC.text || '').replace(/ h\b/g, ' horas').replace(/·/g, ',').replace(/\|/g, '.').replace(/\bMié\b/g, 'miércoles').replace(/\bSáb\b/g, 'sábado').replace(/\bLun\b/g, 'lunes').replace(/\bMar\b/g, 'martes').replace(/\bJue\b/g, 'jueves').replace(/\bVie\b/g, 'viernes').replace(/\bDom\b/g, 'domingo');
+function paintAccess() {
+  const open = accOpen();
+  const p = $('#stHours');
+  p.classList.toggle('closed', !open); p.classList.toggle('on', open);
+  p.querySelector('span').textContent = ACC.mode === 'always' ? 'Abierto 24 h' : open ? 'Abierto' : 'Cerrado';
+  p.title = 'Horario de atención: ' + ACC.text;
+  const hl = $('#hoursLine');
+  hl.hidden = ACC.mode === 'always'; hl.classList.toggle('closed', !open);
+  hl.textContent = open ? `Horario: ${ACC.text}` : `CERRADO · Horario: ${ACC.text}`;
+  ['#btnRing', '#btnScan', '#btnNfc'].forEach((id) => $(id).classList.toggle('blocked', !open));
+  $('#btnPk').hidden = !(net.online && ACC.pk);
+  $('#btnFace').hidden = !(net.online && ACC.face);
+  $('#bioActs').hidden = $('#btnPk').hidden && $('#btnFace').hidden;
+}
+setInterval(paintAccess, 30000);
+function closedFlash() {
+  Sfx.err();
+  flash(null, 'FUERA DE HORARIO', `Horario de atención: ${ACC.text}`, 4000);
+  speak(`Estamos cerrados. Horario de atención: ${speakHours()}.`);
+}
+function paintChecklist(items) {
+  const done = items.filter((x) => x[1]).length;
+  S.setupDone = done === items.length;
+  $('#setupCheck').innerHTML = done === items.length ? '' : `<div class="cfgcard checklist"><h3>Puesta en marcha · ${done} de ${items.length}</h3>
+    ${items.map(([t, ok, go]) => `<div class="ci ${ok ? 'done' : ''}"><span>${ok ? '✔' : '○'} ${esc(t)}</span>${ok ? '' : `<button class="btn sm" data-go-check="${go}">Ir</button>`}</div>`).join('')}</div>`;
+}
+function goCheck(go) {
+  if (['seguridad', 'alertas', 'grabador', 'cerradura'].includes(go)) { showPane('setup'); const el = $(`.cfgcard[data-group="${go}"]`); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
+  showPane(go);
+}
+
+/* ── Horario de atención (panel) ── */
+let HOURS = null;
+async function loadHours() {
+  const box = $('#hoursForm');
+  if (!net.online) { box.innerHTML = '<div class="warn">Sin servidor: el horario se guarda en el servidor SVB. Este equipo sigue usando el último horario recibido.</div>'; return; }
+  const r = await api('/api/hours', { admin: true }).catch(() => null);
+  if (!r || !r.sched) { box.innerHTML = '<div class="warn">No se pudo leer el horario.</div>'; return; }
+  HOURS = { mode: r.mode, staffOff: r.staffOff, autoArm: r.autoArm, sched: r.sched };
+  setAccess(r.info); renderHours();
+}
+function renderHours(msg = '') {
+  const h = HOURS; const on = h.mode === 'sched'; const order = [1, 2, 3, 4, 5, 6, 0];
+  $('#hoursForm').innerHTML = `<div class="cfgcard"><h3>Modo</h3>
+    <div class="cfgrow"><label class="f">Habilitación<select class="inp" id="hMode">
+      <option value="always" ${h.mode === 'always' ? 'selected' : ''}>Siempre abierto (24 h)</option>
+      <option value="sched" ${on ? 'selected' : ''}>Según el horario semanal</option>
+      <option value="off" ${h.mode === 'off' ? 'selected' : ''}>Cerrado (apagado manual: feriados, vacaciones)</option></select></label></div>
+    <div class="cfgstat"><span class="${ACC.open ? 'ok' : ''}">Ahora: ${ACC.open ? 'ABIERTO' : 'CERRADO'}</span><span>${esc(ACC.text)}</span></div>
+    <label class="chk"><input type="checkbox" id="hStaff" ${h.staffOff ? 'checked' : ''}>Los empleados pueden entrar fuera de horario (PIN, huella o rostro)</label>
+    <label class="chk"><input type="checkbox" id="hArm" ${h.autoArm ? 'checked' : ''}>Armar el sistema al terminar el horario y desarmarlo al empezar (avisos de movimiento con el local cerrado)</label></div>
+  <div class="cfgcard" style="${on ? '' : 'opacity:.5'}"><h3>Franjas por día</h3>
+    <div class="cfgacts" style="margin:0 0 6px"><button class="btn sm" data-h="copymon">Copiar el lunes a martes–viernes</button><button class="btn sm" data-h="copyall">Copiar el lunes a todos los días</button></div>
+    ${order.map((d) => `<div class="dayrow"><b>${DAYN[d]}</b><div class="slots">${(h.sched[d] || []).map((r, i) => `<span class="slot">${r.from === r.to ? '<span class="chip ok">24 h</span>' : ''}<input class="inp" type="time" data-hs="${d}:${i}:from" value="${esc(r.from)}"> a <input class="inp" type="time" data-hs="${d}:${i}:to" value="${esc(r.to)}"><button class="btn sm ghost" data-h="del" data-d="${d}" data-i="${i}" title="Quitar franja" style="min-height:46px">✕</button></span>`).join('') || '<span class="muted small">Cerrado</span>'}</div>
+      <button class="btn sm" data-h="add" data-d="${d}">+ Franja</button><button class="btn sm ghost" data-h="h24" data-d="${d}">24 h</button></div>`).join('')}
+    <p class="small muted">Si «hasta» es menor o igual que «desde», la franja cruza la medianoche (ej. 22:00 a 02:00). 00:00 a 00:00 = 24 h. Hasta 4 franjas por día (ej. 9 a 13 y 17 a 21).</p></div>
+  <div class="cfgacts"><button class="btn primary" id="hSave">Guardar horario</button><span class="cfgout" id="hOut">${msg}</span></div>`;
+}
+function hoursClick(e) {
+  if (e.target.closest('#hSave')) return saveHours();
+  const b = e.target.closest('[data-h]'); if (!b || !HOURS) return;
+  const d = +b.dataset.d; const sc = HOURS.sched;
+  const a = b.dataset.h;
+  if (a === 'add') { const l = sc[d] || (sc[d] = []); if (l.length >= 4) return toast('Máximo 4 franjas por día'); l.push(l.length ? { from: '17:00', to: '21:00' } : { from: '09:00', to: '13:00' }); }
+  if (a === 'del') sc[d].splice(+b.dataset.i, 1);
+  if (a === 'h24') sc[d] = [{ from: '00:00', to: '00:00' }];
+  if (a === 'copymon') [2, 3, 4, 5].forEach((x) => { sc[x] = JSON.parse(JSON.stringify(sc[1] || [])); });
+  if (a === 'copyall') [0, 2, 3, 4, 5, 6].forEach((x) => { sc[x] = JSON.parse(JSON.stringify(sc[1] || [])); });
+  if (HOURS.mode !== 'sched') HOURS.mode = 'sched';
+  renderHours('<span class="muted">Cambios sin guardar.</span>');
+}
+function hoursChange(e) {
+  if (!HOURS) return;
+  const t = e.target;
+  if (t.id === 'hMode') { HOURS.mode = t.value; return renderHours('<span class="muted">Cambios sin guardar.</span>'); }
+  if (t.id === 'hStaff') HOURS.staffOff = t.checked;
+  if (t.id === 'hArm') HOURS.autoArm = t.checked;
+  if (t.dataset.hs) { const [d, i, k] = t.dataset.hs.split(':'); HOURS.sched[d][i][k] = t.value || '00:00'; }
+  $('#hOut').innerHTML = '<span class="muted">Cambios sin guardar.</span>';
+}
+async function saveHours() {
+  const r = await api('/api/hours', { method: 'PUT', admin: true, body: HOURS }).catch((e) => ({ error: e.message }));
+  if (!r.ok) { Sfx.err(); $('#hOut').innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'No se pudo guardar')}</span>`; return; }
+  S.hoursOk = true; save();
+  HOURS = { mode: r.mode, staffOff: r.staffOff, autoArm: r.autoArm, sched: r.sched };
+  setAccess(r.info); Sfx.ok();
+  renderHours('<span class="ok-msg">✔ Guardado. Se aplica al instante en todos los equipos.</span>');
+}
+
+/* ── Personas y accesos ── */
+let PEOPLE = []; let BIO = { pk: false, face: false, faceThr: 0.5, faceLive: true };
+const ROLES = ['Dueño', 'Empleado', 'Proveedor'];
+const fdate = (t) => new Date(t).toLocaleDateString('es-AR');
+async function loadPeople() {
+  if (!net.online) {
+    const w = '<div class="warn">Sin servidor: las personas, huellas y rostros se guardan en el servidor SVB. Mientras tanto funcionan el PIN general y los pases de este equipo.</div>';
+    $('#peopleBox').innerHTML = w; $('#bioBox').innerHTML = w; return;
+  }
+  const r = await api('/api/people', { admin: true }).catch(() => null);
+  if (!r || !r.people) { $('#peopleBox').innerHTML = '<div class="warn">No se pudo leer la lista de personas.</div>'; return; }
+  PEOPLE = r.people; BIO = r.bio; setAccess(r.info);
+  renderPeople(); renderBio();
+}
+function renderPeople() {
+  $('#peopleBox').innerHTML = `<div class="cfgcard"><h3>Agregar persona</h3>
+    <div class="cfgrow">
+      <label class="f">Nombre<input class="inp" id="npName" maxlength="40" placeholder="Ej. Juan (repositor)"></label>
+      <label class="f">Rol<select class="inp" id="npRole">${ROLES.map((x) => `<option ${x === 'Empleado' ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="f">PIN propio (4 a 8 números)<input class="inp" id="npPin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></label>
+    </div>
+    <div class="cfgacts"><button class="btn primary" id="npAdd">Agregar persona</button><span class="cfgout" id="npOut"></span></div>
+    <p class="small muted" style="margin:10px 0 0"><b>Dueño:</b> entra siempre. <b>Empleado:</b> fuera de horario solo si está permitido en «Horario de atención». <b>Proveedor:</b> solo en horario y sin biometría. El PIN general y el de coacción siguen funcionando igual.</p></div>
+  ${PEOPLE.map((p) => `<div class="person ${p.on ? '' : 'off'}" data-pid="${p.id}">
+    <div class="ph"><b>${esc(p.name)}</b><span class="chip">${esc(p.role)}</span><span class="chip ${p.hasPin ? 'ok' : ''}">${p.hasPin ? 'PIN cargado' : 'Sin PIN'}</span>
+      ${p.pk.length ? `<span class="chip ok">Huella ×${p.pk.length}</span>` : ''}${p.face ? '<span class="chip ok">Rostro</span>' : ''}${p.on ? '' : '<span class="chip">Deshabilitado</span>'}
+      <span class="small muted">${p.lastIn ? 'Último ingreso: ' + fmtTime(p.lastIn) : 'Sin ingresos todavía'}</span></div>
+    <div class="cfgrow">
+      <label class="f">Nombre<input class="inp" data-pf="name" value="${esc(p.name)}" maxlength="40"></label>
+      <label class="f">Rol<select class="inp" data-pf="role">${ROLES.map((x) => `<option ${x === p.role ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="f">Nuevo PIN<input class="inp" data-pf="pin" type="password" inputmode="numeric" maxlength="8" placeholder="${p.hasPin ? 'sin cambios' : '4 a 8 números'}" autocomplete="new-password"></label>
+    </div>
+    <label class="chk"><input type="checkbox" data-pf="on" ${p.on ? 'checked' : ''}>Habilitado para entrar</label>
+    <div class="cfgacts"><button class="btn sm primary" data-pact="save">Guardar cambios</button>${p.hasPin ? '<button class="btn sm" data-pact="nopin">Quitar PIN</button>' : ''}<button class="btn sm" data-pact="bio">Huella y rostro →</button><button class="btn sm ghost" data-pact="del">Eliminar</button><span class="cfgout" data-pout></span></div>
+  </div>`).join('') || '<p class="muted small">Todavía no hay personas cargadas.</p>'}`;
+}
+async function peopleClick(e) {
+  if (e.target.closest('#npAdd')) {
+    const name = $('#npName').value.trim(); const role = $('#npRole').value; const pin = $('#npPin').value.trim();
+    const out = $('#npOut');
+    if (!name) { out.innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">Falta el nombre</span>'; return; }
+    if (pin && !/^\d{4,8}$/.test(pin)) { out.innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">El PIN debe tener de 4 a 8 números</span>'; return; }
+    const r = await api('/api/people', { method: 'POST', admin: true, body: { name, role } }).catch((x) => ({ error: x.message }));
+    if (!r.id) { out.innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'No se pudo agregar')}</span>`; return; }
+    if (pin) {
+      const r2 = await api(`/api/people/${r.id}`, { method: 'PUT', admin: true, body: { pin } }).catch((x) => ({ error: x.message }));
+      if (r2.error) { await loadPeople(); toast(`${name} agregado/a, pero el PIN no se guardó: ${r2.error}`); return; }
+    }
+    Sfx.ok(); await loadPeople(); toast(`${name} agregado/a`); return;
+  }
+  const b = e.target.closest('[data-pact]'); if (!b) return;
+  const card = b.closest('[data-pid]'); const id = card.dataset.pid; const p = PEOPLE.find((x) => x.id === id);
+  const out = $('[data-pout]', card);
+  const fail = (m) => { Sfx.err(); out.innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(m)}</span>`; };
+  if (b.dataset.pact === 'bio') return showPane('bio');
+  if (b.dataset.pact === 'del') {
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '¿Seguro? Tocá de nuevo'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Eliminar'; }, 4000); return; }
+    await api(`/api/people/${id}`, { method: 'DELETE', admin: true }); toast(`${p.name} eliminado/a`); return loadPeople();
+  }
+  const body = {};
+  if (b.dataset.pact === 'nopin') body.pin = '';
+  else {
+    const g = (k) => $(`[data-pf="${k}"]`, card);
+    if (g('name').value.trim() !== p.name) body.name = g('name').value.trim();
+    if (g('role').value !== p.role) body.role = g('role').value;
+    if (g('on').checked !== p.on) body.on = g('on').checked;
+    const pin = g('pin').value.trim();
+    if (pin) { if (!/^\d{4,8}$/.test(pin)) return fail('El PIN debe tener de 4 a 8 números'); body.pin = pin; }
+    if (body.role === 'Proveedor' && (p.pk.length || p.face) && b.dataset.sure !== '1') { b.dataset.sure = '1'; return fail('Un proveedor no usa biometría: se borrarán su huella y su rostro. Tocá Guardar de nuevo para confirmar.'); }
+  }
+  if (!Object.keys(body).length) { out.textContent = 'Sin cambios.'; return; }
+  const r = await api(`/api/people/${id}`, { method: 'PUT', admin: true, body }).catch((x) => ({ error: x.message }));
+  if (r.error) return fail(r.error);
+  Sfx.ok(); await loadPeople();
+  const o2 = $(`[data-pid="${id}"] [data-pout]`); if (o2) o2.innerHTML = '<span class="ok-msg">✔ Guardado</span>';
+}
+
+/* ── Huella (passkeys / WebAuthn): la huella nunca sale del celular; el servidor verifica la firma ── */
+const b64u = {
+  enc: (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+  dec: (s) => { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); s += '='.repeat((4 - (s.length % 4)) % 4); return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); },
+};
+const pkOK = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+async function staffPk() {
+  if (!pkOK()) { toast('La huella requiere abrir el panel por https o en la PC del servidor (localhost)'); return; }
+  if (!net.online) { toast('La huella necesita el servidor SVB encendido'); return; }
+  const c = await api('/api/webauthn/challenge', { method: 'POST' }).catch(() => null);
+  if (!c || !c.challenge) { toast(c && c.retryIn ? `Bloqueado ${c.retryIn} s` : 'Sin servidor'); return; }
+  let a;
+  try { a = await navigator.credentials.get({ publicKey: { challenge: b64u.dec(c.challenge), rpId: location.hostname, userVerification: 'required', timeout: 60000 } }); } catch (e) { toast(e && e.name === 'NotAllowedError' ? 'Huella cancelada o tiempo agotado' : 'No se pudo leer la huella: ' + (e.message || e.name)); return; }
+  const r = a.response;
+  return bioOpen({ webauthn: { id: b64u.enc(a.rawId), clientDataJSON: b64u.enc(r.clientDataJSON), authenticatorData: b64u.enc(r.authenticatorData), signature: b64u.enc(r.signature) } }, 'huella');
+}
+async function pkRegister(p, attach) {
+  const c = await api('/api/webauthn/challenge', { method: 'POST' });
+  const cred = await navigator.credentials.create({ publicKey: {
+    rp: { name: `SVB Seguridad · ${S.biz}`, id: location.hostname },
+    user: { id: new TextEncoder().encode(p.id), name: p.name, displayName: `${p.name} · ${S.biz}` },
+    challenge: b64u.dec(c.challenge), pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    excludeCredentials: p.pk.map((k) => ({ type: 'public-key', id: b64u.dec(k.id) })),
+    authenticatorSelection: { authenticatorAttachment: attach, residentKey: 'required', requireResidentKey: true, userVerification: 'required' },
+    attestation: 'none', timeout: 120000 } });
+  const r = cred.response; const pub = r.getPublicKey && r.getPublicKey();
+  if (!pub) throw new Error('Este navegador no permite leer la clave pública (actualizá Chrome/Edge/Safari)');
+  const res = await api(`/api/people/${p.id}/passkey`, { method: 'POST', admin: true, body: { id: b64u.enc(cred.rawId), pub: b64u.enc(pub), alg: r.getPublicKeyAlgorithm ? r.getPublicKeyAlgorithm() : -7, kind: attach === 'platform' ? 'Dispositivo' : 'Celular', origin: location.origin, rpId: location.hostname } });
+  if (res.error) throw new Error(res.error);
+}
+
+/* ── Rostro (face-api, modelos en face/; se cargan solo al usarlo) ── */
+let FA = null; const FACE = { run: 0, own: null, raf: 0, box: null, src: null };
+async function faceLoad() {
+  if (FA) return FA;
+  if (!window.faceapi) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'face/face-api.js'; sc.onload = res; sc.onerror = () => rej(new Error('Falta la carpeta face/ junto al panel')); document.head.appendChild(sc); });
+  const f = window.faceapi; await f.tf.ready();
+  try { await Promise.all([f.nets.tinyFaceDetector.loadFromUri('face/model'), f.nets.faceLandmark68TinyNet.loadFromUri('face/model'), f.nets.faceRecognitionNet.loadFromUri('face/model')]); } catch { throw new Error('No se pudieron cargar los modelos de face/model'); }
+  return (FA = f);
+}
+/** Cámara de puerta: el canal Dahua elegido o la cámara de esta tablet. */
+async function faceSource() {
+  const v = doorVideo();
+  if (v && v.readyState >= 2 && v.videoWidth) return { video: v, mirror: v.id === 'localVideo', input: v.id === 'localVideo' ? 320 : 416 };
+  if (!navigator.mediaDevices || !window.isSecureContext) throw new Error('No hay cámara de puerta disponible (elegí un canal del grabador en Cámaras e IA)');
+  const own = document.createElement('video'); own.muted = true; own.playsInline = true;
+  FACE.own = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 } }, audio: false });
+  own.srcObject = FACE.own; await own.play();
+  return { video: own, mirror: true, input: 320 };
+}
+function facePreview() {
+  const cv = $('#faceCv'); const ctx = cv.getContext('2d');
+  const draw = () => {
+    const s = FACE.src; if (!s) return;
+    const v = s.video;
+    if (v.videoWidth && (cv.width !== v.videoWidth)) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
+    if (v.videoWidth) ctx.drawImage(v, 0, 0, cv.width, cv.height);
+    if (FACE.box) { ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2, cv.width / 220); ctx.strokeRect(FACE.box.x, FACE.box.y, FACE.box.width, FACE.box.height); }
+    FACE.raf = requestAnimationFrame(draw);
+  };
+  $('#faceBox').classList.toggle('mirror', !!FACE.src.mirror);
+  draw();
+}
+function stopFace() {
+  FACE.run++; cancelAnimationFrame(FACE.raf); FACE.src = null; FACE.box = null;
+  if (FACE.own) { FACE.own.getTracks().forEach((t) => t.stop()); FACE.own = null; }
+  $('#faceOv').classList.remove('show');
+}
+const fset = (t, prog) => { $('#faceSub').textContent = t; if (prog !== undefined) $('#faceProg').style.width = prog + '%'; };
+const eyeAR = (lm) => { const p = lm.positions; const d = (a, b) => Math.hypot(p[a].x - p[b].x, p[a].y - p[b].y); const e = (i) => (d(i + 1, i + 5) + d(i + 2, i + 4)) / (2 * d(i, i + 3)); return (e(36) + e(42)) / 2; };
+function blinkDet() { const hist = []; let low = false; return (ear) => { hist.push(ear); if (hist.length > 20) hist.shift(); const top = Math.max(...hist); if (top < 0.12) return false; if (!low && ear < top * 0.72) { low = true; return false; } if (low && ear > top * 0.88) { low = false; return true; } return false; }; }
+async function faceStart(title) {
+  $('#faceTitle').textContent = title; fset('Cargando reconocimiento facial…', 0);
+  $('#faceOv').classList.add('show');
+  const run = ++FACE.run;
+  const f = await faceLoad();
+  if (FACE.run !== run) return null;
+  FACE.src = await faceSource();
+  if (FACE.run !== run) { stopFace(); return null; }
+  facePreview();
+  return { f, run, opts: new f.TinyFaceDetectorOptions({ inputSize: FACE.src.input, scoreThreshold: 0.5 }) };
+}
+async function faceRecognize() {
+  if (!net.online) { toast('El rostro necesita el servidor SVB encendido'); return; }
+  if (Date.now() < lockedUntil) { flash(null, 'BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
+  let ctx;
+  try { ctx = await faceStart('RECONOCIMIENTO FACIAL'); } catch (e) { stopFace(); toast('Rostro: ' + (e.message || e.name)); return; }
+  if (!ctx) return;
+  const { f, run, opts } = ctx;
+  const t0 = Date.now(); const TL = 15000; const det = blinkDet();
+  let blinked = !ACC.faceLive; let buf = []; let seen = 0; let tries = 0;
+  fset(ACC.faceLive ? 'Mirá a la cámara y parpadeá una vez' : 'Mirá a la cámara', 5);
+  try {
+    while (FACE.run === run && Date.now() - t0 < TL) {
+      const d = await f.detectSingleFace(FACE.src.video, opts).withFaceLandmarks(true).withFaceDescriptor();
+      if (FACE.run !== run) return;
+      FACE.box = d ? d.detection.box : null;
+      $('#faceProg').style.width = Math.min(100, ((Date.now() - t0) / TL) * 100) + '%';
+      if (!d || d.detection.score < 0.6) { buf = []; if (!d) fset('Ubicá la cara frente a la cámara, con buena luz'); await sleep(80); continue; }
+      seen++;
+      if (!blinked && det(eyeAR(d.landmarks))) blinked = true;
+      buf.push(Array.from(d.descriptor)); if (buf.length > 3) buf.shift();
+      if (!blinked) { fset('Parpadeá una vez para confirmar'); await sleep(50); continue; }
+      if (buf.length < 3) { fset('Verificando…'); await sleep(50); continue; }
+      const avg = buf[0].map((_, i) => +((buf[0][i] + buf[1][i] + buf[2][i]) / 3).toFixed(5));
+      tries++; fset('Verificando…');
+      const r = await api('/api/door/open', { method: 'POST', body: { face: { d: avg, live: blinked }, source: 'rostro', ms: S.relayMs }, timeout: 10000 }).catch(() => null);
+      if (FACE.run !== run) return;
+      if (!r) { stopFace(); toast('El servidor no respondió'); return; }
+      if (r.result !== 'denied' || tries >= 2) { stopFace(); return doorResult(r, 'rostro'); }
+      buf = []; fset('No te reconocí. Mirá de frente, sin anteojos de sol.');
+      await sleep(400);
+    }
+    if (FACE.run === run) { stopFace(); Sfx.err(); flash(false, 'ROSTRO NO RECONOCIDO', !seen ? 'No se detectó ninguna cara' : !blinked ? 'No se detectó el parpadeo' : 'Probá con más luz o usá tu PIN', 3000); }
+  } catch (e) { stopFace(); toast('Rostro: ' + (e.message || e.name)); }
+}
+async function faceEnroll(p) {
+  let ctx;
+  try { ctx = await faceStart(`REGISTRAR ROSTRO · ${p.name.toUpperCase()}`); } catch (e) { stopFace(); toast('Rostro: ' + (e.message || e.name)); return; }
+  if (!ctx) return;
+  const { f, run, opts } = ctx;
+  const out = []; const t0 = Date.now(); let lastAt = 0;
+  fset('Mirá a la cámara. Se toman 5 muestras.', 0);
+  try {
+    while (FACE.run === run && out.length < 5 && Date.now() - t0 < 45000) {
+      const d = await f.detectSingleFace(FACE.src.video, opts).withFaceLandmarks(true).withFaceDescriptor();
+      if (FACE.run !== run) return;
+      FACE.box = d ? d.detection.box : null;
+      if (d && d.detection.score > 0.7 && d.detection.box.width / FACE.src.video.videoWidth > 0.12 && Date.now() - lastAt > 600) {
+        out.push(Array.from(d.descriptor).map((x) => +x.toFixed(4))); lastAt = Date.now();
+        fset(`Muestra ${out.length} de 5… mové apenas la cabeza`, out.length * 20);
+      } else if (!d) fset('Ubicá la cara frente a la cámara, con buena luz');
+      else if (d.detection.box.width / FACE.src.video.videoWidth <= 0.12) fset('Acercate más a la cámara');
+      await sleep(120);
+    }
+    if (FACE.run !== run) return;
+    stopFace();
+    if (out.length < 5) { toast('No se pudo capturar el rostro. Probá con más luz.'); return; }
+    const r = await api(`/api/people/${p.id}/face`, { method: 'POST', admin: true, body: { d: out } });
+    if (r.error) throw new Error(r.error);
+    Sfx.ok(); toast(`Rostro de ${p.name} registrado (sin fotos)`); loadPeople();
+  } catch (e) { stopFace(); toast('Rostro: ' + (e.message || e.name)); }
+}
+async function checkFaceModel() {
+  const el = $('#faceModel'); if (!el) return;
+  try { const r = await fetch('face/model/face_recognition_model-weights_manifest.json', { cache: 'no-store' }); el.innerHTML = r.ok ? '✔ Modelo de reconocimiento disponible.' : '<span class="warn" style="display:inline-block;padding:6px 10px">Falta la carpeta face/ junto al panel.</span>'; } catch { el.textContent = 'No se pudo verificar la carpeta face/.'; }
+}
+
+/* ── Huella y rostro (panel) ── */
+function renderBio() {
+  const B = BIO; const ok = pkOK();
+  const staff = PEOPLE.filter((p) => p.role !== 'Proveedor');
+  $('#bioBox').innerHTML = `<div class="cfgcard"><h3>Huella o biometría del celular (passkeys)</h3>
+      <p class="help">La huella se verifica en el celular de la persona o en el sensor de este equipo: el sistema nunca la ve ni la guarda. Recibe una firma que el servidor comprueba con la clave pública registrada.</p>
+      <label class="chk"><input type="checkbox" id="bPk" ${B.pk ? 'checked' : ''}>Permitir ingreso con huella</label>
+      ${ok ? '' : `<div class="warn">Este panel está abierto en <b>${esc(location.origin)}</b>, que no es una dirección segura: acá no se puede registrar ni usar la huella. Abrilo en la PC del servidor con Chrome o Edge (<code>http://localhost:8080</code>) o por https con Tailscale (ver Manual de streaming).</div>`}</div>
+    <div class="cfgcard"><h3>Reconocimiento facial</h3>
+      <p class="help">Usa la cámara de puerta (el canal del grabador elegido en «Cámaras e IA» o la cámara de esta tablet). No se guardan fotos ni videos: solo una plantilla numérica de 5 muestras por persona, en el servidor. Se exige un parpadeo para frenar fotos. Es menos seguro que la huella (un video de la persona podría engañarlo): no conviene usarlo como única barrera.</p>
+      <label class="chk"><input type="checkbox" id="bFace" ${B.face ? 'checked' : ''}>Permitir ingreso con rostro</label>
+      <label class="chk"><input type="checkbox" id="bLive" ${B.faceLive ? 'checked' : ''}>Exigir parpadeo (anti-foto)</label>
+      <div class="cfgrow"><label class="f">Exigencia de coincidencia: <span id="bThrV">${(+B.faceThr).toFixed(2)}</span> (más bajo = más estricto)<input type="range" id="bThr" min="0.35" max="0.6" step="0.01" value="${B.faceThr}"></label></div>
+      <div id="faceModel" class="small muted"></div></div>
+    <h3>Dueños y empleados</h3>
+    ${staff.map((p) => { const dis = p.consent ? '' : 'disabled'; return `<div class="person" data-pid="${p.id}"><div class="ph"><b>${esc(p.name)}</b><span class="chip">${esc(p.role)}</span>${p.on ? '' : '<span class="chip">Deshabilitado</span>'}</div>
+      <label class="chk"><input type="checkbox" data-bconsent ${p.consent ? 'checked' : ''}>La persona dio su consentimiento informado y por escrito${p.consent ? ` (${fdate(p.consent)})` : ''}</label>
+      <div class="cfgacts"><button class="btn sm" data-bact="pkphone" ${ok ? dis : 'disabled'}><svg class="i"><use href="#ic-finger"/></svg>Huella con su celular</button><button class="btn sm" data-bact="pkdev" ${ok ? dis : 'disabled'}><svg class="i"><use href="#ic-finger"/></svg>Huella de este equipo</button><button class="btn sm" data-bact="face" ${dis}><svg class="i"><use href="#ic-face"/></svg>Registrar rostro</button></div>
+      <div class="cfgacts">${p.pk.map((k) => `<span class="chip ok">Huella · ${esc(k.kind)} · ${fdate(k.ts)} <button data-bact="pkdel" data-cid="${esc(k.id)}" title="Quitar huella">✕</button></span>`).join('')}${p.face ? `<span class="chip ok">Rostro · ${p.face.n} muestras · ${fdate(p.face.ts)} <button data-bact="facedel" title="Quitar rostro">✕</button></span>` : ''}${!p.pk.length && !p.face ? '<span class="small muted">Sin datos biométricos.</span>' : ''}</div></div>`; }).join('') || '<p class="muted small">Cargá dueños o empleados en «Personas y accesos».</p>'}
+    <div class="cfgcard"><h3>Datos biométricos</h3><p class="help" style="margin:0">Son datos personales sensibles. Registrá a cada persona solo con su consentimiento informado y por escrito; el sistema lo anota en la auditoría. Al quitar el consentimiento, eliminar a la persona o pasarla a Proveedor se borran su huella y su rostro. «Huella de este equipo» acepta cualquier huella cargada en este equipo y la asigna a esa persona: para saber con certeza quién entró conviene que cada uno registre su propio celular.</p></div>`;
+  checkFaceModel();
+}
+async function bioChange(e) {
+  const t = e.target;
+  if (t.id === 'bThr') { $('#bThrV').textContent = (+t.value).toFixed(2); }
+  const map = { bPk: 'pk', bFace: 'face', bLive: 'faceLive', bThr: 'faceThr' };
+  if (map[t.id] && e.type === 'change') {
+    const r = await api('/api/bio', { method: 'PUT', admin: true, body: { [map[t.id]]: t.type === 'checkbox' ? t.checked : +t.value } }).catch((x) => ({ error: x.message }));
+    if (r.error) { toast(r.error); return; }
+    BIO = r.bio; toast('Guardado'); refreshStatus();
+  }
+  if (t.dataset.bconsent !== undefined && e.type === 'change') {
+    const id = t.closest('[data-pid]').dataset.pid; const p = PEOPLE.find((x) => x.id === id);
+    if (!t.checked && (p.pk.length || p.face) && !confirmOnce(t, `Se borrarán la huella y el rostro de ${p.name}. Destildá de nuevo para confirmar.`)) { t.checked = true; return; }
+    await api(`/api/people/${id}`, { method: 'PUT', admin: true, body: { consent: t.checked } });
+    loadPeople();
+  }
+}
+function confirmOnce(el, msg) { if (el.dataset.sure === '1') return true; el.dataset.sure = '1'; toast(msg); setTimeout(() => { el.dataset.sure = ''; }, 5000); return false; }
+async function bioClick(e) {
+  const b = e.target.closest('[data-bact]'); if (!b) return;
+  const id = b.closest('[data-pid]').dataset.pid; const p = PEOPLE.find((x) => x.id === id);
+  const a = b.dataset.bact;
+  try {
+    if (a === 'pkphone' || a === 'pkdev') {
+      toast(a === 'pkphone' ? 'Escaneá el QR que aparece con el celular de la persona' : 'Apoyá el dedo en el sensor de este equipo');
+      await pkRegister(p, a === 'pkdev' ? 'platform' : 'cross-platform');
+      Sfx.ok(); toast(`Huella de ${p.name} registrada`);
+    }
+    if (a === 'face') return faceEnroll(p);
+    if (a === 'pkdel') await api(`/api/people/${id}/passkey?cid=${encodeURIComponent(b.dataset.cid)}`, { method: 'DELETE', admin: true });
+    if (a === 'facedel') await api(`/api/people/${id}/face`, { method: 'DELETE', admin: true });
+  } catch (x) { toast(x && x.name === 'NotAllowedError' ? 'Registro cancelado o tiempo agotado' : x && x.name === 'InvalidStateError' ? 'Esa huella ya estaba registrada' : 'Huella: ' + (x.message || x.name)); }
+  loadPeople();
 }
 
 /* ═══════════════════════════ PLATAFORMA (PWA / Electron / Tauri) ═══════════════════════════ */
@@ -2309,9 +2837,27 @@ function wire() {
   $('#dbRegen').addEventListener('click', async () => { const r = await api('/api/doorbell/regenerate', { method: 'POST', admin: true }).catch(() => ({})); if (r.ok) { toast('Código nuevo: reimprimí el cartel y regrabá el NFC'); loadDoorbell(); } });
 
   $('#adminClose').addEventListener('click', closeAdmin);
-  let lp; const brand = $('#brand');
-  brand.addEventListener('pointerdown', () => { lp = setTimeout(askAdmin, 3000); });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach((e) => brand.addEventListener(e, () => clearTimeout(lp)));
+  // Acceso al panel: doble toque en una zona libre de la pantalla (en celulares mantener presionado solo selecciona).
+  // No cuenta sobre botones, teclado ni cámaras (en el monitor el doble clic amplía la cámara).
+  (() => {
+    let last = 0, lx = 0, ly = 0;
+    const SKIP = 'button,a,input,select,textarea,label,.key,.monitor,.cell,svb-stream,.evdrawer,.tabs';
+    document.addEventListener('click', (e) => {
+      if (document.querySelector('.ov-full.show') || e.target.closest(SKIP)) return;
+      const n = Date.now();
+      if (n - last < 450 && Math.hypot(e.clientX - lx, e.clientY - ly) < 48) { last = 0; ghostGuardUntil = n + 400; askAdmin(); } else { last = n; lx = e.clientX; ly = e.clientY; }
+    });
+  })();
+  $('#btnPk').addEventListener('click', staffPk);
+  $('#btnFace').addEventListener('click', faceRecognize);
+  $('#faceCancel').addEventListener('click', stopFace);
+  $('#hoursForm').addEventListener('click', hoursClick);
+  $('#hoursForm').addEventListener('change', hoursChange);
+  $('#peopleBox').addEventListener('click', peopleClick);
+  $('#bioBox').addEventListener('click', bioClick);
+  $('#bioBox').addEventListener('change', bioChange);
+  $('#bioBox').addEventListener('input', (e) => { if (e.target.id === 'bThr') $('#bThrV').textContent = (+e.target.value).toFixed(2); });
+  $('#setupCheck').addEventListener('click', (e) => { const b = e.target.closest('[data-go-check]'); if (b) goCheck(b.dataset.goCheck); });
 
   buildAdminNav(); bindForm();
   $('#sLogo').addEventListener('change', (e) => {
@@ -2347,6 +2893,12 @@ function wire() {
   $('#fwCopy').addEventListener('click', () => navigator.clipboard.writeText(fw).then(() => toast('Copiado')).catch(() => toast('No se pudo copiar')));
   $('#fwDl').addEventListener('click', () => download('esp32_cerradura.ino', fw, 'text/plain'));
   $('#logExport').addEventListener('click', async () => { await renderLog(); download(`auditoria-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ negocio: S.biz, exportado: new Date().toISOString(), eventos: renderLog.rows }, null, 2)); });
+  $('#logCsv').addEventListener('click', async () => {
+    await renderLog();
+    const q = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+    const csv = ['Fecha;Nivel;Tipo;Detalle;Origen'].concat(renderLog.rows.map((e) => [fmtTime(e.ts), e.level, e.type, e.message, e.origin].map(q).join(';'))).join('\r\n');
+    download(`auditoria-${new Date().toISOString().slice(0, 10)}.csv`, '\ufeff' + csv, 'text/csv;charset=utf-8');
+  });
   $('#vaultExport').addEventListener('click', async () => download(`evidencia-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await Vault.all())));
   $('#vaultClear').addEventListener('click', async () => { await Vault.clear(); logEvent('VAULT_CLEARED', 'WARN', 'Bóveda de evidencia vaciada', { sync: true }); renderVault(); });
   $('#logRefresh').addEventListener('click', () => { renderLog(); renderVault(); });
@@ -2357,7 +2909,7 @@ function wire() {
     localStorage.setItem('svb.visitors', JSON.stringify(localVisitors().filter((v) => v.id !== b.dataset.del)));
     renderVisitors();
   });
-  $('#vShare').addEventListener('click', () => { if (!lastPass) return; const t = encodeURIComponent(`Pase de acceso a ${S.biz}: código ${lastPass.code}, válido hasta ${fmtTime(lastPass.expires)}. Tipéelo en el teclado de la puerta.`); window.open(`https://wa.me/?text=${t}`, '_blank'); });
+  $('#vShare').addEventListener('click', () => { if (!lastPass) return; const t = encodeURIComponent(`Pase de acceso a ${S.biz}: código ${lastPass.code}, válido hasta ${fmtTime(lastPass.expires)}${lastPass.max ? ` (${lastPass.max} ingreso${lastPass.max > 1 ? 's' : ''})` : ''}, dentro del horario de atención (${ACC.text}). Tipéelo en el teclado de la puerta.`); window.open(`https://wa.me/?text=${t}`, '_blank'); });
   $('#vDownload').addEventListener('click', () => download(`pase-${lastPass ? lastPass.code : 'qr'}.png`, $('#vQr').toDataURL('image/png')));
   $('#vNfcWrite').addEventListener('click', async () => {
     if (!lastPass) return;
@@ -2372,7 +2924,7 @@ function wire() {
 }
 
 async function boot() {
-  wire(); applyBrand(); platformInfo(); initVoice();
+  wire(); applyBrand(); platformInfo(); initVoice(); paintAccess();
   logEvent('SYSTEM_BOOT', 'INFO', `Panel iniciado (${isElectron ? 'escritorio' : 'web'})`, { sync: false });
   await refreshStatus();
   setInterval(refreshStatus, 15000);
@@ -2382,7 +2934,7 @@ async function boot() {
   document.addEventListener('click', () => ac(), { once: true });
 }
 boot();
-window.SVB = { S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, audit: () => audit };
+window.SVB = { S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, ACC, accOpen, setAccess, audit: () => audit };
 </script>
 </body>
 </html>

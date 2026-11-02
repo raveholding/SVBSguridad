@@ -52,6 +52,10 @@ flowchart LR
 | Módulo | Qué hace |
 |---|---|
 | **Teclado + PIN** | Abre la cerradura. 5 errores → bloqueo de 60 s y aviso al dueño. Validación del lado servidor. |
+| **Personas y accesos** | Cada dueño, empleado o proveedor entra con **su propio PIN** (guardado cifrado) y queda registrado quién abrió y a qué hora. Se pueden habilitar y deshabilitar. El PIN general sigue funcionando. |
+| **Horario de atención** | Franjas por día (varias, también cruzando la medianoche), siempre abierto o cerrado manual. Fuera de horario se bloquean timbre, pases, NFC y proveedores; el cliente que toca el timbre ve el horario en su celular. El dueño y el PIN general entran siempre; los empleados, si se permite. Opcional: **armar el sistema al cerrar y desarmarlo al abrir**. |
+| **Huella del personal** | Passkeys (WebAuthn): huella del celular de la persona o del sensor del equipo. El servidor verifica la firma; la huella nunca sale del celular. Requiere consentimiento registrado. |
+| **Rostro del personal** | Reconocimiento facial con la cámara de puerta (canal Dahua o tablet), con parpadeo obligatorio. Solo se guarda una plantilla numérica en el servidor, sin fotos. |
 | **PIN de coacción** (`9999`) | Abre normalmente, **sin ninguna diferencia visible**, pero toma 3 fotos encubiertas, registra `CRITICAL_DURESS_EVENT` y manda alerta silenciosa con foto a Telegram. |
 | **SOS 911** | Cuenta regresiva de 3 s (cancelable), foto automática, alerta al dueño y llamada `tel:911`. |
 | **Familiar** | Llamada al contacto de confianza + WhatsApp de auxilio con ubicación. |
@@ -63,12 +67,12 @@ flowchart LR
 | **Grabaciones** | Reproducción del disco del grabador por cámara, fecha y hora. |
 | **Portero digital QR / NFC** | Cartel con QR (y sticker NFC) en la puerta: el cliente lo escanea con **su celular**, elige motivo (cliente, delivery, proveedor), toca el timbre y **ve tu respuesta en su pantalla**. Suena en el panel con la cámara de la puerta y te llega a Telegram con botones: *Ya voy · Un momento · Dejar en la puerta · No atendemos · Abrir puerta*. |
 | **Centro de configuración** | **Todo** se configura desde el panel, sin tocar archivos: negocio, PINs, usuario/contraseña del panel, grabador (IP auto, serie, usuario, clave, cámaras, nombres, eventos), cerradura (buscar y **vincular sola**), avisos (WhatsApp, push, Telegram) y portero. Se aplica al instante. Los ajustes del panel (contactos, voz, timbres, logo, orden de cámaras) se **comparten entre todos los equipos**. |
-| **Avisos a los dueños** | **WhatsApp** a los números que elijan (CallMeBot, gratis), **notificación push** al celular con foto y botones (app ntfy, gratis) y **Telegram**. Se elige qué avisos van por cada canal (todo / importantes / solo timbre). Botón *Enviar aviso de prueba a todos*. |
+| **Avisos a los dueños** | **WhatsApp** a los números que elijan (CallMeBot, gratis), **notificación push** al celular con foto y botones (app ntfy, gratis) y **Telegram**. Se elige qué avisos van por cada canal (todo / importantes / solo timbre). Si se corta internet, timbre, SOS, coacción y alarmas **se reintentan durante 15 minutos**. Botón *Enviar aviso de prueba a todos*. |
 | **Edge AI** | Movimiento, **merodeo** (presencia > 10 s sin interactuar), **sabotaje** (lente tapado/cegado), detección de rostro (nativa si el navegador la tiene, simulada si no). Cualquier cámara Dahua puede ser la "cámara de puerta". |
 | **Voz** | «abrir puerta 2 5 8 0», «emergencia», «llamar a 911», «ver cámaras», «tocar timbre», «cancelar». Sin servicios pagos. |
-| **Pases QR / NFC** | Códigos de 6 dígitos con vencimiento para proveedores; QR para escanear, tag NFC (Android) o tipeados. Envío por WhatsApp. |
-| **Auditoría** | Log en el servidor (`data/events.jsonl`) + en el panel; exportación JSON; bóveda de fotos de evidencia. |
-| **Admin** (PIN `1234`) | Configuración rápida, info del grabador (modelo, firmware, disco), marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
+| **Pases QR / NFC** | Códigos de 6 dígitos con vencimiento y **cantidad de usos** para proveedores; QR por cámara o **lector QR USB/Bluetooth**, tag NFC (Android) o tipeados. Envío por WhatsApp. Solo en horario de atención. |
+| **Auditoría** | Log en el servidor (`data/events.jsonl`) + en el panel; exportación JSON y **CSV para Excel**; bóveda de fotos de evidencia. |
+| **Admin** (PIN `1234`, **doble toque** en una zona libre o ⚙) | Lista de **puesta en marcha**, horario, personas, huella y rostro, soporte del desarrollador, configuración rápida, info del grabador (modelo, firmware, disco), marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
 
 ## Cerradura (ESP32) — sin editar código
 
@@ -88,6 +92,27 @@ Para reconfigurar: mantener el botón **BOOT** 5 segundos.
 | Relé NA/COM | Cerradura eléctrica 12 V (fuente propia; diodo 1N4007 en paralelo) |
 
 Sin ESP32, la apertura queda **simulada** (se registra pero no acciona nada).
+
+## Personas, horario, huella y rostro
+
+Traído del Portero Cannabismática y adaptado al servidor (todo se guarda en `data/access.json`, fuera del repositorio).
+
+1. **Personas y accesos:** agregar dueños, empleados y proveedores, cada uno con su PIN de 4 a 8 números. No se puede repetir un PIN ni usar el general, el de coacción o el de administración.
+2. **Horario de atención:** elegir *Según el horario semanal* y cargar las franjas (ej. 9 a 13 y 17 a 21). *Cerrado* sirve para feriados o vacaciones.
+3. **Huella y rostro** (opcional, apagado de fábrica): marcar el consentimiento de la persona y registrar su huella o su rostro; después activar *Permitir ingreso con huella / rostro*. En la pantalla principal aparecen los botones **Huella** y **Rostro**.
+
+| Quién | En horario | Fuera de horario |
+|---|---|---|
+| PIN general / coacción | entra | entra |
+| Dueño | entra | entra |
+| Empleado | entra | entra si está permitido |
+| Proveedor / pase de visita | entra | no (queda registrado y avisa) |
+| Cliente con el timbre | suena | ve el horario en su celular |
+| SOS 911 | siempre | siempre |
+
+**Huella:** los navegadores solo permiten passkeys en direcciones seguras. Funciona en la PC del servidor (`http://localhost:8080` con Chrome o Edge) o por https: `tailscale serve --bg 8080` y abrir `https://<pc>.<tu-red>.ts.net` en la tablet. Las huellas quedan atadas a esa dirección.
+**Rostro:** usa los modelos de `face/` ([face-api](https://github.com/vladmandic/face-api), MIT, unos 8 MB que se cargan solo al usarlo). Con un canal Dahua como cámara de puerta funciona desde cualquier dirección; con la cámara de la tablet hace falta https o localhost. Es menos seguro que la huella: un video de la persona podría engañarlo.
+Son **datos personales sensibles**: registrar solo con consentimiento informado y por escrito. Al retirarlo, eliminar a la persona o pasarla a proveedor se borran su huella y su rostro.
 
 ## Avisos al celular de los dueños
 
@@ -153,9 +178,10 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 ## Pruebas
 
 ```bash
-cd server && npm run setup && npm test     # 12 pruebas: configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
+cd server && npm run setup && npm test     # 17 pruebas: personas, horario, huella (passkeys), rostro, reintento de avisos, configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
 python3 tests/e2e.py                       # 88 pruebas de punta a punta con navegador real
+python3 tests/e2e_accesos.py               # 22 pruebas: doble toque, personas, horario, huella (autenticador virtual), rostro, lector QR, móvil
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
 
@@ -175,6 +201,8 @@ server/                    Servidor puente (Node.js sin dependencias)
   lib/doorbell.js          Portero digital: relevo ntfy y respuestas
   lib/notifiers.js         WhatsApp (CallMeBot) y notificación push (ntfy)
   lib/settings-schema.js   Esquema de toda la configuración (genera los formularios del panel)
+  lib/access.js            Personas con PIN propio, horario de atención, huella (WebAuthn) y rostro
+face/                      Reconocimiento facial (face-api + modelos, licencia MIT)
 timbre.html                Página pública del portero (celular del cliente)
   scripts/                 Descarga de go2rtc, búsqueda por consola
 firmware/esp32_cerradura/  Firmware de la cerradura
@@ -186,3 +214,7 @@ tools/embed.js             Inserta firmware y QR en index.html
 ## Para escalar comercialmente
 
 Cada cliente nuevo es: una PC/mini‑PC o Raspberry Pi con el servidor, su `.env` (marca, cámaras, PINs, Telegram), y una tablet en la puerta. El logo y el nombre se cambian desde Admin → Marca sin tocar código. Plantillas RTSP para Hikvision y ONVIF en Admin → Manual.
+
+---
+
+Desarrollado por **SVB · Sistema VB (Vincular Business)** — WhatsApp (387) 4484132 · vincularbusiness@gmail.com
