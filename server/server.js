@@ -25,6 +25,7 @@ const { digestGet, parseKV } = require('./lib/dahua');
 const { NtfyListener, publish, REPLIES } = require('./lib/doorbell');
 const SCHEMA = require('./lib/settings-schema');
 const { parseRecipients, sendWhatsApp, sendPush } = require('./lib/notifiers');
+const { AccessStore, BIO_ROLES } = require('./lib/access');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -32,11 +33,11 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.ino': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
+  '.ino': 'text/plain; charset=utf-8', '.bin': 'application/octet-stream', '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
 };
 // Solo esto se publica por HTTP. Nunca .env, data/, server/.
 const PUBLIC_FILES = new Set(['/index.html', '/manifest.webmanifest', '/sw.js', '/timbre.html']);
-const PUBLIC_DIRS = ['/assets/', '/firmware/'];
+const PUBLIC_DIRS = ['/assets/', '/firmware/', '/face/'];
 // Endpoints de go2rtc permitidos a través del proxy (no exponer /api/config ni /api/streams: tienen contraseñas).
 const GO2RTC_ALLOWED = [/^\/video-stream\.js$/, /^\/video-rtc\.js$/, /^\/api\/ws$/, /^\/api\/frame\.jpeg$/, /^\/api\/stream\.(mp4|m3u8|mjpeg)$/, /^\/api\/hls\//];
 
@@ -46,6 +47,8 @@ function createApp(cfg, opts = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
   const eventsFile = path.join(dataDir, 'events.jsonl');
   const visitorsFile = path.join(dataDir, 'visitors.json');
+  // Personas con PIN propio, huella, rostro y horario de atención
+  const access = new AccessStore(path.join(dataDir, 'access.json'));
 
   const state = {
     camHost: cfg.cam.host && cfg.cam.host !== 'auto' ? cfg.cam.host : '',
@@ -184,7 +187,7 @@ function createApp(cfg, opts = {}) {
   // ───────────── Portero digital (QR / NFC desde el celular del cliente) ─────────────
   let bell = null;
   const rings = new Map(); // id -> {ts, name, msg, answered}
-  let lastRing = 0;
+  let lastRing = 0; let lastOffRing = 0;
   function doorbellUrl() {
     const d = cfg.doorbell;
     if (!d.topic) return null;
@@ -208,8 +211,19 @@ function createApp(cfg, opts = {}) {
     bell.on('ring', (r) => onRing({ ...r, source: 'qr' }));
     bell.start();
   }
-  async function onRing({ id, name, msg, source }) {
+  async function onRing({ id, name, msg, source, force }) {
     const now = Date.now();
+    if (!force && !access.isOpen()) {
+      // Fuera de horario: el cliente ve el horario en su celular y no suena el panel.
+      const text = `Estamos cerrados. Horario de atención: ${access.info().text}`;
+      if (source === 'qr' && cfg.doorbell.topic && id) await publish(cfg.doorbell.ntfy, cfg.doorbell.topic + '-r', { type: 'reply', id, code: 'cerrado', text }).catch(() => {});
+      if (now - lastOffRing > 60000) {
+        lastOffRing = now;
+        addEvent({ type: 'DOORBELL_OFFHOURS', message: `Timbre fuera de horario${name ? ': ' + name : ''}${msg ? ' — ' + msg : ''}` });
+        alertAll(`🔕 ${cfg.businessName}: tocaron el timbre fuera de horario${name ? ` (${name})` : ''}. Se le mostró el horario al cliente.`, null, { kind: 'info' });
+      }
+      return { ok: false, reason: 'closed' };
+    }
     if (now - lastRing < cfg.doorbell.cooldown * 1000) return { ok: false, reason: 'cooldown' };
     lastRing = now;
     id = id || crypto.randomBytes(6).toString('hex');
@@ -288,7 +302,7 @@ function createApp(cfg, opts = {}) {
       broadcast('arm', { armed: state.armed });
       await notify(state.armed ? '🔒 Sistema ARMADO' : '🔓 Sistema desarmado');
     } else if (cmd === '/estado' || cmd === '/start' || cmd === '/ayuda') {
-      await notify(`🛡 ${cfg.businessName}\nSistema: ${state.armed ? 'ARMADO' : 'desarmado'}\nGrabador: ${state.camHost ? 'conectado' : 'sin conexión'} · eventos ${state.dvrConnected ? 'activos' : 'inactivos'}\nPortero QR: ${bell && bell.connected ? 'activo' : 'inactivo'}\n\nComandos: /foto /armar /desarmar /estado`);
+      await notify(`🛡 ${cfg.businessName}\nSistema: ${state.armed ? 'ARMADO' : 'desarmado'}\nGrabador: ${state.camHost ? 'conectado' : 'sin conexión'} · eventos ${state.dvrConnected ? 'activos' : 'inactivos'}\nPortero QR: ${bell && bell.connected ? 'activo' : 'inactivo'}\nHorario: ${access.isOpen() ? 'ABIERTO' : 'CERRADO'} (${access.info().text})\n\nComandos: /foto /armar /desarmar /estado`);
     }
   }
 
@@ -392,26 +406,64 @@ function createApp(cfg, opts = {}) {
   // ───────────── Avisos a TODOS los canales del dueño (Telegram + WhatsApp + push) ─────────────
   // kind: ring | sos | duress | alarm | motion | info | test
   const IMPORTANT = new Set(['ring', 'sos', 'duress', 'alarm', 'test']);
+  const RETRY = new Set(['ring', 'sos', 'duress', 'alarm']); // si se corta internet se reintentan 15 min
   const wants = (pref, kind) => pref === 'todo' || (pref === 'importantes' && IMPORTANT.has(kind)) || (pref === 'timbre' && (kind === 'ring' || kind === 'test'));
+  const retryQ = [];
+  function queueRetry(label, fn) { if (retryQ.length >= 30) retryQ.shift(); retryQ.push({ ts: Date.now(), label, fn }); }
+  async function flushRetry() {
+    const now = Date.now(); const keep = [];
+    for (const j of retryQ.splice(0)) {
+      if (now - j.ts > 15 * 60000) { log('[avisos] sin conexión 15 min: se descarta', j.label); continue; }
+      let ok = false; try { ok = await j.fn(); } catch { /* sigue sin conexión */ }
+      if (ok) log('[avisos] enviado con demora:', j.label); else keep.push(j);
+    }
+    retryQ.push(...keep);
+    return retryQ.length;
+  }
+  const late = (t, ts) => `${t}\n(enviado con demora · ocurrió a las ${new Date(ts).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })})`;
   async function alertAll(text, photo, { kind = 'info', kb = null, ringId = null } = {}) {
+    const ts = Date.now();
     const out = { telegram: await notify(text, photo, kb) };
+    if (RETRY.has(kind) && out.telegram.reason && out.telegram.reason !== 'Telegram no configurado') queueRetry('telegram', async () => (await notify(late(text, ts), photo)).sent);
     const wa = parseRecipients(cfg.whatsapp.to);
     if (wa.length && wants(cfg.whatsapp.events, kind)) {
       let t = text.replace(/\nRespondé con los botones:?/, '');
       if (kind === 'ring') t += '\nRespondé desde el panel, Telegram o la notificación push.';
       out.whatsapp = await sendWhatsApp(cfg.whatsapp.api, wa, t);
+      if (RETRY.has(kind)) {
+        out.whatsapp.forEach((r, i) => { if (r.error) queueRetry('whatsapp ' + r.phone, async () => (await sendWhatsApp(cfg.whatsapp.api, [wa[i]], late(t, ts)))[0].ok); });
+      }
     }
     if (cfg.push.enabled && cfg.push.topic && wants(cfg.push.events, kind)) {
       const [title, ...rest] = text.split('\n');
       const actions = ringId ? [{ label: 'Ya voy', body: { type: 'reply', id: ringId, code: 'voy' } }, { label: 'Un momento', body: { type: 'reply', id: ringId, code: 'momento' } }, { label: 'Dejar en puerta', body: { type: 'reply', id: ringId, code: 'deje' } }] : [];
-      out.push = await sendPush(cfg.doorbell.ntfy, cfg.push.topic, {
+      const msg = {
         title: title.slice(0, 120), message: rest.join('\n').replace(/\nRespondé con los botones:?/, '').trim() || cfg.businessName,
         priority: kind === 'duress' || kind === 'sos' ? 5 : kind === 'info' || kind === 'motion' ? 3 : 4,
         tags: [{ ring: 'bell', sos: 'rotating_light', duress: 'rotating_light', alarm: 'warning', motion: 'eyes', test: 'white_check_mark' }[kind] || 'shield'],
         photo, actions, controlTopic: cfg.push.topic + '-c',
-      });
+      };
+      out.push = await sendPush(cfg.doorbell.ntfy, cfg.push.topic, msg);
+      if (RETRY.has(kind) && out.push.error) queueRetry('push', async () => (await sendPush(cfg.doorbell.ntfy, cfg.push.topic, { ...msg, message: late(msg.message, ts), actions: [] })).ok);
     }
     return out;
+  }
+
+  // ───────────── Horario: aviso de apertura/cierre y armado automático ─────────────
+  let hoursOpen = access.isOpen();
+  function tickHours(d = new Date()) {
+    const open = access.isOpen(d);
+    if (open === hoursOpen) return null;
+    hoursOpen = open;
+    addEvent({ type: open ? 'HOURS_OPEN' : 'HOURS_CLOSED', message: open ? 'Comienza el horario de atención' : 'Termina el horario de atención' });
+    broadcast('access', access.info());
+    if (access.hours.autoArm && state.armed === open) {
+      state.armed = !open; saveState();
+      addEvent({ type: state.armed ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: `${state.armed ? 'Armado' : 'Desarmado'} automático por horario` });
+      broadcast('arm', { armed: state.armed });
+      alertAll(state.armed ? `🔒 ${cfg.businessName}: terminó el horario, sistema ARMADO automáticamente` : `🔓 ${cfg.businessName}: comenzó el horario, sistema desarmado automáticamente`, null, { kind: 'info' });
+    }
+    return open;
   }
   // Botones de la notificación push → llegan por el tema de control
   let pushCtl = null;
@@ -525,6 +577,7 @@ function createApp(cfg, opts = {}) {
         dvrEvents: state.dvrConnected,
         ptz: true,
         doorbell: !!(bell && bell.connected),
+        access: access.info(),
         cameras: {
           configured: !!state.camHost,
           host: state.camHost ? state.camHost.replace(/\.\d+$/, '.x') : null,
@@ -542,24 +595,53 @@ function createApp(cfg, opts = {}) {
       if (lock) return send(res, 429, { ok: false, result: 'locked', retryIn: lock });
       const body = await readBody(req);
       const pin = String(body.pin || '');
-      const source = String(body.source || 'teclado').slice(0, 20);
-      let mode = null; let visitor = null;
-      if (pin && safeEq(pin, cfg.duressPin)) mode = 'duress';
+      let source = String(body.source || 'teclado').slice(0, 20);
+      let mode = null; let visitor = null; let person = null; let fail = 'PIN incorrecto';
+      if (body.webauthn) { // huella (passkey)
+        source = 'huella';
+        if (!access.bio.pk) fail = 'Ingreso con huella desactivado';
+        else {
+          const r = access.verifyPasskey(body.webauthn);
+          if (r.error) fail = `Huella rechazada: ${r.error}`;
+          else { person = r.person; mode = 'person'; }
+        }
+      } else if (body.face) { // rostro (plantilla de face-api)
+        source = 'rostro';
+        if (!access.bio.face) fail = 'Ingreso con rostro desactivado';
+        else if (access.bio.faceLive && body.face.live !== true) fail = 'Rostro sin parpadeo (posible foto)';
+        else {
+          const r = access.matchFace(body.face.d);
+          if (r.error) fail = `${r.error}${r.dist ? ` (distancia ${r.dist})` : ''}`;
+          else { person = r.person; mode = 'person'; }
+        }
+      } else if (pin && safeEq(pin, cfg.duressPin)) mode = 'duress';
       else if (pin && safeEq(pin, cfg.doorPin)) mode = 'normal';
+      else if (/^\d{4,8}$/.test(pin) && (person = access.findByPin(pin))) mode = 'person';
       else if (/^\d{6}$/.test(pin)) {
-        visitor = activeVisitors().find((v) => safeEq(v.code, pin));
+        visitor = activeVisitors().find((v) => safeEq(v.code, pin) && !(v.max && (v.used || 0) >= v.max));
         if (visitor) mode = 'visitor';
+      }
+      if (mode === 'person' && (!person.on || ((source === 'huella' || source === 'rostro') && !(person.consent && BIO_ROLES.includes(person.role))))) {
+        fail = `${person.name}: acceso deshabilitado`; mode = null;
       }
       if (!mode) {
         const locked = registerFailure(ip);
-        addEvent({ type: 'ACCESS_DENIED', level: 'WARN', message: `PIN incorrecto (${source})`, ip });
+        addEvent({ type: source === 'huella' || source === 'rostro' ? 'BIO_FAIL' : 'ACCESS_DENIED', level: 'WARN', message: `${fail} (${source})`, ip });
         if (locked) {
           addEvent({ type: 'KEYPAD_LOCKOUT', level: 'HIGH', message: 'Teclado bloqueado 60s por 5 intentos fallidos', ip });
-          alertAll(`⚠️ ${cfg.businessName}: 5 PIN incorrectos seguidos. Teclado bloqueado 60s.`, null, { kind: 'alarm' });
+          alertAll(`⚠️ ${cfg.businessName}: 5 intentos de acceso fallidos seguidos. Teclado bloqueado 60s.`, null, { kind: 'alarm' });
         }
-        return send(res, 403, { ok: false, result: locked ? 'locked' : 'denied', retryIn: locked ? 60 : 0 });
+        return send(res, 403, { ok: false, result: locked ? 'locked' : 'denied', retryIn: locked ? 60 : 0, reason: source === 'huella' || source === 'rostro' ? fail : undefined });
       }
       state.failures.delete(ip);
+      // Horario de atención: fuera de horario solo entran el PIN general, el dueño y (si se permite) los empleados.
+      // El PIN de coacción se comporta igual que el PIN general: siempre abre.
+      if (!access.isOpen() && (mode === 'visitor' || (mode === 'person' && !access.offHoursOk(person.role)))) {
+        const who = person ? `${person.name} (${person.role})` : `visita ${visitor.name}`;
+        addEvent({ type: 'OFFHOURS_DENIED', level: 'WARN', message: `Intento fuera de horario: ${who} (${source})`, ip });
+        alertAll(`⛔ ${cfg.businessName}: intento de ingreso fuera de horario — ${who}`, null, { kind: 'info' });
+        return send(res, 403, { ok: false, result: 'closed', hours: access.info().text });
+      }
       const relay = await triggerRelay(body.ms);
       if (mode === 'duress') {
         // Respuesta idéntica a una apertura normal: el agresor no ve diferencias.
@@ -576,10 +658,117 @@ function createApp(cfg, opts = {}) {
             await new Promise((r) => setTimeout(r, 1000));
           }
         })();
+      } else if (mode === 'visitor') {
+        const all = readVisitors(); const v = all.find((x) => x.id === visitor.id);
+        if (v) { v.used = (v.used || 0) + 1; writeVisitors(all); }
+        addEvent({ type: 'VISITOR_ACCESS', message: `Acceso de visita: ${visitor.name}${visitor.max ? ` (uso ${(v || visitor).used}/${visitor.max})` : ''}`, ip });
+      } else if (mode === 'person') {
+        access.touch(person);
+        addEvent({ type: 'DOOR_OPEN', message: `Puerta abierta (${source}) · ${person.name} — ${person.role}`, ip, who: person.name });
       } else {
-        addEvent({ type: mode === 'visitor' ? 'VISITOR_ACCESS' : 'DOOR_OPEN', message: mode === 'visitor' ? `Acceso de visita: ${visitor.name}` : `Puerta abierta (${source})`, ip });
+        addEvent({ type: 'DOOR_OPEN', message: `Puerta abierta (${source})`, ip });
       }
-      return send(res, 200, { ok: true, result: 'open', relay: { ok: relay.ok, simulated: relay.simulated, ms: relay.ms }, ...(mode === 'visitor' ? { visitor: visitor.name } : {}), _c: mode === 'duress' ? 1 : 0 });
+      const name = mode === 'visitor' ? visitor.name : mode === 'person' ? person.name : undefined;
+      return send(res, 200, { ok: true, result: 'open', relay: { ok: relay.ok, simulated: relay.simulated, ms: relay.ms }, ...(name ? { visitor: name } : {}), _c: mode === 'duress' ? 1 : 0 });
+    }
+
+    // ── Huella: desafío de un solo uso (vence en 2 minutos) ──
+    if (pathname === '/api/webauthn/challenge' && m === 'POST') {
+      const lock = lockStatus(ip);
+      if (lock) return send(res, 429, { ok: false, retryIn: lock });
+      return send(res, 200, { challenge: access.newChallenge() });
+    }
+    // ── Horario y biometría visibles en la pantalla principal (sin datos personales) ──
+    if (pathname === '/api/access/info' && m === 'GET') return send(res, 200, access.info());
+
+    // ── Horario de atención ──
+    if (pathname === '/api/hours') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      if (m === 'GET') return send(res, 200, { ...access.hours, info: access.info() });
+      if (m === 'PUT') {
+        try { access.setHours(await readBody(req)); } catch (e) { return send(res, 400, { error: e.message }); }
+        addEvent({ type: 'HOURS_CHANGED', level: 'HIGH', message: `Horario de atención: ${access.info().text}` });
+        hoursOpen = access.isOpen();
+        broadcast('access', access.info());
+        return send(res, 200, { ok: true, ...access.hours, info: access.info() });
+      }
+    }
+    // ── Personas: PIN propio, huella y rostro ──
+    if (pathname === '/api/bio' && m === 'PUT') {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      try { access.setBio(await readBody(req)); } catch (e) { return send(res, 400, { error: e.message }); }
+      addEvent({ type: 'CONFIG_CHANGED', level: 'HIGH', message: `Biometría: huella ${access.bio.pk ? 'activada' : 'desactivada'}, rostro ${access.bio.face ? 'activado' : 'desactivado'} (exigencia ${access.bio.faceThr})` });
+      broadcast('access', access.info());
+      return send(res, 200, { ok: true, bio: access.bio });
+    }
+    if (pathname === '/api/people' || pathname.startsWith('/api/people/')) {
+      if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
+      const [, , , id, sub] = pathname.split('/');
+      try {
+        if (!id) {
+          if (m === 'GET') return send(res, 200, { people: access.people.map((p) => access.view(p)), bio: access.bio, info: access.info() });
+          if (m === 'POST') {
+            const b = await readBody(req);
+            const p = access.create(b);
+            addEvent({ type: 'PERSON_CREATED', level: 'HIGH', message: `Persona agregada: ${p.name} (${p.role})` });
+            return send(res, 201, access.view(p));
+          }
+        }
+        const p = id && access.get(id);
+        if (!p) return send(res, 404, { error: 'Persona inexistente' });
+        if (!sub && m === 'PUT') {
+          const b = await readBody(req);
+          const hadBio = (p.pk || []).length || p.face;
+          const pin = b.pin !== undefined ? String(b.pin || '') : null;
+          if (pin) {
+            if (!/^\d{4,8}$/.test(pin)) return send(res, 400, { error: 'El PIN debe tener de 4 a 8 números' });
+            if (pin === cfg.duressPin || pin === cfg.adminPin || pin === cfg.doorPin) return send(res, 400, { error: 'Ese PIN está reservado (general, coacción o administración). Elegí otro.' });
+            const dup = access.findByPin(pin);
+            if (dup && dup.id !== p.id) return send(res, 400, { error: 'Ese PIN ya lo usa otra persona. Elegí otro.' });
+            if (activeVisitors().some((v) => v.code === pin)) return send(res, 400, { error: 'Ese PIN coincide con un pase de visita activo. Elegí otro.' });
+          }
+          access.update(p, b);
+          if (pin !== null) access.setPin(p, pin);
+          if (hadBio && !((p.pk || []).length || p.face)) addEvent({ type: 'BIO_DELETE', level: 'HIGH', message: `Datos biométricos borrados · ${p.name}` });
+          if (b.consent !== undefined) addEvent({ type: 'BIO_CONSENT', level: 'HIGH', message: `${p.name}: consentimiento biométrico ${b.consent ? 'registrado' : 'retirado'}` });
+          addEvent({ type: 'PERSON_UPDATED', message: `Persona modificada: ${p.name}${b.pin !== undefined ? (b.pin ? ' (PIN nuevo)' : ' (PIN quitado)') : ''}` });
+          broadcast('access', access.info());
+          return send(res, 200, access.view(p));
+        }
+        if (!sub && m === 'DELETE') {
+          access.remove(p.id);
+          addEvent({ type: 'PERSON_DELETED', level: 'HIGH', message: `Persona eliminada (con sus datos biométricos): ${p.name}` });
+          broadcast('access', access.info());
+          return send(res, 200, { ok: true });
+        }
+        if (sub === 'passkey' && m === 'POST') {
+          const b = await readBody(req);
+          access.addPasskey(p, b);
+          addEvent({ type: 'BIO_ENROLL', level: 'HIGH', message: `Huella registrada · ${p.name} (${b.kind === 'Celular' ? 'su celular' : 'este dispositivo'})` });
+          broadcast('access', access.info());
+          return send(res, 201, access.view(p));
+        }
+        if (sub === 'passkey' && m === 'DELETE') {
+          access.removePasskey(p, String(query.get('cid') || ''));
+          addEvent({ type: 'BIO_DELETE', level: 'HIGH', message: `Huella quitada · ${p.name}` });
+          broadcast('access', access.info());
+          return send(res, 200, access.view(p));
+        }
+        if (sub === 'face' && m === 'POST') {
+          const b = await readBody(req);
+          access.setFace(p, b.d);
+          addEvent({ type: 'BIO_ENROLL', level: 'HIGH', message: `Rostro registrado · ${p.name} (${b.d.length} muestras, sin fotos)` });
+          broadcast('access', access.info());
+          return send(res, 201, access.view(p));
+        }
+        if (sub === 'face' && m === 'DELETE') {
+          access.removeFace(p);
+          addEvent({ type: 'BIO_DELETE', level: 'HIGH', message: `Rostro quitado · ${p.name}` });
+          broadcast('access', access.info());
+          return send(res, 200, access.view(p));
+        }
+      } catch (e) { return send(res, 400, { error: e.message }); }
+      return send(res, 405, { error: 'Método no permitido' });
     }
 
     if (pathname === '/api/admin/check' && m === 'POST') {
@@ -629,11 +818,13 @@ function createApp(cfg, opts = {}) {
         const b = await readBody(req);
         const hours = Math.max(1, Math.min(720, parseInt(b.hours, 10) || 24));
         let code = String(b.code || '');
-        if (!/^\d{6}$/.test(code)) code = String(crypto.randomInt(100000, 999999));
-        if (code === cfg.doorPin || code === cfg.duressPin) return send(res, 400, { error: 'Código reservado' });
-        const v = { id: crypto.randomUUID(), name: String(b.name || 'Visita').slice(0, 60), code, expires: new Date(Date.now() + hours * 3600e3).toISOString() };
+        const taken = (c) => c === cfg.doorPin || c === cfg.duressPin || c === cfg.adminPin || activeVisitors().some((v) => v.code === c) || !!access.findByPin(c);
+        if (/^\d{6}$/.test(code) && taken(code)) return send(res, 400, { error: 'Código reservado o en uso' });
+        for (let i = 0; !/^\d{6}$/.test(code) || taken(code); i++) { if (i > 20) return send(res, 500, { error: 'No se pudo generar el código' }); code = String(crypto.randomInt(100000, 999999)); }
+        const max = Math.max(0, Math.min(50, parseInt(b.max, 10) || 0)); // 0 = sin límite de usos
+        const v = { id: crypto.randomUUID(), name: String(b.name || 'Visita').slice(0, 60), code, expires: new Date(Date.now() + hours * 3600e3).toISOString(), max, used: 0 };
         writeVisitors([...activeVisitors(), v]);
-        addEvent({ type: 'VISITOR_CREATED', message: `Pase temporal para ${v.name} (${hours} h)` });
+        addEvent({ type: 'VISITOR_CREATED', message: `Pase temporal para ${v.name} (${hours} h${max ? `, ${max} uso${max > 1 ? 's' : ''}` : ''})` });
         return send(res, 201, v);
       }
       if (m === 'DELETE') {
@@ -682,7 +873,7 @@ function createApp(cfg, opts = {}) {
     if (pathname === '/api/doorbell/test' && m === 'POST') {
       if (!isAdmin(req)) return send(res, 403, { error: 'PIN admin requerido' });
       lastRing = 0;
-      return send(res, 200, await onRing({ name: 'Prueba', msg: 'Timbre de prueba desde administración', source: 'prueba' }));
+      return send(res, 200, await onRing({ name: 'Prueba', msg: 'Timbre de prueba desde administración', source: 'prueba', force: true }));
     }
     if (pathname === '/api/doorbell/reply' && m === 'POST') {
       const b = await readBody(req);
@@ -812,6 +1003,9 @@ function createApp(cfg, opts = {}) {
       if (!Object.keys(ch).length) return send(res, 400, { error: 'Sin cambios' });
       const pins = { door: vals.DOOR_PIN || cfg.doorPin, duress: vals.DURESS_PIN || cfg.duressPin, admin: vals.ADMIN_PIN || cfg.adminPin };
       if (pins.door === pins.duress) return send(res, 400, { error: 'El PIN de puerta y el de coacción deben ser distintos', field: 'DURESS_PIN' });
+      for (const k of ['DOOR_PIN', 'DURESS_PIN', 'ADMIN_PIN']) {
+        if (vals[k] && access.findByPin(vals[k])) return send(res, 400, { error: 'Ese PIN ya lo usa una persona de Accesos. Elegí otro.', field: k });
+      }
       const panelUser = 'PANEL_USER' in vals ? vals.PANEL_USER : cfg.panelUser;
       const panelPass = 'PANEL_PASS' in vals ? vals.PANEL_PASS : cfg.panelPass;
       if (!!panelUser !== !!panelPass) return send(res, 400, { error: 'Para proteger el panel completá usuario y contraseña (o dejá los dos vacíos)', field: 'PANEL_PASS' });
@@ -964,12 +1158,15 @@ function createApp(cfg, opts = {}) {
     startDoorbell();
     startPush();
     startTelegramPoll();
+    hoursTimer = setInterval(() => { tickHours(); if (retryQ.length) flushRetry(); }, 30000);
     await new Promise((r) => server.listen(cfg.port, cfg.host, r));
     log(`SVB Seguridad · ${cfg.businessName} → http://localhost:${server.address().port}`);
     return server;
   }
+  let hoursTimer = null;
   async function stop() {
     stopping = true;
+    clearInterval(hoursTimer);
     if (child) child.kill();
     if (dvr) dvr.stop();
     if (bell) bell.stop();
@@ -979,7 +1176,7 @@ function createApp(cfg, opts = {}) {
     await new Promise((r) => server.close(r));
   }
 
-  return { server, start, stop, state, go2rtcYaml, addEvent, readEvents, triggerRelay, notify };
+  return { server, start, stop, state, go2rtcYaml, addEvent, readEvents, triggerRelay, notify, access, tickHours, flushRetry, alertAll, retryQ };
 }
 
 if (require.main === module) {
