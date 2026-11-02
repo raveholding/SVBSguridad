@@ -1935,7 +1935,7 @@ function aiStep() {
   const fx = ov.width / v.videoWidth, fy = ov.height / v.videoHeight;
   AI.faces.forEach((f) => { const b = f.boundingBox; octx.strokeRect(b.x * fx, b.y * fy, b.width * fx, b.height * fy); octx.fillText('ROSTRO', b.x * fx + 4, b.y * fy - 6); });
 
-  // Rostro: FaceDetector nativo si existe; si no, estimación por movimiento centrado (simulado)
+  // Rostro: FaceDetector nativo si existe; si no, estimación por movimiento centrado
   if (S.face) {
     if (AI.fd && !AI.faceBusy) { AI.faceBusy = true; AI.fd.detect(v).then((f) => { AI.faces = f; }).catch(() => { AI.fd = null; }).finally(() => { AI.faceBusy = false; }); }
     const faceNow = AI.fd ? AI.faces.length > 0 : (activity > 0.4 && (minX + maxX) / 2 > W * 0.3 && (minX + maxX) / 2 < W * 0.7);
@@ -1944,7 +1944,7 @@ function aiStep() {
     setTag('#tFace', faceNow ? (steady ? 'Rostro detectado' : 'Analizando…') : 'Rostro —', steady);
     if (steady && (!AI.last.face || now - AI.last.face > 60000)) {
       AI.last.face = now;
-      logEvent('FACE_PRESENCE', 'INFO', AI.fd ? 'Rostro detectado frente a la puerta' : 'Rostro detectado (simulado)', { sync: false });
+      logEvent('FACE_PRESENCE', 'INFO', AI.fd ? 'Rostro detectado frente a la puerta' : 'Presencia detectada frente a la puerta', { sync: false });
       speak(`Bienvenido a ${S.biz}. Ingrese su código o toque el timbre.`);
     }
   } else setTag('#tFace', 'Rostro off');
