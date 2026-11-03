@@ -4,10 +4,10 @@ import numpy as np
 import cv2
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-samples = ["SVB", "SVB1|482913|2026-11-02T10:00", "https://rave.local:8080/?modo=puerta",
+samples = ["SVB", "SVB1|482913|2026-11-02T10:00", "https://negocio.local:8080/?modo=puerta",
            "SVB1|123456|2026-12-31T23:59|Proveedor Coca-Cola Distribuidora Norte",
            "x" * 60, "y" * 90, "z" * 120, "w" * 150, "Ñandú áéíóú " * 10,
-           "SVB1|" + "|".join(f"Pase{i:03d}-RaveAlmacenSalta" for i in range(7))]
+           "SVB1|" + "|".join(f"Pase{i:03d}-NegocioSalta" for i in range(7))]
 js = f"""
 const {{ qrEncode }} = require({json.dumps(os.path.join(HERE, 'qr-encoder.js'))});
 const s = {json.dumps(samples)};

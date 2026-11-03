@@ -18,6 +18,31 @@ const REPLIES = {
   deje: 'Por favor deje el pedido en la puerta. ¡Gracias!',
 };
 
+/**
+ * Foto del visitante enviada por su celular en partes por el tema de señalización <tema>-v<id>.
+ * Espera hasta waitMs y devuelve el JPEG (Buffer) o null.
+ */
+async function fetchVisitorPhoto(base, sig, id, waitMs = 6000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < waitMs) {
+    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      const r = await fetch(`${base.replace(/\/$/, '')}/${encodeURIComponent(sig)}/json?poll=1&since=5m`, { signal: AbortSignal.timeout(4000) });
+      if (!r.ok) continue;
+      const parts = []; let n = 0;
+      (await r.text()).split('\n').forEach((l) => {
+        try { const m = JSON.parse(l); if (m.event !== 'message') return; const p = JSON.parse(m.message); if (p.type === 'sig' && p.id === id && p.kind === 'photo') { n = Math.min(40, +p.n || 1); parts[+p.i] = String(p.d || '').slice(0, 3000); } } catch { /* otra línea */ }
+      });
+      if (!n || parts.filter(Boolean).length < n) continue;
+      const data = parts.join('');
+      const mt = data.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+      if (!mt || data.length > 150000) return null;
+      return Buffer.from(mt[1], 'base64');
+    } catch { /* reintenta */ }
+  }
+  return null;
+}
+
 class NtfyListener extends EventEmitter {
   constructor({ base, topic, log = () => {} }) {
     super();
@@ -51,7 +76,7 @@ class NtfyListener extends EventEmitter {
               if (m.event !== 'message') continue;
               let p; try { p = JSON.parse(m.message); } catch { p = { type: 'ring', msg: m.message }; }
               if (p && typeof p === 'object') this.emit('data', p);
-              if (p && p.type === 'ring') this.emit('ring', { id: String(p.id || m.id).slice(0, 40), name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), ntfyId: m.id });
+              if (p && p.type === 'ring') this.emit('ring', { id: String(p.id || m.id).slice(0, 40), name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), video: p.video === true, ntfyId: m.id });
             } catch { /* línea inválida */ }
           }
         }
@@ -71,4 +96,4 @@ async function publish(base, topic, payload) {
   return r.ok;
 }
 
-module.exports = { NtfyListener, publish, REPLIES };
+module.exports = { fetchVisitorPhoto, NtfyListener, publish, REPLIES };

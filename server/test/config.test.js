@@ -41,21 +41,21 @@ test('Configuración total desde el panel', async (t) => {
   assert.strictEqual((await call(port, 'POST', '/api/setup', { RELAY_MS: 50 }, admin)).status, 400);
   assert.strictEqual((await call(port, 'POST', '/api/setup', { ESP32_URL: 'ftp://x' }, admin)).status, 400);
   assert.strictEqual((await call(port, 'POST', '/api/setup', { CAM_HOST: 'a b;rm' }, admin)).status, 400);
-  assert.strictEqual((await call(port, 'POST', '/api/setup', { PANEL_USER: 'rave' }, admin)).body.field, 'PANEL_PASS', 'usuario sin contraseña');
+  assert.strictEqual((await call(port, 'POST', '/api/setup', { PANEL_USER: 'svb' }, admin)).body.field, 'PANEL_PASS', 'usuario sin contraseña');
 
   // Guardar varios grupos a la vez y aplicar en caliente
   r = await call(port, 'POST', '/api/setup', {
-    BUSINESS_NAME: 'Almacén Rave Centro', ESP32_URL: `http://127.0.0.1:${espPort}`, ESP32_TOKEN: 'clave-esp', RELAY_MS: 4500,
+    BUSINESS_NAME: 'Mi Negocio Centro', ESP32_URL: `http://127.0.0.1:${espPort}`, ESP32_TOKEN: 'clave-esp', RELAY_MS: 4500,
     CAM_SERIAL: 'ABC123', CAM_CHANNELS: 8, DVR_ALERT_COOLDOWN: 30, DOORBELL_CAMERA: 2, TELEGRAM_POLL: false, CAM_EVENTS: false, NOEXISTE: 'x',
   }, admin);
   assert.strictEqual(r.status, 200, JSON.stringify(r.body));
   const env = fs.readFileSync(envFile, 'utf8');
   assert.match(env, /^# mi config\r\nCAM_USER=admin\r\n/, 'respeta el archivo y sus saltos de línea');
-  assert.match(env, /BUSINESS_NAME=Almacén Rave Centro\r\n/);
+  assert.match(env, /BUSINESS_NAME=Mi Negocio Centro\r\n/);
   assert.match(env, /RELAY_MS=4500/); assert.match(env, /TELEGRAM_POLL=0/); assert.match(env, /CAM_EVENTS=0/); assert.match(env, /CAM_CHANNELS=8/);
   assert.ok(!env.includes('NOEXISTE'));
   const st = await call(port, 'GET', '/api/status');
-  assert.strictEqual(st.body.business, 'Almacén Rave Centro');
+  assert.strictEqual(st.body.business, 'Mi Negocio Centro');
   assert.strictEqual(st.body.door.relay, 'esp32');
   assert.strictEqual(st.body.door.relayMs, 4500);
   assert.strictEqual(st.body.cameras.channels.length, 8);
@@ -73,21 +73,21 @@ test('Configuración total desde el panel', async (t) => {
   assert.strictEqual(r.status, 200);
   assert.strictEqual((await call(port, 'GET', '/api/status')).body.door.relay, 'simulado');
   // Campos obligatorios vacíos se ignoran (no borran)
-  r = await call(port, 'POST', '/api/setup', { CAM_USER: '', BUSINESS_NAME: 'Rave' }, admin);
+  r = await call(port, 'POST', '/api/setup', { CAM_USER: '', BUSINESS_NAME: 'Negocio' }, admin);
   assert.deepStrictEqual(r.body.saved, ['BUSINESS_NAME']);
 
   // Proteger el panel con usuario y contraseña → exige Basic auth al instante
-  r = await call(port, 'POST', '/api/setup', { PANEL_USER: 'rave', PANEL_PASS: 'secreta' }, admin);
+  r = await call(port, 'POST', '/api/setup', { PANEL_USER: 'svb', PANEL_PASS: 'secreta' }, admin);
   assert.strictEqual(r.status, 200);
   assert.strictEqual((await call(port, 'GET', '/api/health')).status, 401);
-  const auth = { ...admin, Authorization: 'Basic ' + Buffer.from('rave:secreta').toString('base64') };
+  const auth = { ...admin, Authorization: 'Basic ' + Buffer.from('svb:secreta').toString('base64') };
   assert.strictEqual((await call(port, 'GET', '/api/health', null, auth)).status, 200);
   r = await call(port, 'POST', '/api/setup', { PANEL_USER: '', PANEL_PASS: '' }, auth);
   assert.strictEqual((await call(port, 'GET', '/api/health')).status, 200, 'se puede volver a quitar');
 
   // Ajustes del panel compartidos entre dispositivos (sin PINs)
   assert.strictEqual((await call(port, 'PUT', '/api/panel-settings', { settings: { biz: 'X' } })).status, 403);
-  r = await call(port, 'PUT', '/api/panel-settings', { device: 'tablet', settings: { biz: 'Rave', familyPhone: '+5493871234567', chime: 3, camOrder: [2, 1, 3, 4], doorPin: '1111', server: 'http://x' } }, admin);
+  r = await call(port, 'PUT', '/api/panel-settings', { device: 'tablet', settings: { biz: 'Negocio', familyPhone: '+5493871234567', chime: 3, camOrder: [2, 1, 3, 4], doorPin: '1111', server: 'http://x' } }, admin);
   assert.strictEqual(r.body.v, 1);
   r = await call(port, 'GET', '/api/panel-settings');
   assert.strictEqual(r.body.settings.familyPhone, '+5493871234567');

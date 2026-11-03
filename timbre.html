@@ -34,17 +34,28 @@ input:focus{outline:none;border-color:var(--silver)}
 .wa.show{display:flex}
 .wa svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
 .foot{margin-top:auto;color:#555;font-size:11px;font-family:var(--mono)}
+.cam{position:relative;width:100%;aspect-ratio:4/3;border-radius:18px;border:1px solid var(--b2);background:#050505;overflow:hidden;display:grid;place-items:center}
+.cam video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.cam .ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;padding:20px}
+.cam .live{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:999px;background:#000c;border:1px solid var(--white);color:var(--white);font-size:12px;letter-spacing:1px;display:none}
+.cam.on .live{display:block}
+.priv{color:#666;font-size:12px;margin:-6px 0 0}
 </style>
 </head>
 <body>
 <div class="wrap">
   <img class="logo" src="assets/rave-logo.jpg" alt="" onerror="this.remove()">
   <h1 id="biz">Portero digital</h1>
-  <p class="sub">Tocá el botón y te atendemos enseguida.</p>
+  <p class="sub">Tocá <b>Llamar</b>: el encargado te ve y te responde en esta pantalla.</p>
 
-  <button class="bell" id="bell" aria-label="Tocar timbre">
+  <div class="cam" id="cam"><video id="me" autoplay muted playsinline></video><div class="ph" id="ph">Tu cámara se activa al llamar</div><span class="live">● EN VIVO CON EL LOCAL</span></div>
+  <button class="chip on" id="camOn" aria-pressed="true">📷 Mostrar mi cara al encargado</button>
+  <p class="priv">Tu imagen solo se transmite mientras dura la llamada. El encargado recibe tu foto para atenderte.</p>
+  <audio id="them" autoplay playsinline></audio>
+
+  <button class="bell" id="bell" aria-label="Llamar al portero">
     <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
-    <span>TOCAR</span>
+    <span>LLAMAR</span>
   </button>
 
   <div class="chips" id="chips">
@@ -55,7 +66,7 @@ input:focus{outline:none;border-color:var(--silver)}
   </div>
   <input id="name" maxlength="40" placeholder="Tu nombre (opcional)" autocomplete="given-name">
 
-  <div class="status" id="status"><b>Listo para tocar</b><small>El encargado recibe el aviso con la imagen de la cámara de la puerta.</small></div>
+  <div class="status" id="status"><b>Listo para llamar</b><small>El encargado recibe el aviso con tu imagen en su panel y en su celular.</small></div>
   <a class="wa" id="wa" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A9 9 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/></svg>Escribir por WhatsApp</a>
   <div class="foot">Sistemas VB Seguridad · Vincular Business</div>
 </div>
@@ -65,7 +76,7 @@ const q = new URLSearchParams(location.search);
 const topic = q.get('t') || '';
 const host = (q.get('h') || 'https://ntfy.sh').replace(/\/$/, '');
 const $ = (s) => document.querySelector(s);
-if (q.get('n')) { $('#biz').textContent = q.get('n'); document.title = 'Timbre · ' + q.get('n'); }
+if (q.get('n')) { $('#biz').textContent = q.get('n'); document.title = 'Portero digital · ' + q.get('n'); }
 let reason = '';
 const wa = (q.get('w') || '').replace(/\D/g, '');
 function waLink() {
@@ -114,25 +125,104 @@ function listen(id, since) {
     } catch (e) { /* mensaje ajeno */ }
   };
 }
+/* ── Video portero: cámara del visitante → panel (WebRTC P2P + foto de respaldo por el relevo) ── */
+const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+const b64 = (buf) => { let s = ''; const a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+async function pack(obj) {
+  const txt = JSON.stringify(obj);
+  if (window.CompressionStream) { const st = new Blob([txt]).stream().pipeThrough(new CompressionStream('deflate-raw')); return 'z' + b64(await new Response(st).arrayBuffer()); }
+  return 'p' + b64(new TextEncoder().encode(txt));
+}
+async function unpack(d) {
+  const bin = Uint8Array.from(atob(d.slice(1)), (c) => c.charCodeAt(0));
+  if (d[0] === 'z') { const st = new Blob([bin]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return JSON.parse(await new Response(st).text()); }
+  return JSON.parse(new TextDecoder().decode(bin));
+}
+async function sendSig(sig, id, kind, data) {
+  const parts = data.match(/.{1,3000}/g) || [''];
+  for (let i = 0; i < parts.length; i++) await fetch(`${host}/${encodeURIComponent(sig)}`, { method: 'POST', body: JSON.stringify({ type: 'sig', id, kind, i, n: parts.length, d: parts[i] }) });
+}
+let call = null;
+function endCall() {
+  if (!call) return;
+  try { call.es.close(); } catch (e) { /* cerrado */ }
+  try { call.pc && call.pc.close(); } catch (e) { /* cerrado */ }
+  if (call.stream) call.stream.getTracks().forEach((t) => t.stop());
+  $('#cam').classList.remove('on'); $('#me').srcObject = null; $('#ph').style.display = '';
+  clearTimeout(call.endT); call = null;
+}
+$('#camOn').addEventListener('click', () => { const b = $('#camOn'); const on = !b.classList.contains('on'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.textContent = on ? '📷 Mostrar mi cara al encargado' : '📷 Cámara apagada (tocá para mostrar tu cara)'; });
+async function startCall(id) {
+  const sig = `${topic}-v${id}`;
+  let stream = null;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch (e) { try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } }); } catch (e2) { return null; } }
+  $('#me').srcObject = stream; $('#ph').style.display = 'none';
+  await new Promise((r) => { const v = $('#me'); if (v.readyState >= 2) r(); else { v.onloadeddata = r; setTimeout(r, 1500); } });
+  call = { id, sig, stream, pc: null, parts: {}, done: false };
+  // Respuesta del panel (answer) y cierre
+  call.es = new EventSource(`${host}/${encodeURIComponent(sig)}/sse?since=${Math.floor(Date.now() / 1000) - 2}`);
+  call.es.onmessage = async (ev) => {
+    if (!call) return;
+    let p; try { p = JSON.parse(JSON.parse(ev.data).message); } catch (e) { return; }
+    if (!p || p.type !== 'sig' || p.id !== id) return;
+    if (p.kind === 'bye') return endCall();
+    if (p.kind !== 'answer' || call.done || !call.pc) return;
+    const n = Math.min(20, +p.n || 1); const box = call.parts[p.kind] = call.parts[p.kind] || [];
+    box[+p.i] = String(p.d || '').slice(0, 3000);
+    if (box.filter(Boolean).length < n) return;
+    call.done = true;
+    try { const a = await unpack(box.join('')); if (a.type === 'answer') { await call.pc.setRemoteDescription(a); } } catch (e) { /* respuesta inválida */ }
+  };
+  return { stream, sig };
+}
+async function snapshotOf(video) {
+  const w = 320; const h = Math.round(w * (video.videoHeight || 3) / (video.videoWidth || 4));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.translate(w, 0); g.scale(-1, 1); g.drawImage(video, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.6);
+}
+async function offerVideo(id) {
+  const pc = new RTCPeerConnection({ iceServers: ICE });
+  call.pc = pc;
+  call.stream.getTracks().forEach((t) => pc.addTrack(t, call.stream));
+  if (!call.stream.getAudioTracks().length) pc.addTransceiver('audio', { direction: 'recvonly' });
+  pc.ontrack = (e) => { if (e.track.kind === 'audio') { $('#them').srcObject = e.streams[0] || new MediaStream([e.track]); $('#them').play().catch(() => {}); } };
+  pc.onconnectionstatechange = () => { if (!call) return; const st = pc.connectionState; $('#cam').classList.toggle('on', st === 'connected'); if (st === 'connected') status('En llamada', 'El encargado te está viendo. Si habla, lo escuchás por este celular.'); };
+  await pc.setLocalDescription(await pc.createOffer());
+  await new Promise((r) => { if (pc.iceGatheringState === 'complete') return r(); pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 2500); });
+  await sendSig(call.sig, id, 'offer', await pack({ type: 'offer', sdp: pc.localDescription.sdp }));
+}
 $('#bell').addEventListener('click', async () => {
   const bell = $('#bell');
   bell.disabled = true; bell.classList.add('ringing');
   const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   const since = Math.floor(Date.now() / 1000) - 2;
   listen(id, since);
+  endCall();
   status('Llamando…', 'Avisando al local');
+  const wantVideo = $('#camOn').classList.contains('on') && navigator.mediaDevices && window.RTCPeerConnection;
+  let vid = null;
+  if (wantVideo) { status('Llamando…', 'Permití la cámara para que el encargado te vea'); vid = await startCall(id); }
   try {
-    const r = await fetch(`${host}/${encodeURIComponent(topic)}`, { method: 'POST', body: JSON.stringify({ type: 'ring', id, name: $('#name').value.trim(), msg: reason }) });
+    const r = await fetch(`${host}/${encodeURIComponent(topic)}`, { method: 'POST', body: JSON.stringify({ type: 'ring', id, name: $('#name').value.trim(), msg: reason, video: !!vid }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    status('Timbre enviado ✓', 'Esperá la respuesta en esta pantalla…');
+    status('Llamada enviada ✓', vid ? 'El encargado te está viendo. Esperá la respuesta en esta pantalla…' : 'Esperá la respuesta en esta pantalla…');
+    if (vid && call) {
+      try { await sendSig(call.sig, id, 'photo', await snapshotOf($('#me'))); } catch (e) { /* sin foto */ }
+      offerVideo(id).catch(() => {});
+      call.endT = setTimeout(endCall, 180000); // la cámara se apaga sola a los 3 minutos
+    }
   } catch (e) {
-    bell.classList.remove('ringing'); bell.disabled = false;
+    bell.classList.remove('ringing'); bell.disabled = false; endCall();
     status('No se pudo enviar', 'Revisá tu conexión a internet y volvé a tocar.');
     return;
   }
   waitT = setTimeout(() => { bell.classList.remove('ringing'); status('Sin respuesta todavía', 'Podés volver a tocar el timbre.'); }, 120000);
   setTimeout(() => { bell.disabled = false; }, 20000);
 });
+document.addEventListener('visibilitychange', () => { if (document.hidden) setTimeout(() => { if (document.hidden) endCall(); }, 30000); });
+addEventListener('pagehide', endCall);
 </script>
 </body>
 </html>

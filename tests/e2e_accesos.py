@@ -16,6 +16,7 @@ env = {**os.environ, 'PORT': str(PORT), 'HOST': '127.0.0.1', 'GO2RTC_DISABLED': 
 srv = subprocess.Popen(['node', 'server.js'], cwd=os.path.join(ROOT, 'server'), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 time.sleep(1.5)
 URL = f'http://localhost:{PORT}/'
+import urllib.request as _u; _u.urlopen(_u.Request(URL + 'api/v1/wizard', data=b'{"done":true}', headers={'Content-Type':'application/json','X-Admin-Pin':'1234'}, method='POST'), timeout=10).read()  # asistente ya completado (prueba de la instalación de fábrica en e2e_instalacion.py)
 errs = []
 ok = []
 def check(name, cond, extra=''):
@@ -29,7 +30,7 @@ with sync_playwright() as p:
     cdp = ctx.new_cdp_session(pg)
     cdp.send('WebAuthn.enable')
     auth = cdp.send('WebAuthn.addVirtualAuthenticator', {'options': {'protocol': 'ctap2', 'transport': 'internal', 'hasResidentKey': True, 'hasUserVerification': True, 'isUserVerified': True, 'automaticPresenceSimulation': True}})
-    pg.goto(URL); pg.wait_for_timeout(2500)
+    pg.goto(URL + "?consola=1"); pg.wait_for_timeout(2500)
     check('pill horario', pg.locator('#stHours').inner_text().strip() == 'Abierto 24 h', pg.locator('#stHours').inner_text())
     pg.screenshot(path=SHOTS + '/01-inicio.png')
     # doble toque en zona libre (pantalla de la puerta)
@@ -122,7 +123,7 @@ with sync_playwright() as p:
     # móvil
     m = b.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True)
     mp = m.new_page(); mp.on('pageerror', lambda e: errs.append('M ' + str(e)))
-    mp.goto(URL); mp.wait_for_timeout(2000)
+    mp.goto(URL + "?consola=1"); mp.wait_for_timeout(2000)
     mp.screenshot(path=SHOTS + '/10-movil.png', full_page=True)
     mp.locator('.ticker').scroll_into_view_if_needed(); mp.wait_for_timeout(300)
     bx = mp.locator('.ticker').bounding_box()

@@ -126,27 +126,28 @@ def main():
     procs.append(subprocess.Popen(["node", os.path.join(ROOT, "server", "server.js")], env=env, stdout=srv_log, stderr=subprocess.STDOUT))
     url = f"http://127.0.0.1:{web}/"
     assert wait_http(url + "api/health"), "el servidor no arrancó"
+    import urllib.request as _u; _u.urlopen(_u.Request(url + 'api/v1/wizard', data=b'{"done":true}', headers={'Content-Type':'application/json','X-Admin-Pin':'1234'}, method='POST'), timeout=10).read()  # asistente ya completado (prueba de la instalación de fábrica en e2e_instalacion.py)
     time.sleep(2)
     errors = []
     try:
         with sync_playwright() as p:
             b = p.chromium.launch(args=["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
             ctx = b.new_context(viewport={"width": 1366, "height": 800}, permissions=["camera", "microphone"], accept_downloads=True)
-            ctx.add_init_script("localStorage.setItem('svb.settings', JSON.stringify({loiter:5}))")
+            ctx.add_init_script("localStorage.setItem('svbi:'+location.pathname.replace(/[^/]*$/,'')+':svb.settings', JSON.stringify({loiter:5}))")
             page = ctx.new_page()
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.on("console", lambda m: m.type == "error" and errors.append(m.text + " @ " + str(m.location.get("url"))))
             page.on("response", lambda r: r.status >= 400 and errors.append(f"HTTP {r.status} {r.url}"))
 
             print("\n[1] Arranque")
-            page.goto(url)
+            page.goto(url + "?consola=1")
             page.wait_for_function("window.SVB && SVB.net.online", timeout=15000)
             check("Panel carga y se conecta al servidor", True)
             page.wait_for_function("document.querySelector('#stCams').classList.contains('on')", timeout=15000)
             check("Pill cámaras Dahua en verde", True)
             page.wait_for_function("document.querySelector('#localVideo').readyState >= 2", timeout=10000)
             check("Cámara de puerta local en vivo", True)
-            check("Logo Rave cargado", page.evaluate("document.querySelector('#logo').naturalWidth") > 100)
+            check("Logo de fábrica cargado", page.evaluate("document.querySelector('#logo').naturalWidth") > 100)
 
             print("[2] Edge AI")
             page.wait_for_timeout(2500)
@@ -199,7 +200,7 @@ def main():
             check("Alerta SOS con foto a Telegram", any(path.endswith("sendPhoto") and "SOS" in body for path, body in calls["tg"]))
 
             print("[6] Monitor de cámaras (estilo DMSS)")
-            page.goto(url)
+            page.goto(url + "?consola=1")
             page.wait_for_function("window.SVB && SVB.net.online", timeout=15000)
             page.click(".tab[data-view='cctv']")
             check("Teclado oculto en vista cámaras (pantalla ancha)", not page.is_visible("#keypad"))
@@ -237,7 +238,7 @@ def main():
             page.mouse.move(t["x"] + t["width"] / 2, t["y"] + t["height"] / 2, steps=8); page.mouse.up()
             after = page.evaluate(vis)
             check("Arrastrar ordena las cámaras", before == "1,2,3,4" and after == "2,1,3,4", f"{before} -> {after}")
-            check("Orden guardado", page.evaluate("JSON.parse(localStorage.getItem('svb.settings')).camOrder.join(',')") == "2,1,3,4")
+            check("Orden guardado", page.evaluate("JSON.parse(localStorage.getItem('svbi:'+location.pathname.replace(/[^/]*$/,'')+':svb.settings')).camOrder.join(',')") == "2,1,3,4")
             page.wait_for_timeout(1000)
             vs = page.evaluate("[...document.querySelectorAll('#cctvGrid svb-stream video')].map(v => [v.readyState, v.paused, Math.round(v.currentTime)])")
             check("Video sigue en vivo tras ordenar", all(r >= 2 and not p for r, p, _ in vs), json.dumps(vs))
@@ -328,7 +329,7 @@ def main():
             page.click("#adminKeys .key[data-k='OK']")
             page.wait_for_selector("#adminOv.show", timeout=5000)
             check("PIN 1234 abre el panel de ingeniería", True)
-            check("18 secciones de administración", page.locator("#adminNav .nb").count() == 18)
+            check("19 secciones de administración", page.locator("#adminNav .nb").count() == 19)
             page.click("[data-go='firmware']")
             check("Firmware ESP32 visible", "WebServer server(80)" in page.inner_text("#fwView"))
             page.click("[data-go='camaras']")
@@ -383,7 +384,7 @@ def main():
             page.click("[data-save='alertas']")
             page.wait_for_function("document.querySelector('[data-out=alertas]').textContent.includes('Guardado')", timeout=8000)
             check("WhatsApp de dueño guardado", "WHATSAPP_TO=+5493871234567:123456" in open(env["SVB_ENV_FILE"]).read())
-            check("QR para suscribir la notificación push", page.is_visible("#pushQr") and "rave-own-" in page.inner_text("[data-group='alertas']"))
+            check("QR para suscribir la notificación push", page.is_visible("#pushQr") and "svb-own-" in page.inner_text("[data-group='alertas']"))
             page.click("[data-act-cfg='testNotify']")
             page.wait_for_function("document.querySelector('#cfgNotifyOut').textContent.includes('push')", timeout=15000)
             out = page.inner_text("#cfgNotifyOut")
@@ -396,7 +397,7 @@ def main():
             page.fill("#sFamilyPhone", "+5493879999999")
             page.wait_for_timeout(1800)
             otro = b.new_context(viewport={"width": 1280, "height": 760}); op2 = otro.new_page()
-            op2.goto(url); op2.wait_for_function("window.SVB && SVB.net.online", timeout=10000)
+            op2.goto(url + "?consola=1"); op2.wait_for_function("window.SVB && SVB.net.online", timeout=10000)
             op2.wait_for_function("SVB.S.familyPhone === '+5493879999999'", timeout=8000)
             check("Ajustes compartidos llegan a otro equipo", True)
             check("Los PINs de respaldo NO se comparten", op2.evaluate("SVB.S.doorPin") == "2580")
@@ -410,7 +411,7 @@ def main():
 
             # Portero QR / NFC
             page.click("[data-go='portero']")
-            page.wait_for_function("document.querySelector('#dbUrl').textContent.includes('timbre.html?t=rave-')", timeout=8000)
+            page.wait_for_function("document.querySelector('#dbUrl').textContent.includes('timbre.html?t=svb-')", timeout=8000)
             check("Portero activo y con enlace secreto", "activo" in page.inner_text("#dbState"))
             db_url = page.text_content("#dbUrl")
             page.locator("#dbQr").screenshot(path=os.path.join(SHOTS, "qr-portero.png"))
@@ -437,7 +438,7 @@ def main():
             cp.click(".chip[data-m='Delivery / pedido']"); cp.fill("#name", "Juan")
             n_tg = len(calls["tg"])
             cp.click("#bell")
-            cp.wait_for_function("document.querySelector('#status b').textContent.includes('enviado')", timeout=8000)
+            cp.wait_for_function("document.querySelector('#status b').textContent.includes('enviada')", timeout=8000)
             page.wait_for_selector("#ringOv.show", timeout=8000)
             check("El panel suena y muestra quién toca", "Juan" in page.inner_text("#ringWho") and "Delivery" in page.inner_text("#ringWho"))
             time.sleep(1.5)
@@ -485,7 +486,7 @@ def main():
 
             print("[12] Celular (vertical)")
             m = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, permissions=["camera"])
-            mp = m.new_page(); mp.goto(url); mp.wait_for_timeout(2500)
+            mp = m.new_page(); mp.goto(url + "?consola=1"); mp.wait_for_timeout(2500)
             mp.screenshot(path=os.path.join(SHOTS, "05-celular.png"), full_page=True)
             check("Vista celular renderiza", mp.is_visible("#keypad"))
             m.close()
@@ -493,7 +494,7 @@ def main():
             print("[13] Modo autónomo (sin servidor, file://)")
             o = b.new_context(viewport={"width": 1280, "height": 760}, permissions=["camera"])
             op = o.new_page(); op.on("pageerror", lambda e: errors.append("offline: " + str(e)))
-            op.goto("file://" + os.path.join(ROOT, "index.html"))
+            op.goto("file://" + os.path.join(ROOT, "index.html?consola=1"))
             op.wait_for_function("window.SVB", timeout=5000)
             check("Abre sin servidor", not op.evaluate("SVB.net.online"))
             for d in "2580":

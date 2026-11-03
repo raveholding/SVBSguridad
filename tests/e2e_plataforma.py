@@ -17,6 +17,7 @@ env = {**os.environ, 'PORT': str(PORT), 'HOST': '127.0.0.1', 'GO2RTC_DISABLED': 
 srv = subprocess.Popen(['node', 'server.js'], cwd=os.path.join(ROOT, 'server'), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 time.sleep(1.5)
 URL = f'http://localhost:{PORT}/'
+import urllib.request as _u; _u.urlopen(_u.Request(URL + 'api/v1/wizard', data=b'{"done":true}', headers={'Content-Type':'application/json','X-Admin-Pin':'1234'}, method='POST'), timeout=10).read()  # asistente ya completado (prueba de la instalación de fábrica en e2e_instalacion.py)
 errs, ok = [], []
 def check(name, cond, extra=''):
     ok.append((name, bool(cond))); print(('✔' if cond else '✘'), name, extra if not cond else '')
@@ -36,7 +37,7 @@ try:
         pg = ctx.new_page()
         pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
         pg.on('pageerror', lambda e: errs.append('PAGEERROR ' + str(e)))
-        pg.goto(URL); pg.wait_for_timeout(2500)
+        pg.goto(URL + "?consola=1"); pg.wait_for_timeout(2500)
         check('título con el nombre del sistema', pg.title().startswith('Sistemas VB Seguridad'), pg.title())
         check('línea del desarrollador', 'Vincular Business · (387) 4484132' in pg.locator('.devline').inner_text())
         check('perfil por sector en el encabezado', pg.locator('#modeLabel').text_content().strip() == 'Hogar · doméstico', pg.locator('#modeLabel').text_content())
@@ -64,7 +65,7 @@ try:
         check('llegada desarma y apaga noche', api('/api/v1/status')['armed'] is False and not pg.evaluate("document.body.classList.contains('ir')"))
         # Administración
         pg.locator('#btnAdmin').click(); pg.wait_for_timeout(300); pin(pg, '1234'); pg.wait_for_timeout(1500)
-        check('18 secciones (con Integraciones)', pg.locator('#adminNav .nb').count() == 18)
+        check('19 secciones (con Equipos e Integraciones)', pg.locator('#adminNav .nb').count() == 19)
         pg.wait_for_selector('#cfgForm .cfgcard', timeout=8000)
         titles = pg.locator('#cfgForm .cfgcard h3').all_inner_texts()
         check('grupo Sector e IA', 'Sector e inteligencia artificial' in titles, titles)
@@ -77,7 +78,7 @@ try:
         check('escenas se ocultan en comercio', not pg.locator('#sceneActs').is_visible())
         pg.locator('#adminNav [data-go="integra"]').click(); pg.wait_for_timeout(1500)
         box = pg.locator('#integraBox').inner_text()
-        check('estado de componentes', 'Estado del sistema' in box and 'Sistemas VB Seguridad v2.0.0' in box, box[:300])
+        check('estado de componentes', 'Estado del sistema' in box and 'Sistemas VB Seguridad v2.3.0' in box, box[:300])
         check('aforo en la sección', pg.locator('#igOcc').inner_text().startswith('5'))
         pg.locator('[data-ig="occ-"]').click(); pg.wait_for_timeout(600)
         check('−1 sale actualiza', pg.locator('#igOcc').inner_text().startswith('4') and pg.locator('#stOcc span').inner_text() == '4/5')
@@ -98,11 +99,11 @@ try:
         pg.screenshot(path=SHOTS + '/v2-02-integraciones.png', full_page=True)
         pg.locator('#adminNav [data-go="soporte"]').click(); pg.wait_for_timeout(300)
         sup = pg.locator('[data-pane="soporte"]').inner_text()
-        check('soporte con datos del desarrollador', 'vincularbusiness@gmail.com' in sup and '(387) 4484132' in sup and 'Sistemas VB Seguridad v2.0' in sup)
+        check('soporte con datos del desarrollador', 'vincularbusiness@gmail.com' in sup and '(387) 4484132' in sup and 'Sistemas VB Seguridad v2.2' in sup)
         check('sin instrucciones internas del desarrollador en pantalla', 'Settings → Pages' not in pg.content() and 'GitHub Pages' not in pg.locator('#adminOv').inner_text())
         # Vista celular
         m = b.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True)
-        mp = m.new_page(); mp.goto(URL); mp.wait_for_timeout(2000)
+        mp = m.new_page(); mp.goto(URL + "?consola=1"); mp.wait_for_timeout(2000)
         check('vista celular sin desborde horizontal', mp.evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'))
         mp.screenshot(path=SHOTS + '/v2-03-celular.png', full_page=True)
         b.close()

@@ -40,13 +40,16 @@ async function createWindow() {
     width: 1366, height: 820, backgroundColor: '#000000', autoHideMenuBar: true,
     kiosk: KIOSK, fullscreen: KIOSK, title: 'Sistemas VB Seguridad',
     icon: path.join(ROOT, 'assets', 'icon-512.png'),
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
   });
   // Cámara y micrófono sin preguntar (tótem / tablet de pared)
   session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(['media', 'microphone', 'camera', 'fullscreen', 'notifications'].includes(perm)));
   if (url) await win.loadURL(url);
   else await win.loadFile(path.join(ROOT, 'index.html'));
-  win.webContents.setWindowOpenHandler(({ url: u }) => { shell.openExternal(u); return { action: 'deny' }; });
+  // Solo se abren afuera enlaces web, de teléfono, WhatsApp o mail (nunca file://, smb:// ni protocolos que ejecuten programas)
+  win.webContents.setWindowOpenHandler(({ url: u }) => { if (/^(https:\/\/|tel:|mailto:)/i.test(u)) shell.openExternal(u); return { action: 'deny' }; });
+  // El panel no puede navegar a otro sitio dentro de la app
+  win.webContents.on('will-navigate', (e, u) => { const here = win.webContents.getURL(); try { if (new URL(u).origin !== new URL(here).origin) { e.preventDefault(); if (/^https:\/\//i.test(u)) shell.openExternal(u); } } catch { e.preventDefault(); } });
 }
 
 // ── Relé por puerto serie (ESP32 conectado por USB) ──

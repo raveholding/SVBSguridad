@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
-<title>Sistemas VB Seguridad · Almacén Rave</title>
+<title>Sistemas VB Seguridad</title>
 <style>
 :root{
   --bg:#000;--p1:#0A0A0A;--p2:#121212;--p3:#181818;--b1:#222;--b2:#333;--b3:#444;
@@ -126,7 +126,9 @@ main.wide .side{display:none}
 .ringbox{width:min(760px,94vw);display:flex;flex-direction:column;gap:14px;align-items:center}
 .ringcam{position:relative;width:100%;aspect-ratio:16/9;background:#000;border:2px solid var(--white);border-radius:16px;overflow:hidden;animation:mflash 1.2s ease-in-out infinite}
 .ringcam svb-stream{position:absolute;inset:0;display:block}
-.ringcam svb-stream video,.ringcam img{width:100%;height:100%;object-fit:cover}
+.ringcam svb-stream video,.ringcam img,.ringcam video.visitor{width:100%;height:100%;object-fit:cover}
+.ringcam video.visitor{position:absolute;inset:0;transform:scaleX(-1)}.ringcam .vlive{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:999px;background:#000c;border:1px solid var(--white);color:var(--white);font-size:12px;letter-spacing:1px}
+#ringTalk.on{background:var(--silver);color:#000}
 .ringacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;width:100%}
 .ringacts .btn{min-height:64px;font-size:16px}
 .poster-prev{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -169,6 +171,13 @@ main.wide .side{display:none}
 .ig-tok{font-family:ui-monospace,monospace;font-size:13px;word-break:break-all;user-select:all;padding:10px;border:1px dashed var(--silver);border-radius:10px;color:var(--white);background:#000}
 .ig-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.ig-row .f{flex:1;min-width:120px}
 #integraBox a{color:var(--silver)}
+.modal.wiz{width:min(760px,96vw);max-width:96vw;max-height:92vh;overflow:auto;text-align:left}
+.wiz-steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}.wiz-steps span{padding:6px 10px;border-radius:999px;border:1px solid var(--b2);font-size:12px;color:var(--muted)}
+.wiz-steps span.on{color:#000;background:var(--silver);border-color:var(--silver);font-weight:600}.wiz-steps span.ok{color:var(--white);border-color:var(--white)}
+.wiz-acts{display:flex;gap:8px;align-items:center;margin-top:16px;flex-wrap:wrap}.wiz h2{margin:0 0 6px;font-weight:500;color:var(--white)}
+.eq-ch{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.eq-ch .inp{max-width:200px;min-height:40px}
+body.prof-monitor .side,body.prof-monitor .tabs{display:none}body.prof-monitor main{grid-template-columns:minmax(0,1fr)}
+body.prof-pc .key{min-height:52px}
 .btn{min-height:var(--tap);padding:10px 14px;border:1px solid var(--b2);border-radius:var(--r);background:var(--p2);color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;letter-spacing:.3px;text-align:center;transition:transform .08s}
 .btn.primary{background:var(--white);color:#000;border-color:var(--white)}
 .btn.sos{grid-column:1/-1;min-height:84px;font-size:22px;letter-spacing:3px;background:#000;border:2px solid var(--white)}
@@ -302,6 +311,84 @@ html{touch-action:manipulation}
   .mbody{min-height:60vh}
   .ticker{font-size:11px}
 }
+
+/* ── FRENTE DEL PORTERO (pantalla de inicio táctil) ── */
+#front{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;gap:14px;background:var(--bg);padding:max(14px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));overflow:hidden;color:var(--silver)}
+#front.on{display:flex}
+#front::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 500px at 12% -10%,rgba(255,255,255,.07),transparent 60%),radial-gradient(700px 500px at 100% 110%,rgba(224,224,224,.05),transparent 60%)}
+#front>*{position:relative}
+#front .i{width:1.25em;height:1.25em}
+.fr-bar{display:flex;align-items:center;gap:14px;min-height:64px}
+.fr-brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.fr-logo{width:52px;height:52px;border-radius:16px;background:#000;border:1px solid var(--b1);display:grid;place-items:center;overflow:hidden;flex:none}
+.fr-logo img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.fr-brand>div:last-child{min-width:0}
+.fr-brand b{display:block;font-size:19px;letter-spacing:-.02em;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-brand small{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-ibtn{width:48px;height:48px;border-radius:14px;border:1px solid var(--b1);display:grid;place-items:center;background:var(--p2);color:var(--silver);cursor:pointer}
+.fr-ibtn:active{transform:scale(.94);background:var(--p3)}
+.fr-clock{text-align:right;line-height:1.15}
+.fr-clock b{display:block;font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--white);font-weight:700}
+.fr-clock small{display:flex;align-items:center;gap:6px;justify-content:flex-end;color:var(--muted);font-size:13px}
+.fr-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.fr-dot.on{background:var(--white);box-shadow:0 0 0 4px rgba(255,255,255,.14)}
+.fr-dot.off{background:transparent;border:2px solid var(--silver)}
+.fr-main{flex:1;min-height:0;display:flex;gap:16px}
+.fr-hero{flex:1.05;min-width:0;background:linear-gradient(160deg,#101010,#070707);border:1px solid var(--b1);border-radius:28px;padding:28px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.fr-hero::after{content:"";position:absolute;right:-90px;top:-90px;width:320px;height:320px;border:2px solid rgba(255,255,255,.09);border-radius:60px;transform:rotate(18deg);pointer-events:none}
+.fr-big{width:96px;height:96px;border-radius:28px;background:#000;border:1px solid var(--b1);display:grid;place-items:center;overflow:hidden}
+.fr-big img{width:100%;height:100%;object-fit:contain}
+.fr-hero h1{font-size:clamp(30px,4.4vw,52px);line-height:1.02;margin:18px 0 10px;color:var(--white);letter-spacing:-.02em;font-weight:800}
+.fr-hero h1 em{font-style:normal;color:var(--silver)}
+.fr-hero p{color:var(--muted);margin:0;max-width:34ch;font-size:17px}
+.fr-badge{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:99px;border:1px solid rgba(224,224,224,.35);background:rgba(255,255,255,.06);color:var(--silver);font-weight:700;font-size:14px;width:fit-content}
+.fr-infos{display:grid;gap:10px;margin-top:20px}
+.fr-info{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:14px}
+.fr-info b{color:var(--silver);font-weight:600}
+.fr-off{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;border:1px solid var(--silver);background:rgba(255,255,255,.06);color:var(--white);margin-bottom:12px}
+.fr-off b{display:block;font-size:16px}.fr-off small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.fr-tiles{flex:1.25;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:14px;min-width:0}
+.fr-tile{background:var(--p2);border:1px solid var(--b1);border-radius:22px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:left;min-height:96px;position:relative;overflow:hidden;cursor:pointer;color:var(--silver);transition:transform .12s,background .12s,border-color .12s}
+.fr-tile:active{transform:scale(.97);background:var(--p3)}
+#front .fr-tile .i{width:34px;height:34px;color:var(--white)}
+.fr-tile b{font-size:19px;letter-spacing:-.01em;display:block;color:var(--white)}
+.fr-tile small{color:var(--muted);font-size:13px;display:block;margin-top:2px}
+.fr-tile.main{grid-column:1/-1;background:linear-gradient(135deg,#fff,#d4d4d4);border-color:#fff;color:#000;flex-direction:row;align-items:center;gap:16px}
+#front .fr-tile.main .i{color:#000;width:48px;height:48px}
+.fr-tile.main b{font-size:26px;color:#000}
+.fr-tile.main small{color:rgba(0,0,0,.65)}
+.fr-tile.main,.fr-tile.sos,.fr-tile.wide{justify-content:flex-start}
+.fr-tile.wide{grid-column:1/-1;flex-direction:row;align-items:center;gap:14px;min-height:76px}
+.fr-tile.sos{border:2px solid var(--white);background:linear-gradient(160deg,rgba(255,255,255,.10),#000);flex-direction:row;align-items:center;gap:14px;min-height:84px}
+.fr-tile.sos.half,.fr-tile.fam{grid-column:auto}
+.fr-tile.sos:not(.half){grid-column:1/-1}
+.fr-tile.blocked,.fr-tile[disabled]{opacity:.42}
+.fr-tile[disabled]{pointer-events:none}
+.fr-ft{display:flex;gap:14px;align-items:center;justify-content:space-between;color:var(--muted);font-size:12.5px;flex-wrap:wrap}
+.fr-svb{display:flex;align-items:center;gap:14px;flex-basis:100%;background:linear-gradient(90deg,#0a0a0a,#121212);border:1px solid var(--b1);border-radius:16px;padding:10px 14px;color:var(--silver)}
+.fr-svb .mk{width:48px;height:44px;border-radius:12px;background:#000;border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;letter-spacing:.04em;color:#fff;flex:none}
+.fr-svb .tx{flex:1;min-width:0;line-height:1.25}
+.fr-svb .tx b{display:block;font-size:14px;color:var(--white)}
+.fr-svb .tx span{color:var(--muted);font-size:12px}
+.fr-svb .ct{display:flex;gap:8px;flex-wrap:wrap}
+.fr-svb .ct a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--b1);background:var(--p3);color:var(--silver);text-decoration:none;font-weight:600;font-size:13px}
+.fr-svb .ct a.wa{background:var(--silver);border-color:var(--silver);color:#000}
+.fr-dp{width:min(420px,94vw)}
+.fr-dp h3{margin:0 0 4px;font-size:22px;color:var(--white)}
+.fr-dp p{margin:0 0 12px;color:var(--muted);font-size:14px}
+.fr-dp .keys{margin-bottom:10px}
+.fr-dp .key{height:clamp(58px,9vh,74px)}
+@media (max-width:860px){
+  #front{overflow:auto}
+  .fr-main{flex-direction:column;overflow:visible;flex:none}
+  .fr-hero{flex:none;padding:20px}.fr-big{width:70px;height:70px}.fr-hero h1{font-size:30px}.fr-infos{display:none}
+  .fr-tiles{flex:none;grid-auto-rows:minmax(110px,auto)}
+  .fr-clock b{font-size:20px}.fr-brand small{display:none}
+  .fr-tile.main b{font-size:22px}
+  .fr-svb{flex-wrap:wrap}.fr-svb .ct{width:100%}
+}
+@media (max-height:640px) and (min-width:861px){.fr-hero{padding:18px}.fr-hero h1{font-size:30px}}
+@media (prefers-reduced-motion:reduce){#front *{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -336,6 +423,12 @@ html{touch-action:manipulation}
   <symbol id="ic-full" viewBox="0 0 24 24"><path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/></symbol>
   <symbol id="ic-talk" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
   <symbol id="ic-wa" viewBox="0 0 24 24"><path d="M3 21l1.7-5A9 9 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z"/></symbol>
+  <symbol id="ic-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 20 3M16 7l3 3M13.5 9.5l2.5 2.5"/></symbol>
+  <symbol id="ic-ticket" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 0 0 8v2a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-2a2 2 0 0 1 0-8V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1z"/><path d="M14 5v14" stroke-dasharray="2 3"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 11 12 3l9 8M5 10v10h14V10M10 20v-6h4v6"/></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v5M12 18h.01"/></symbol>
 </svg>
 
 <div class="app" id="app">
@@ -353,6 +446,7 @@ html{touch-action:manipulation}
       <span class="pill" id="stOcc" hidden title="Aforo: personas dentro"><i></i><span>0</span></span>
     </div>
     <div class="clock" id="clock">--:--</div>
+    <button class="ibtn" id="btnHome" aria-label="Inicio del portero" title="Inicio del portero"><svg class="i"><use href="#ic-home"/></svg></button>
     <button class="ibtn" id="btnMic" aria-label="Asistente de voz"><svg class="i"><use href="#ic-mic"/></svg></button>
     <button class="ibtn" id="btnAdmin" aria-label="Administración"><svg class="i"><use href="#ic-gear"/></svg></button>
   </header>
@@ -441,6 +535,37 @@ html{touch-action:manipulation}
   <footer class="ticker" id="ticker"><span>Sistema iniciado</span></footer>
 </div>
 
+<!-- FRENTE DEL PORTERO (pantalla de inicio) -->
+<section id="front" aria-label="Portero digital">
+  <header class="fr-bar">
+    <div class="fr-brand"><div class="fr-logo"><img id="frLogo" alt=""></div><div><b id="frName"></b><small id="frSub"></small></div></div>
+    <button class="fr-ibtn" data-fr="console" aria-label="Cámaras y consola" title="Cámaras y consola"><svg class="i"><use href="#ic-grid"/></svg></button>
+    <button class="fr-ibtn" data-fr="fs" aria-label="Pantalla completa" title="Pantalla completa"><svg class="i"><use href="#ic-full"/></svg></button>
+    <div class="fr-clock"><b id="frClk">--:--</b><small><span class="fr-dot" id="frDot"></span><span id="frSt"></span></small></div>
+  </header>
+  <main class="fr-main" id="frMain"></main>
+  <footer class="fr-ft">
+    <div class="fr-svb"><div class="mk">SVB</div>
+      <div class="tx"><b>Desarrollado por Vincular Business · Sistema VB</b><span>Software de gestión, digitalización y seguridad para comercios y organizaciones · Argentina</span></div>
+      <div class="ct"><a class="wa" id="frWa" href="https://wa.me/5493874484132" target="_blank" rel="noopener"><svg class="i"><use href="#ic-phone"/></svg> WhatsApp (387) 4484132</a><a href="mailto:vincularbusiness@gmail.com">vincularbusiness@gmail.com</a></div></div>
+  </footer>
+</section>
+
+<!-- PIN desde el frente -->
+<div class="ov-full center" id="dpOv">
+  <div class="modal fr-dp">
+    <h3>Ingresar con PIN</h3>
+    <p>Socios y equipo · también podés usar el teclado de la PC</p>
+    <div class="display" id="dpDisplay"><span>Ingrese PIN</span></div>
+    <div class="keys" id="dpKeys"></div>
+    <div class="bio-acts" id="dpBio" hidden>
+      <button class="btn" id="dpPk" hidden><svg class="i"><use href="#ic-finger"/></svg>Huella</button>
+      <button class="btn" id="dpFace" hidden><svg class="i"><use href="#ic-face"/></svg>Rostro</button>
+    </div>
+    <button class="btn" id="dpClose" style="width:100%;margin-top:10px">Cerrar</button>
+  </div>
+</div>
+
 <!-- SOS -->
 <div class="ov-full center" id="sosOv">
   <div class="big-t">LLAMANDO AL 911 EN</div>
@@ -498,6 +623,19 @@ html{touch-action:manipulation}
       <div id="cfgForm"><p class="muted small">Cargando…</p></div>
     </section>
 
+    <section class="pane setup" data-pane="equipos" data-n="📷" data-title="Equipos y cámaras">
+      <h2>Equipos y cámaras</h2>
+      <p class="lead">Cámaras IP, grabadores NVR y XVR/DVR de cualquier marca. Tocá <b>Buscar en la red</b>: el sistema los encuentra solo, y con el usuario y la clave del equipo trae sus canales y la dirección de video exacta (ONVIF). Si un equipo no tiene ONVIF, se agrega por marca o por dirección RTSP.</p>
+      <div class="ig-row"><label class="f">Rango (vacío = automático)<input class="inp" id="eqScan" placeholder="192.168.1.0/24"></label><button class="btn primary" data-eq="scan">Buscar en la red</button><button class="btn" data-eq="manual">Agregar a mano</button></div>
+      <div id="eqDisc" class="small" style="margin-top:10px"></div>
+      <div id="eqForm"></div>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:22px">EQUIPOS AGREGADOS</h3>
+      <div id="eqList" class="list"><p class="muted small">Cargando…</p></div>
+      <h3 class="muted small" style="letter-spacing:2px;margin-top:22px">PERIFÉRICOS DE ESTE EQUIPO</h3>
+      <div id="eqPeri" class="ig-chips"></div>
+      <p class="small muted">El grabador Dahua de la app DMSS se configura por número de serie en ★ Configuración → Grabador Dahua. Las cerraduras ESP32 se vinculan solas en ★ Configuración → Cerradura.</p>
+    </section>
+
     <section class="pane setup" data-pane="portero" data-n="🔔" data-title="Portero y avisos al celular">
       <h2>Portero digital y avisos al celular</h2>
       <p class="lead">Pegá este QR (y un sticker NFC) en la puerta. El cliente lo escanea con su celular y toca el timbre: suena en este equipo con la imagen de la cámara, les llega el aviso a los dueños (notificación con foto y botones, o WhatsApp) y la respuesta aparece en la pantalla del cliente.</p>
@@ -553,6 +691,10 @@ html{touch-action:manipulation}
       <div class="row">
         <label class="f">Nombre del negocio<input class="inp" id="sBiz"></label>
         <label class="f">Perfil<select class="inp" id="sMode"><option value="corp">Corporativo / Alta seguridad</option><option value="home">Residencial / Doméstico</option></select></label>
+      </div>
+      <div class="row">
+        <label class="f">Frase de la pantalla de inicio<input class="inp" id="sTagline" maxlength="60" placeholder="Ej.: Control de accesos y seguridad"></label>
+        <label class="f">Dirección (se muestra en el inicio)<input class="inp" id="sAddr" maxlength="80" placeholder="Ej.: Av. Belgrano 123, Salta"></label>
       </div>
       <div class="row">
         <label class="f">Logo (se guarda en este equipo)<input class="inp" type="file" id="sLogo" accept="image/*"></label>
@@ -723,7 +865,7 @@ html{touch-action:manipulation}
         <div class="tx"><b>Desarrollado por Vincular Business · Sistema VB</b><span>Software de gestión, digitalización y seguridad para comercios y servicios · Salta, Argentina</span></div>
         <div class="ct"><a class="btn sm primary" id="devWa" href="https://wa.me/5493874484132" target="_blank" rel="noopener"><svg class="i"><use href="#ic-wa"/></svg>WhatsApp (387) 4484132</a><a class="btn sm" href="mailto:vincularbusiness@gmail.com">vincularbusiness@gmail.com</a></div>
       </div>
-      <div class="cfgcard"><h3>Sistemas VB Seguridad v2.0</h3><p class="help" id="devInfoTxt" style="margin:0"></p></div>
+      <div class="cfgcard"><h3>Sistemas VB Seguridad v2.2</h3><p class="help" id="devInfoTxt" style="margin:0"></p></div>
     </section>
 
     <section class="pane" data-pane="sistema" data-n="10" data-title="Sistema">
@@ -736,15 +878,27 @@ html{touch-action:manipulation}
         <button class="btn sm" id="sysQuit" disabled>Cerrar app</button>
         <button class="btn sm ghost" id="sysReset">Restablecer ajustes</button>
       </div>
-      <p class="small muted" style="margin-top:16px">Sistemas VB Seguridad v2.0 · Sistema Vincular Business · WhatsApp (387) 4484132 · vincularbusiness@gmail.com</p>
+      <div class="row" style="margin-top:14px"><label class="f">Tipo de pantalla<select class="inp" id="sProf"><option value="auto">Automático según el dispositivo</option><option value="pared">Tablet de pared / tótem (táctil)</option><option value="celular">Celular</option><option value="monitor">Monitor de cámaras (solo ver)</option><option value="pc">PC de administración</option></select></label>
+        <div style="display:flex;align-items:end"><button class="btn sm" id="sysWizard">Abrir asistente de instalación</button></div></div>
+      <p class="small muted">Para un televisor o monitor fijo se puede abrir el panel con <code>?pantalla=monitor</code> al final de la dirección.</p>
+      <p class="small muted" style="margin-top:16px">Sistemas VB Seguridad v2.2 · Sistema Vincular Business · WhatsApp (387) 4484132 · vincularbusiness@gmail.com</p>
     </section>
+  </div>
+</div>
+
+<!-- Asistente de instalación -->
+<div class="ov-full center" id="wizOv">
+  <div class="modal wiz">
+    <div class="wiz-steps" id="wizSteps"></div>
+    <div id="wizBody"></div>
+    <div class="wiz-acts"><button class="btn ghost" id="wizSkip">Terminar después</button><span class="spacer"></span><button class="btn" id="wizBack">Atrás</button><button class="btn primary" id="wizNext">Siguiente</button></div>
   </div>
 </div>
 
 <!-- Timbre del portero digital -->
 <div class="ov-full center" id="ringOv">
   <div class="ringbox">
-    <div class="big-t" style="font-size:24px">🔔 TOCAN EL TIMBRE</div>
+    <div class="big-t" style="font-size:24px" id="ringTitle">🔔 TOCAN EL TIMBRE</div>
     <div class="sub-t" id="ringWho"></div>
     <div class="ringcam" id="ringCam"></div>
     <div class="ringacts">
@@ -753,6 +907,7 @@ html{touch-action:manipulation}
       <button class="btn" data-reply="deje">Dejar en la puerta</button>
       <button class="btn" data-reply="cerrado">No atendemos</button>
       <button class="btn" data-reply="pase"><svg class="i"><use href="#ic-lock"/></svg>Abrir puerta</button>
+      <button class="btn" id="ringTalk" hidden>🎙 Hablar y escuchar</button>
       <button class="btn ghost" id="ringClose">Cerrar</button>
     </div>
   </div>
@@ -774,7 +929,7 @@ html{touch-action:manipulation}
 <div class="toast" id="toast"></div>
 
 <!--@@FW_BEGIN--><script type="text/plain" id="fw-src">/*
- * Sistemas VB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
+ * Sistemas VB Seguridad — Controlador de cerradura para ESP32
  * ------------------------------------------------------------------
  * NO hace falta editar este código: se configura desde el celular.
  *
@@ -1156,9 +1311,21 @@ const fmtTime = (d) => new Date(d).toLocaleString('es-AR', { hour12: false });
 const isElectron = !!window.electronAPI;
 const isTauri = !!window.__TAURI__;
 
+/* ═══════════════════════════ ALMACENAMIENTO PROPIO DE ESTE SISTEMA ═══════════════════════════ */
+// Varios sistemas publicados en el mismo dominio (ej. usuario.github.io/sistemaA y /sistemaB) comparten localStorage.
+// Cada instalación usa su propio espacio según su carpeta, para no leer datos de otro sistema.
+const LS_NS = 'svbi:' + location.pathname.replace(/[^/]*$/, '') + ':';
+const LS = {
+  getItem: (k) => localStorage.getItem(LS_NS + k),
+  setItem: (k, v) => localStorage.setItem(LS_NS + k, v),
+  removeItem: (k) => localStorage.removeItem(LS_NS + k),
+  clear: () => Object.keys(localStorage).filter((k) => k.startsWith(LS_NS)).forEach((k) => localStorage.removeItem(k)),
+};
+// Migración única: los ajustes de RAVE guardados antes de separar el almacenamiento por instalación (claves "svb.*") pasan a la clave propia.
+try { if (localStorage.getItem(LS_NS + 'svb.settings') === null && localStorage.getItem('svb.settings') !== null) Object.keys(localStorage).filter((k) => k.startsWith('svb.')).forEach((k) => localStorage.setItem(LS_NS + k, localStorage.getItem(k))); } catch { /* sin almacenamiento */ }
 /* ═══════════════════════════ AJUSTES ═══════════════════════════ */
 const DEFAULTS = {
-  biz: 'Almacén Rave', mode: 'corp', logo: '',
+  biz: 'Almacén Rave', mode: 'corp', logo: '', tagline: '', addr: '',
   emergency: '911', familyName: 'Familiar', familyPhone: '', familyWa: true, officePhone: '', ringCall: false,
   voiceOn: false, wakeOn: false, wake: 'rave', lang: 'es-AR', voice: '', sens: 0.4, rate: 1,
   chime: 0, vol: 0.7,
@@ -1169,17 +1336,17 @@ const DEFAULTS = {
   dbOn: true, dbTopic: '', dbWa: '', dbPage: '', ntfyUrl: 'https://ntfy.sh', cmbUrl: 'https://api.callmebot.com',
   nPush: false, nTopic: '', nWa: false, nRecips: [], nEv: { ring: true, sos: true, duress: true, lock: true, alarm: true, off: false },
 };
-const S = (() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('svb.settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
-function save() { try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } if (typeof pushShared === 'function') pushShared(); }
+const S = (() => { try { return { ...DEFAULTS, ...JSON.parse(LS.getItem('svb.settings') || '{}') }; } catch { return { ...DEFAULTS }; } })();
+function save() { try { LS.setItem('svb.settings', JSON.stringify(S)); } catch (e) { toast('No se pudo guardar (almacenamiento lleno)'); } if (typeof pushShared === 'function') pushShared(); }
 
 /* ═══════════════════════════ LOG DE AUDITORÍA ═══════════════════════════ */
 const LOG_KEY = 'svb.audit';
-let audit = (() => { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; } })();
+let audit = (() => { try { return JSON.parse(LS.getItem(LOG_KEY) || '[]'); } catch { return []; } })();
 function logEvent(type, level, message, opt = {}) {
   const e = { id: (crypto.randomUUID && crypto.randomUUID()) || String(Date.now() + Math.random()), ts: new Date().toISOString(), type, level, message, origin: 'panel', hidden: !!opt.hidden };
   audit.unshift(e);
   if (audit.length > 2000) audit.length = 2000;
-  try { localStorage.setItem(LOG_KEY, JSON.stringify(audit)); } catch { audit.length = 500; }
+  try { LS.setItem(LOG_KEY, JSON.stringify(audit)); } catch { audit.length = 500; }
   if (!e.hidden) tick(`${type}`, message);
   if (opt.sync !== false && net.online) api('/api/events', { method: 'POST', body: { type, level, message } }).catch(() => {});
   return e;
@@ -1251,6 +1418,7 @@ function setPill(id, state, title) {
 }
 function paintStatus() {
   const st = net.status;
+  setTimeout(paintFront, 0);
   setPill('#stServer', net.online ? 'on' : '', net.online ? 'Servidor conectado' : 'Modo autónomo');
   const cams = st && st.cameras;
   const camOk = cams && cams.configured && cams.go2rtc.running;
@@ -1314,8 +1482,10 @@ function applyBrand() {
   document.title = `Sistemas VB Seguridad · ${S.biz}`;
   const wa = `https://wa.me/5493874484132?text=${encodeURIComponent(`Hola Vincular Business, consulto por Sistemas VB Seguridad de ${S.biz}`)}`;
   $('#devWa').href = wa; $('#devLine').href = wa;
+  paintFront();
 }
 function setView(v) {
+  if (typeof FRONT !== 'undefined' && FRONT.on && v && FRONT.html) showFront(false); // "ver cámaras" por voz, etc.
   $$('.tab[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
   $$('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + v));
   document.querySelector('main').classList.toggle('wide', v === 'cctv');
@@ -1335,29 +1505,42 @@ function renderDots(el, len, placeholder) {
 let pin = '';
 let localFails = 0, lockedUntil = 0;
 function onDoorKey(k) {
+  if (FRONT.on && !dpOpen() && /^\d$/.test(k)) openDp(); // tecleando en la PC se abre la ventana de PIN
+  if (dpOpen()) armDp();
   if (k === 'C') pin = '';
   else if (k === 'OK') { const p = pin; pin = ''; submitPin(p, 'teclado'); }
   else if (pin.length < 8) pin += k;
-  renderDots($('#pinDisplay'), pin.length, 'Ingrese PIN');
+  paintPin();
 }
 const scanKb = { b: '', t: 0 }; // lector de QR USB/Bluetooth: tipea "SVB1|123456|…" + Enter muy rápido
+// Teclado físico (PC, teclado USB/Bluetooth) en la ventana de PIN: administración, abrir puerta, escenas
+addEventListener('keydown', (e) => {
+  if (!$('#pinOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
+  const d = /^\d$/.test(e.key) ? e.key : ((e.code || '').match(/^Numpad(\d)$/) || [])[1];
+  if (d) { e.preventDefault(); onAdminKey(d); }
+  else if (e.key === 'Enter') { e.preventDefault(); onAdminKey('OK'); }
+  else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); onAdminKey('C'); }
+  else if (e.key === 'Escape') { e.preventDefault(); closePinOv(); }
+}, true);
 addEventListener('keydown', (e) => {
   if ($('#adminOv').classList.contains('show') || $('#pinOv').classList.contains('show') || $('#pbOv').classList.contains('show') || $('#ringOv').classList.contains('show') || $('#faceOv').classList.contains('show') || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName)) return;
   const now = Date.now();
   if (e.key.length === 1) { if (now - scanKb.t > 80) scanKb.b = ''; scanKb.t = now; scanKb.b += e.key; }
   if (e.key === 'Enter') {
-    const m = scanKb.b.match(/SVB1\W?(\d{6})/i); scanKb.b = '';
-    if (m) { e.preventDefault(); pin = ''; renderDots($('#pinDisplay'), 0, 'Ingrese PIN'); if (!accOpen()) return closedFlash(); return submitPin(m[1], 'lector QR'); }
+    const m = scanKb.b.match(/SVB1\W?(\d{6})/i); if (scanKb.b.length >= 8) { window.SVB_QR_READER = true; try { LS.setItem('svb.qrReader', '1'); } catch { /* sin almacenamiento */ } } scanKb.b = '';
+    if (m) { e.preventDefault(); pin = ''; paintPin(); if (!accOpen()) return closedFlash(); return submitPin(m[1], 'lector QR'); }
   }
-  if (/^\d$/.test(e.key)) onDoorKey(e.key);
+  const nd = /^\d$/.test(e.key) ? e.key : ((e.code || '').match(/^Numpad(\d)$/) || [])[1];
+  if (nd) onDoorKey(nd);
   else if (e.key === 'Enter') onDoorKey('OK');
   else if (e.key === 'Backspace' || e.key === 'Escape') onDoorKey('C');
 });
 
-function localVisitors() { try { return JSON.parse(localStorage.getItem('svb.visitors') || '[]').filter((v) => new Date(v.expires) > new Date()); } catch { return []; } }
+function localVisitors() { try { return JSON.parse(LS.getItem('svb.visitors') || '[]').filter((v) => new Date(v.expires) > new Date()); } catch { return []; } }
 
 async function submitPin(p, source) {
   if (!p) return;
+  closeDp();
   if (Date.now() < lockedUntil) { flash(null, 'TECLADO BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
   if (net.online) {
     try { return doorResult(await api('/api/door/open', { method: 'POST', body: { pin: p, source, ms: S.relayMs } }), source); } catch { net.online = false; }
@@ -1369,7 +1552,7 @@ async function submitPin(p, source) {
   else if (p === S.doorPin) result = 'open';
   else if (v) {
     who = v.name; result = accOpen() ? 'open' : 'closed';
-    if (result === 'open') { const all = JSON.parse(localStorage.getItem('svb.visitors') || '[]'); const x = all.find((y) => y.id === v.id); if (x) { x.used = (x.used || 0) + 1; localStorage.setItem('svb.visitors', JSON.stringify(all)); } }
+    if (result === 'open') { const all = JSON.parse(LS.getItem('svb.visitors') || '[]'); const x = all.find((y) => y.id === v.id); if (x) { x.used = (x.used || 0) + 1; LS.setItem('svb.visitors', JSON.stringify(all)); } }
   } else if (++localFails >= 5) { result = 'locked'; retry = 60; localFails = 0; }
   return doorResult({ result, _c: covert ? 1 : 0, visitor: who, retryIn: retry, offline: true }, source);
 }
@@ -1595,6 +1778,82 @@ setInterval(() => {
   });
 }, 4000);
 /* ═══════════════════════════ PORTERO DIGITAL (timbre por QR / NFC) ═══════════════════════════ */
+/* ── Video portero: cámara del celular del visitante → panel (WebRTC P2P, foto de respaldo por el relevo) ── */
+const RTC_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+let VD = null;
+const b64buf = (buf) => { let s = ''; const a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+async function sigPack(obj) {
+  const txt = JSON.stringify(obj);
+  if (window.CompressionStream) { const st = new Blob([txt]).stream().pipeThrough(new CompressionStream('deflate-raw')); return 'z' + b64buf(await new Response(st).arrayBuffer()); }
+  return 'p' + b64buf(new TextEncoder().encode(txt));
+}
+async function sigUnpack(d) {
+  const bin = Uint8Array.from(atob(d.slice(1)), (c) => c.charCodeAt(0));
+  if (d[0] === 'z') { const st = new Blob([bin]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return JSON.parse(await new Response(st).text()); }
+  return JSON.parse(new TextDecoder().decode(bin));
+}
+async function sigSend(base, sig, id, kind, data) {
+  const parts = String(data).match(/.{1,3000}/g) || [''];
+  for (let i = 0; i < parts.length; i++) await fetch(`${base}/${encodeURIComponent(sig)}`, { method: 'POST', body: JSON.stringify({ type: 'sig', id, kind, i, n: parts.length, d: parts[i] }) });
+}
+function ringMedia(el) { const cam = $('#ringCam'); cam.innerHTML = ''; cam.appendChild(el); }
+function videoDoor(r) {
+  closeVideoDoor(false);
+  if (!r.video || !r.rtc || !/^[\w-]{10,90}$/.test(r.rtc.sig || '') || !window.EventSource) return;
+  const vd = VD = { id: r.id, base: r.rtc.base, sig: r.rtc.sig, parts: {}, got: {}, pc: null, mic: null, video: null, face: null };
+  vd.facePromise = new Promise((res) => { vd.faceRes = res; });
+  $('#ringTalk').hidden = false; $('#ringTalk').classList.remove('on');
+  vd.es = new EventSource(`${vd.base}/${encodeURIComponent(vd.sig)}/sse?since=300s`);
+  vd.es.onmessage = async (ev) => {
+    if (VD !== vd) return;
+    let p; try { p = JSON.parse(JSON.parse(ev.data).message); } catch { return; }
+    if (!p || p.type !== 'sig' || p.id !== vd.id || !['photo', 'offer'].includes(p.kind) || vd.got[p.kind]) return;
+    const n = Math.max(1, Math.min(40, +p.n || 1)); const box = vd.parts[p.kind] = vd.parts[p.kind] || new Array(n);
+    box[Math.max(0, Math.min(n - 1, +p.i || 0))] = String(p.d || '').slice(0, 3000);
+    for (let i = 0; i < n; i++) if (!box[i]) return;
+    vd.got[p.kind] = true; // solo se acepta el primero de cada tipo
+    const data = box.join('');
+    if (p.kind === 'photo') {
+      if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 150000) return;
+      vd.face = data; vd.faceRes(data);
+      if (!vd.video) { const img = new Image(); img.src = data; img.alt = 'Visitante'; ringMedia(img); }
+      logEvent('DOORBELL_FACE', 'INFO', 'Foto del visitante recibida desde su celular', { sync: false });
+      return;
+    }
+    try { const offer = await sigUnpack(data); if (offer.type === 'offer' && typeof offer.sdp === 'string' && offer.sdp.length < 20000) await answerVideoDoor(vd, offer); } catch { /* oferta inválida */ }
+  };
+}
+async function answerVideoDoor(vd, offer) {
+  const pc = vd.pc = new RTCPeerConnection({ iceServers: RTC_ICE });
+  try { vd.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); vd.mic.getTracks().forEach((t) => { t.enabled = false; pc.addTrack(t, vd.mic); }); } catch { /* sin micrófono: solo ver */ }
+  pc.ontrack = (e) => {
+    if (e.track.kind !== 'video' || VD !== vd) return;
+    const v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.muted = true; v.srcObject = e.streams[0] || new MediaStream([e.track]);
+    v.className = 'visitor'; vd.video = v; ringMedia(v); v.play().catch(() => {});
+    const tag = document.createElement('span'); tag.className = 'vlive'; tag.textContent = '● EN VIVO · CELULAR DEL VISITANTE'; $('#ringCam').appendChild(tag);
+  };
+  pc.onconnectionstatechange = () => { if (VD === vd && ['failed', 'disconnected'].includes(pc.connectionState) && vd.face && vd.video) { const img = new Image(); img.src = vd.face; ringMedia(img); vd.video = null; } };
+  await pc.setRemoteDescription(offer);
+  await pc.setLocalDescription(await pc.createAnswer());
+  await new Promise((r) => { if (pc.iceGatheringState === 'complete') return r(); pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 2500); });
+  if (VD === vd) await sigSend(vd.base, vd.sig, vd.id, 'answer', await sigPack({ type: 'answer', sdp: pc.localDescription.sdp }));
+}
+function toggleTalk() {
+  if (!VD) return;
+  const on = !$('#ringTalk').classList.contains('on');
+  $('#ringTalk').classList.toggle('on', on); $('#ringTalk').textContent = on ? '🔇 Dejar de hablar' : '🎙 Hablar y escuchar';
+  if (VD.mic) VD.mic.getAudioTracks().forEach((t) => { t.enabled = on; });
+  if (VD.video) { VD.video.muted = !on; VD.video.play().catch(() => {}); }
+  if (on && !VD.mic) toast('Sin micrófono en este equipo: el visitante no te escucha');
+}
+function closeVideoDoor(bye) {
+  const vd = VD; if (!vd) return; VD = null;
+  if (bye) fetch(`${vd.base}/${encodeURIComponent(vd.sig)}`, { method: 'POST', body: JSON.stringify({ type: 'sig', id: vd.id, kind: 'bye', i: 0, n: 1, d: '' }) }).catch(() => {});
+  try { vd.es.close(); } catch { /* cerrado */ }
+  try { vd.pc && vd.pc.close(); } catch { /* cerrado */ }
+  if (vd.mic) vd.mic.getTracks().forEach((t) => t.stop());
+  $('#ringTalk').hidden = true;
+}
 let curRing = null, ringTimer = null, ringChime = null;
 function showRing(r) {
   curRing = r;
@@ -1603,6 +1862,8 @@ function showRing(r) {
   const ch = (net.status && net.status.cameras.configured && net.status.cameras.channels.find((c) => c.ch === (S.ringCam || 1))) || null;
   if (ch && customElements.get('svb-stream')) cam.appendChild(streamEl(ch.hd, () => {}));
   else { const d = frameFrom(doorVideo()); if (d) cam.innerHTML = `<img src="${d}" alt="">`; }
+  $('#ringTitle').textContent = r.video ? '📹 PORTERO DIGITAL · LLAMADA' : '🔔 TOCAN EL TIMBRE';
+  videoDoor(r);
   $('#ringOv').classList.add('show');
   CHIMES[S.chime].play(); clearInterval(ringChime); let n = 0;
   ringChime = setInterval(() => { if (++n > 3 || !curRing) return clearInterval(ringChime); CHIMES[S.chime].play(); }, 4000);
@@ -1610,7 +1871,7 @@ function showRing(r) {
   speak('Tocan el timbre');
   tick('DOORBELL_QR', $('#ringWho').textContent);
 }
-function hideRing() { curRing = null; clearInterval(ringChime); $('#ringOv').classList.remove('show'); $('#ringCam').innerHTML = ''; }
+function hideRing() { closeVideoDoor(true); curRing = null; clearInterval(ringChime); $('#ringOv').classList.remove('show'); $('#ringCam').innerHTML = ''; }
 async function replyRing(code) {
   if (!curRing) return;
   if (curRing.direct) {
@@ -1677,14 +1938,14 @@ const ntfyBase = () => String(S.ntfyUrl || 'https://ntfy.sh').replace(/\/+$/, ''
 const rndTopic = (p) => p + Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
 function ensureTopics() {
   let ch = false;
-  if (!/^[\w-]{10,64}$/.test(S.dbTopic || '')) { S.dbTopic = rndTopic('rave-'); ch = true; }
-  if (!/^[\w-]{10,64}$/.test(S.nTopic || '')) { S.nTopic = rndTopic('rave-own-'); ch = true; }
+  if (!/^[\w-]{10,64}$/.test(S.dbTopic || '')) { S.dbTopic = rndTopic('svb-'); ch = true; }
+  if (!/^[\w-]{10,64}$/.test(S.nTopic || '')) { S.nTopic = rndTopic('svb-own-'); ch = true; }
   if (ch) save();
 }
 function doorbellPage() {
   if (S.dbPage) return S.dbPage;
   const here = new URL('timbre.html', location.href);
-  return here.protocol === 'https:' ? here.origin + here.pathname : 'https://raveholding.github.io/SVBSguridad/timbre.html';
+  return here.protocol === 'https:' ? here.origin + here.pathname : 'https://raveholding.github.io/SeguridadRave/timbre.html';
 }
 function directUrl() {
   ensureTopics();
@@ -1723,7 +1984,7 @@ function onDirectMsg(m, p) {
     if (!id || seenRings.has(id)) return;
     seenRings.add(id); if (seenRings.size > 200) seenRings.clear();
     if (m.time && Date.now() / 1000 - m.time > 90) return; // timbre viejo (reconexión)
-    return onDirectRing({ id, name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), source: 'qr', direct: true, test: !!p.test });
+    return onDirectRing({ id, name: String(p.name || '').slice(0, 40), msg: String(p.msg || '').slice(0, 200), source: 'qr', direct: true, test: !!p.test, video: p.video === true, rtc: { base: ntfyBase(), sig: `${S.dbTopic}-v${id}` } });
   }
   if (m.topic === S.nTopic + '-c' && p.type === 'reply' && p.code !== 'pase') directReply(String(p.id || ''), String(p.code || ''), 'notificación push');
 }
@@ -1739,7 +2000,9 @@ async function onDirectRing(r) {
   directRings.set(r.id, r); if (directRings.size > 50) directRings.delete(directRings.keys().next().value);
   logEvent('DOORBELL_QR', 'INFO', `Timbre desde el celular del cliente${r.name ? ': ' + r.name : ''}${r.msg ? ' — ' + r.msg : ''}`, { sync: false });
   showRing(r);
-  const shot = (await captureEvidence('TIMBRE', 1, true))[0];
+  // La foto del aviso es la cara del visitante (desde su celular); si no llega en 6 s, la de la cámara de la puerta
+  const face = r.video && VD && VD.id === r.id ? await Promise.race([VD.facePromise, sleep(6000).then(() => null)]) : null;
+  const shot = face ? { data: face } : (await captureEvidence('TIMBRE', 1, true))[0];
   notifyDirect('ring', `🔔 Tocan el timbre · ${S.biz}`, `${[r.name && '👤 ' + r.name, r.msg && '💬 ' + r.msg].filter(Boolean).join('\n') || 'Cliente en la puerta'}\nRespondé con los botones.`, shot && shot.data, r.id);
 }
 function publishReply(id, code, text) {
@@ -1783,8 +2046,8 @@ async function sendWaDirect(rc, text) {
   try { await fetch(url, { mode: 'no-cors' }); return true; } catch { return false; } // CallMeBot no confirma por navegador
 }
 const NQKEY = 'svb.nq';
-const getQ = () => { try { return JSON.parse(localStorage.getItem(NQKEY) || '[]'); } catch { return []; } };
-const setQ = (q) => { try { localStorage.setItem(NQKEY, JSON.stringify(q.slice(-30))); } catch { /* lleno */ } };
+const getQ = () => { try { return JSON.parse(LS.getItem(NQKEY) || '[]'); } catch { return []; } };
+const setQ = (q) => { try { LS.setItem(NQKEY, JSON.stringify(q.slice(-30))); } catch { /* lleno */ } };
 async function notifyDirect(kind, title, body, photo, ringId) {
   if (net.online) return null; // con servidor avisa el servidor
   const ev = { ...DEFAULTS.nEv, ...(S.nEv || {}) };
@@ -1930,7 +2193,7 @@ async function buildGrid() {
     const c = slice[i];
     if (!c) {
       const e = document.createElement('div'); e.className = 'cell empty'; e.style.order = i;
-      e.textContent = list.length ? '—' : (net.online ? 'Grabador Dahua no configurado' : 'Instale el servidor Sistemas VB para ver las cámaras Dahua');
+      e.textContent = list.length ? '—' : (net.online ? 'Sin cámaras: agregalas en ⚙ → Equipos y cámaras' : 'Instale el servidor Sistemas VB Integral para ver las cámaras');
       grid.appendChild(e); continue;
     }
     const cell = makeCell(c, split); cell.style.order = i; grid.appendChild(cell);
@@ -1942,7 +2205,8 @@ function makeCell(c, split) {
   const cell = document.createElement('div');
   cell.className = 'cell' + (MON.sel === c.ch ? ' sel' : '');
   cell.dataset.ch = c.ch;
-  const tools = [['snap', 'ic-shot', 'Foto'], ['rec', 'ic-rec', 'Grabar clip'], ['audio', 'ic-spk', 'Escuchar'], ['talk', 'ic-talk', 'Hablar'], ['pip', 'ic-pip', 'Ventana flotante'], ['ptz', 'ic-ptz', 'Mover cámara (PTZ)'], ['max', 'ic-max', split === 1 ? 'Volver a la grilla' : 'Ampliar']];
+  const tools = [['snap', 'ic-shot', 'Foto'], ['rec', 'ic-rec', 'Grabar clip'], ['audio', 'ic-spk', 'Escuchar'], ['talk', 'ic-talk', 'Hablar'], ['pip', 'ic-pip', 'Ventana flotante'], ['ptz', 'ic-ptz', 'Mover cámara (PTZ)'], ['max', 'ic-max', split === 1 ? 'Volver a la grilla' : 'Ampliar']]
+    .filter(([a]) => a !== 'ptz' || !c.caps || c.caps.ptz);
   cell.innerHTML = `<div class="chead"><span class="drag" title="Arrastrar para ordenar"><svg class="i"><use href="#ic-drag"/></svg></span><span class="name">${esc(camName(c))}</span><span class="mbadge">MOV</span><span class="st">conectando</span></div>
     <div class="ctools">${tools.map(([a, ic, t]) => `<button data-act="${a}" title="${t}" aria-label="${t}"><svg class="i"><use href="#${ic}"/></svg></button>`).join('')}</div>
     <div class="ptzpad">${[['LeftUp', '↖'], ['Up', '↑'], ['RightUp', '↗'], ['Left', '←'], ['', ''], ['Right', '→'], ['LeftDown', '↙'], ['Down', '↓'], ['RightDown', '↘'], ['ZoomWide', '−'], ['', ''], ['ZoomTele', '+']].map(([code, l]) => code ? `<button data-ptz="${code}">${l}</button>` : '<span></span>').join('')}</div>`;
@@ -1968,7 +2232,7 @@ async function cellAction(cell, act) {
   if (act === 'snap') {
     const d = frameFrom(v, 0.92); if (!d) return toast('Todavía no hay imagen');
     await Vault.add({ id: `${Date.now()}-c${ch}`, ts: new Date().toISOString(), reason: `FOTO ${name}`, data: d }).catch(() => {});
-    download(`rave-${name}-${stamp}.jpg`, d); tone(1800, 0.05);
+    download(`svb-${name}-${stamp}.jpg`, d); tone(1800, 0.05);
     return logEvent('CAMERA_SNAPSHOT', 'INFO', `Foto de ${name}`, { sync: false });
   }
   if (act === 'rec') {
@@ -1977,7 +2241,7 @@ async function cellAction(cell, act) {
     if (!v || !v.captureStream || !window.MediaRecorder) return toast('Este navegador no puede grabar clips');
     const chunks = []; const mr = new MediaRecorder(v.captureStream(), { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' });
     mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    mr.onstop = () => { MON.recs.delete(ch); cell.classList.remove('rec'); btn.classList.remove('on'); cell.querySelector('.mbadge').textContent = 'MOV'; if (chunks.length) { download(`rave-${name}-${stamp}.webm`, new Blob(chunks, { type: 'video/webm' })); logEvent('CLIP_SAVED', 'INFO', `Clip de ${name}`, { sync: false }); } };
+    mr.onstop = () => { MON.recs.delete(ch); cell.classList.remove('rec'); btn.classList.remove('on'); cell.querySelector('.mbadge').textContent = 'MOV'; if (chunks.length) { download(`svb-${name}-${stamp}.webm`, new Blob(chunks, { type: 'video/webm' })); logEvent('CLIP_SAVED', 'INFO', `Clip de ${name}`, { sync: false }); } };
     mr.start(1000); MON.recs.set(ch, mr); cell.classList.add('rec'); btn.classList.add('on'); cell.querySelector('.mbadge').textContent = 'REC';
     return toast(`Grabando ${name}… tocá de nuevo para terminar`);
   }
@@ -2106,7 +2370,7 @@ function connectLive() {
   liveES.addEventListener('dvr', (e) => addDvrEvent(JSON.parse(e.data)));
   liveES.addEventListener('ring', (e) => showRing(JSON.parse(e.data)));
   liveES.addEventListener('settings', (e) => { const d = JSON.parse(e.data); if (d.by !== S.deviceId) pullShared(); });
-  liveES.addEventListener('config', () => refreshStatus());
+  liveES.addEventListener('config', (e) => { let d = {}; try { d = JSON.parse(e.data); } catch { /* sin datos */ } refreshStatus().then(() => { if (d.devices) buildGrid(); }); });
   liveES.addEventListener('access', (e) => setAccess(JSON.parse(e.data)));
   liveES.addEventListener('occupancy', (e) => paintOcc(JSON.parse(e.data)));
   liveES.addEventListener('scene', (e) => { const d = JSON.parse(e.data); applyNight(d.night); toast(`${d.label} · sistema ${d.armed ? 'ARMADO' : 'desarmado'}`); tick('ESCENA', `${d.label} (${d.by})`); });
@@ -2121,7 +2385,7 @@ function connectLive() {
 function openPlayback() {
   if (!net.online) return toast('Grabaciones requiere el servidor');
   const list = chanList(); if (!list.length) return toast('Grabador no conectado');
-  $('#pbCh').innerHTML = list.map((c) => `<option value="${c.ch}" ${c.ch === MON.sel ? 'selected' : ''}>${esc(camName(c))}</option>`).join('');
+  $('#pbCh').innerHTML = list.filter((c) => !c.caps || c.caps.playback).map((c) => `<option value="${c.ch}" ${c.ch === MON.sel ? 'selected' : ''}>${esc(camName(c))}</option>`).join('');
   const d = new Date(Date.now() - 3600e3); d.setSeconds(0, 0);
   if (!$('#pbStart').value) $('#pbStart').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $('#pbOv').classList.add('show');
@@ -2396,6 +2660,7 @@ function openAdmin() {
   $('#adminOv').classList.add('show');
   logEvent('ADMIN_OPEN', 'INFO', 'Ingreso a administración', { sync: true });
   loadForm(); renderLog(); renderVault(); renderVisitors(); paintStatus(); fillDoorSrcOptions(); loadSetup(); loadDevice(); loadDoorbell(); loadHours(); loadPeople();
+  if (net.online) api('/api/v1/wizard', { admin: true }).then((w) => { if (w && w.done === false) openWizard(0); }).catch(() => {});
   drawQr($('#linkQr'), base() || location.href);
   $('#linkTxt').textContent = (base() || location.href) + ' — escanear con el celular del dueño (misma red WiFi o Tailscale).';
 }
@@ -2576,7 +2841,7 @@ function pushShared() {
   pushT = setTimeout(async () => {
     const settings = {}; SHARED.forEach((k) => { settings[k] = S[k]; });
     const r = await api('/api/panel-settings', { method: 'PUT', admin: true, body: { device: S.deviceId, settings } }).catch(() => null);
-    if (r && r.v) { S._sv = r.v; try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch { /* lleno */ } }
+    if (r && r.v) { S._sv = r.v; try { LS.setItem('svb.settings', JSON.stringify(S)); } catch { /* lleno */ } }
   }, 700);
 }
 async function pullShared() {
@@ -2586,7 +2851,7 @@ async function pullShared() {
   const beforeCams = JSON.stringify([S.camNames, S.camOrder]);
   SHARED.forEach((k) => { if (k in r.settings) S[k] = r.settings[k]; });
   S._sv = r.v;
-  try { localStorage.setItem('svb.settings', JSON.stringify(S)); } catch { /* lleno */ }
+  try { LS.setItem('svb.settings', JSON.stringify(S)); } catch { /* lleno */ }
   applyBrand();
   if ([1, 4, 9, 16].includes(S.split)) MON.split = S.split;
   if (JSON.stringify([S.camNames, S.camOrder]) !== beforeCams && $('#cctvGrid').children.length) buildGrid();
@@ -2623,9 +2888,10 @@ function showPane(id) {
   if (id === 'portero') loadDoorbell();
   if (id === 'bio') checkFaceModel();
   if (id === 'integra') loadIntegra();
+  if (id === 'equipos') loadEquipos();
   if (id === 'soporte') $('#devInfoTxt').textContent = `Cliente: ${S.biz}. Panel ${isElectron ? 'de escritorio' : 'web'} en ${location.origin}. Servidor ${net.online ? 'conectado' : 'no disponible'}. Personas cargadas: ${ACC.people || 0}. Horario: ${ACC.text}.`;
 }
-const BIND = { sBiz: 'biz', sMode: 'mode', sEmergency: 'emergency', sFamilyName: 'familyName', sFamilyPhone: 'familyPhone', sFamilyWa: 'familyWa', sOfficePhone: 'officePhone', sRingCall: 'ringCall',
+const BIND = { sBiz: 'biz', sMode: 'mode', sTagline: 'tagline', sAddr: 'addr', sEmergency: 'emergency', sFamilyName: 'familyName', sFamilyPhone: 'familyPhone', sFamilyWa: 'familyWa', sOfficePhone: 'officePhone', sRingCall: 'ringCall',
   sVoiceOn: 'voiceOn', sWakeOn: 'wakeOn', sWake: 'wake', sLang: 'lang', sVoice: 'voice', sSens: 'sens', sRate: 'rate', sVol: 'vol', sRelay: 'relayMs', sRelayMode: 'relayMode',
   sDoorPin: 'doorPin', sDuressPin: 'duressPin', sAdminPin: 'adminPin', sServer: 'server', sDoorSrc: 'doorSrc', sGridQ: 'gridQ', sLowLat: 'lowLatency', sMot: 'motion', sLoit: 'loiter', sFace: 'face', sAiNotify: 'aiNotify' };
 function labels() {
@@ -2646,7 +2912,7 @@ function bindForm() {
       if (el.type === 'range' || el.type === 'number') v = parseFloat(v);
       if (['doorPin', 'duressPin', 'adminPin'].includes(k)) { v = String(v).replace(/\D/g, ''); el.value = v; if (v.length < 4) return; }
       S[k] = v; save(); labels();
-      if (k === 'mode' || k === 'biz' || k === 'familyName') applyBrand();
+      if (k === 'mode' || k === 'biz' || k === 'familyName' || k === 'tagline' || k === 'addr') applyBrand();
       if (k === 'lang' && rec) rec.lang = v;
       if (k === 'doorSrc') attachDoorChannel();
       if (k === 'gridQ' || k === 'server' || k === 'lowLatency') { if (k === 'server') { rtcLoaded = null; refreshStatus(); } buildGrid(); }
@@ -2694,7 +2960,7 @@ async function createPass() {
   if (!v) {
     let code; do { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); } while (code === S.doorPin || code === S.duressPin);
     v = { id: String(Date.now()), name, code, expires: new Date(Date.now() + hours * 3600e3).toISOString(), max, used: 0 };
-    localStorage.setItem('svb.visitors', JSON.stringify([...localVisitors(), v]));
+    LS.setItem('svb.visitors', JSON.stringify([...localVisitors(), v]));
     logEvent('VISITOR_CREATED', 'INFO', `Pase temporal para ${name} (${hours} h)`, { sync: false });
   }
   lastPass = v;
@@ -2706,11 +2972,11 @@ async function createPass() {
 /* ═══════════════════════════ HORARIO, PERSONAS, HUELLA Y ROSTRO (del portero Cannabismática) ═══════════════════════════ */
 const DAYN = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const ACC = Object.assign({ open: true, mode: 'always', text: 'Las 24 horas', sched: {}, pk: false, face: false, faceLive: true, people: 0 },
-  (() => { try { return JSON.parse(localStorage.getItem('svb.access') || '{}'); } catch { return {}; } })());
+  (() => { try { return JSON.parse(LS.getItem('svb.access') || '{}'); } catch { return {}; } })());
 function setAccess(info) {
   if (!info) return;
   Object.assign(ACC, info);
-  try { localStorage.setItem('svb.access', JSON.stringify(ACC)); } catch { /* lleno */ }
+  try { LS.setItem('svb.access', JSON.stringify(ACC)); } catch { /* lleno */ }
   paintAccess();
 }
 const hm = (x) => { const [a, b] = String(x || '0:0').split(':').map(Number); return a * 60 + b; };
@@ -2735,6 +3001,7 @@ function paintAccess() {
   $('#btnPk').hidden = !(net.online && ACC.pk);
   $('#btnFace').hidden = !(net.online && ACC.face);
   $('#bioActs').hidden = $('#btnPk').hidden && $('#btnFace').hidden;
+  paintFront();
 }
 setInterval(paintAccess, 30000);
 function closedFlash() {
@@ -3226,6 +3493,209 @@ async function integraClick(e) {
 }
 $('#integraBox').addEventListener('click', integraClick);
 
+/* ═══════════════════════════ EQUIPOS, PERIFÉRICOS, ASISTENTE Y PERFILES DE PANTALLA ═══════════════════════════ */
+var EQ = { disc: null, list: [] };
+try { if (LS.getItem('svb.qrReader')) window.SVB_QR_READER = true; } catch { /* sin almacenamiento */ }
+const VENDOR_TXT = { onvif: 'ONVIF', dahua: 'Dahua', hikvision: 'Hikvision', uniview: 'Uniview', axis: 'Axis', reolink: 'Reolink', xmeye: 'XMeye', rtsp: 'RTSP', espressif: 'ESP32' };
+const eqApi = (p, body, method) => api(p, { method: method || (body ? 'POST' : 'GET'), admin: true, body, timeout: 90000 }).catch((e) => ({ error: e.message }));
+async function loadEquipos() {
+  const box = $('#eqList');
+  if (!net.online) { box.innerHTML = '<div class="warn">Necesita el servidor Sistemas VB Integral encendido.</div>'; paintPeripherals(); return; }
+  const r = await eqApi('/api/v1/devices');
+  EQ.list = Array.isArray(r) ? r : [];
+  box.innerHTML = EQ.list.map((d) => `<div class="li" style="flex-direction:column;align-items:stretch" data-dev="${esc(d.id)}">
+      <div style="display:flex;gap:10px;align-items:center"><div class="grow"><b style="color:#fff">${esc(d.name)}</b> <span class="muted small">· ${esc(VENDOR_TXT[d.vendor] || d.vendor)}${d.info && d.info.model ? ' · ' + esc(d.info.model) : ''} · ${esc(d.host)}${d.ptz ? ' · PTZ' : ''}</span></div>
+      <button class="btn sm" data-eq="save">Guardar</button><button class="btn sm ghost" data-eq="del">Quitar</button></div>
+      ${d.channels.map((c) => `<div class="eq-ch"><label class="chk" style="min-height:40px"><input type="checkbox" data-ch-on="${c.ch}" ${c.enabled ? 'checked' : ''}>Ver</label><input class="inp" data-ch-name="${c.ch}" value="${esc(c.name)}" maxlength="30"><span class="muted small">canal ${c.ch}${c.ptz ? ' · motorizada' : ''}</span></div>`).join('')}
+    </div>`).join('') || '<p class="muted small">Todavía no hay equipos agregados.</p>';
+  paintPeripherals();
+}
+function eqBox(el) { return el.closest('[data-eqbox]') || $('[data-pane="equipos"]'); }
+function renderDisc(r, root) {
+  const out = $('[data-eqdisc]', root) || $('#eqDisc');
+  if (!r.devices) { out.innerHTML = `<div class="warn">${esc(r.error || 'No se pudo buscar')}</div>`; return; }
+  EQ.disc = r;
+  const cams = r.devices.filter((d) => d.kind !== 'esp32'); const locks = r.devices.filter((d) => d.kind === 'esp32');
+  out.innerHTML = `<p class="muted">${cams.length} cámara(s) o grabador(es)${locks.length ? ` y ${locks.length} cerradura(s) ESP32` : ''} · ${r.onvif} responden ONVIF · ${r.scanned} direcciones revisadas en ${Math.round(r.ms / 1000)} s.</p>`
+    + (cams.length ? `<div class="list">${cams.map((d, i) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(d.onvif && (d.onvif.name || d.onvif.hardware) || VENDOR_TXT[d.vendor] || 'Equipo de video')}</b> <span class="muted small">· ${esc(d.ip)} · ${esc(VENDOR_TXT[d.vendor] || 'marca desconocida')}${d.onvif ? ' · ONVIF' + (d.onvif.profiles.length ? ' ' + d.onvif.profiles.join('/') : '') : ''} · puertos ${esc(d.ports.join(', ') || '—')}</span></div>${d.added ? '<span class="muted small">ya agregado</span>' : `<button class="btn sm primary" data-eq="pick" data-i="${i}">Agregar</button>`}</div>`).join('')}</div>` : '<p class="muted small">No se encontraron cámaras. Verificá que estén encendidas y en la misma red, o agregalas a mano.</p>');
+  out.dataset.list = JSON.stringify(cams);
+}
+function addForm(root, pre = {}) {
+  const f = $('[data-eqform]', root) || $('#eqForm');
+  const vend = pre.onvif ? 'onvif' : pre.vendor && pre.vendor !== 'espressif' ? pre.vendor : 'onvif';
+  f.innerHTML = `<div class="cfgcard" style="margin-top:12px"><h3>Agregar equipo ${pre.ip ? '· ' + esc(pre.ip) : ''}</h3>
+    <div class="ig-row">
+      <label class="f">Dirección IP<input class="inp" data-af="host" value="${esc(pre.ip || '')}" placeholder="192.168.1.64"></label>
+      <label class="f">Puerto ONVIF / web<input class="inp" data-af="port" type="number" value="${esc((pre.onvif && pre.onvif.port) || 80)}"></label>
+      <label class="f">Usuario<input class="inp" data-af="user" value="admin" autocomplete="off"></label>
+      <label class="f">Contraseña<input class="inp" data-af="pass" type="password" autocomplete="new-password"></label></div>
+    <div class="ig-row">
+      <label class="f">Cómo conectarlo<select class="inp" data-af="vendor">${[['onvif', 'Automático (ONVIF) — recomendado'], ['dahua', 'Dahua (sin ONVIF)'], ['hikvision', 'Hikvision (sin ONVIF)'], ['uniview', 'Uniview'], ['axis', 'Axis'], ['reolink', 'Reolink'], ['xmeye', 'XMeye / genérica china'], ['rtsp', 'Dirección RTSP']].map(([v, t]) => `<option value="${v}" ${v === vend ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="f" data-af-wrap="count">Cantidad de canales<input class="inp" data-af="count" type="number" min="1" max="64" value="4"></label>
+      <label class="f" data-af-wrap="url" style="flex:2">Dirección RTSP<input class="inp" data-af="url" placeholder="rtsp://192.168.1.70:554/..."></label>
+      <label class="f">Nombre<input class="inp" data-af="name" placeholder="NVR depósito" maxlength="40"></label></div>
+    <div class="cfgacts"><button class="btn" data-eq="probe">Probar</button><button class="btn primary" data-eq="add">Agregar</button><button class="btn ghost" data-eq="cancel">Cancelar</button><span class="cfgout" data-eqout></span></div>
+    <div data-eqprobe class="small"></div></div>`;
+  const sync = () => { const v = $('[data-af="vendor"]', f).value; $('[data-af-wrap="count"]', f).hidden = ['onvif', 'rtsp'].includes(v); $('[data-af-wrap="url"]', f).hidden = v !== 'rtsp'; };
+  $('[data-af="vendor"]', f).addEventListener('change', sync); sync();
+  $('[data-af="pass"]', f).focus();
+}
+function formBody(f) {
+  const v = (k) => { const el = $(`[data-af="${k}"]`, f); return el ? el.value.trim() : ''; };
+  const vendor = v('vendor');
+  return { host: v('host'), port: +v('port') || 80, user: v('user'), pass: $('[data-af="pass"]', f).value, name: v('name'), ...(vendor === 'onvif' ? { mode: 'onvif' } : vendor === 'rtsp' ? { url: v('url') } : { vendor, count: +v('count') || 1 }) };
+}
+async function eqClick(e) {
+  const b = e.target.closest('[data-eq]'); if (!b) return;
+  const root = eqBox(b); const a = b.dataset.eq;
+  if (a === 'scan') {
+    const out = $('[data-eqdisc]', root) || $('#eqDisc'); out.textContent = 'Buscando cámaras, grabadores y cerraduras en la red… (hasta un minuto)';
+    const scanEl = $('#eqScan', root) || $('[data-eqscan]', root);
+    renderDisc(await eqApi('/api/v1/discovery', { scan: scanEl ? scanEl.value.trim() : '' }), root); return;
+  }
+  if (a === 'manual') return addForm(root);
+  if (a === 'pick') { const out = $('[data-eqdisc]', root) || $('#eqDisc'); const d = JSON.parse(out.dataset.list || '[]')[+b.dataset.i]; return addForm(root, d || {}); }
+  if (a === 'cancel') { ($('[data-eqform]', root) || $('#eqForm')).innerHTML = ''; return; }
+  if (a === 'probe' || a === 'add') {
+    const f = b.closest('.cfgcard'); const out = $('[data-eqout]', f); const pr = $('[data-eqprobe]', f);
+    const body = formBody(f);
+    if (!body.host) { out.textContent = 'Falta la dirección IP'; return; }
+    out.textContent = a === 'probe' ? 'Consultando el equipo…' : 'Agregando…';
+    if (a === 'probe' && body.mode !== 'onvif') { out.textContent = 'La prueba automática es por ONVIF. Con marca o RTSP, agregalo y mirá la imagen en la grilla.'; return; }
+    const r = await eqApi(a === 'probe' ? '/api/v1/devices/probe' : '/api/v1/devices', body);
+    if (r.error || r._status >= 400) { out.innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'No se pudo')}</span>`; Sfx.err(); return; }
+    if (a === 'probe') {
+      out.innerHTML = '<span class="ok-msg">✔ Equipo encontrado</span>';
+      pr.innerHTML = `<p><b style="color:#fff">${esc([r.info.manufacturer, r.info.model].filter(Boolean).join(' ') || 'Equipo ONVIF')}</b>${r.info.firmware ? ' · firmware ' + esc(r.info.firmware) : ''}${r.ptz ? ' · con PTZ' : ''}</p>` + r.channels.map((c) => `<div class="muted">${esc(c.name)} · ${esc(c.resolution || '')} ${esc(c.encoding || '')}${c.ptz ? ' · motorizada' : ''}</div>`).join('');
+      Sfx.ok(); return;
+    }
+    Sfx.ok(); toast(`Agregado: ${r.name} (${r.channels.length} canal${r.channels.length > 1 ? 'es' : ''})`);
+    f.parentElement.innerHTML = '';
+    loadEquipos(); if (root.id === 'wizOv' || root.closest && root.closest('#wizOv')) wizRender();
+    return;
+  }
+  const dv = b.closest('[data-dev]');
+  if (a === 'del' && dv) { if (!confirm('¿Quitar este equipo y sus cámaras del sistema?')) return; await eqApi(`/api/v1/devices/${dv.dataset.dev}`, null, 'DELETE'); return loadEquipos(); }
+  if (a === 'save' && dv) {
+    const channels = $$('[data-ch-name]', dv).map((i) => ({ ch: +i.dataset.chName, name: i.value.trim(), enabled: $(`[data-ch-on="${i.dataset.chName}"]`, dv).checked }));
+    const r = await eqApi(`/api/v1/devices/${dv.dataset.dev}`, { channels }, 'PATCH');
+    if (!r.error) { toast('Guardado'); channels.forEach((c) => { delete S.camNames[c.ch]; }); save(); } return loadEquipos();
+  }
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-eq]')) eqClick(e); });
+
+/* ── Periféricos de este equipo (cámara, micrófono, USB, NFC, huella, voz, pantalla táctil) ── */
+async function peripherals() {
+  const out = [];
+  try { const ds = await navigator.mediaDevices.enumerateDevices(); const n = (k) => ds.filter((d) => d.kind === k).length; out.push([n('videoinput') > 0, `${n('videoinput')} cámara(s)`], [n('audioinput') > 0, `${n('audioinput')} micrófono(s)`], [n('audiooutput') > 0, 'parlante']); } catch { out.push([false, 'cámara: sin permiso']); }
+  if ('serial' in navigator) { try { const p = await navigator.serial.getPorts(); out.push([p.length > 0 ? true : null, p.length ? `${p.length} cerradura/dispositivo USB` : 'USB serie disponible (sin conectar)']); } catch { /* bloqueado */ } } else out.push([null, 'USB serie: no (usar Chrome/Edge)']);
+  out.push(['NDEFReader' in window ? true : null, 'NFC' + ('NDEFReader' in window ? '' : ': no')]);
+  out.push([!!window.PublicKeyCredential, 'Huella / passkeys' + (window.isSecureContext ? '' : ' (requiere https)')]);
+  out.push([!!(window.SpeechRecognition || window.webkitSpeechRecognition), 'Reconocimiento de voz']);
+  out.push([navigator.maxTouchPoints > 0, navigator.maxTouchPoints > 0 ? `Pantalla táctil (${navigator.maxTouchPoints} puntos)` : 'Sin pantalla táctil']);
+  out.push([true, `Pantalla ${screen.width}×${screen.height} · perfil ${PROFILE_TXT[PLAT_PROFILE] || PLAT_PROFILE}`]);
+  if (window.SVB_QR_READER) out.push([true, 'Lector QR USB/Bluetooth detectado']);
+  return out;
+}
+async function paintPeripherals() {
+  const el = $('#eqPeri'); if (!el) return;
+  el.innerHTML = (await peripherals()).map(([ok, t]) => `<span class="${ok === true ? 'ok' : ''}">${ok === true ? '✔' : ok === false ? '✕' : '○'} ${esc(t)}</span>`).join('');
+}
+
+/* ── Perfil de pantalla: se adapta solo al dispositivo conectado ── */
+var PLAT_PROFILE = 'pared';
+const PROFILE_TXT = { pared: 'tablet de pared / tótem', celular: 'celular', monitor: 'monitor de cámaras', pc: 'PC de administración' };
+function detectProfile() {
+  const q = new URLSearchParams(location.search).get('pantalla');
+  if (q && PROFILE_TXT[q]) return q;
+  if (S.devProfile && PROFILE_TXT[S.devProfile]) return S.devProfile;
+  const touch = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  if (touch && Math.min(innerWidth, innerHeight) < 600) return 'celular';
+  if (touch) return 'pared';
+  return 'pc';
+}
+function applyProfile() {
+  const p = detectProfile();
+  if (p === PLAT_PROFILE && document.body.classList.contains('prof-' + p)) return;
+  Object.keys(PROFILE_TXT).forEach((k) => document.body.classList.toggle('prof-' + k, k === p));
+  PLAT_PROFILE = p;
+  if (p === 'monitor') { setView('cctv'); showFront(false); }
+  const sel = $('#sProf'); if (sel) sel.value = S.devProfile || 'auto';
+}
+let profT = null; addEventListener('resize', () => { clearTimeout(profT); profT = setTimeout(applyProfile, 300); });
+
+/* ── Asistente de instalación (primera vez) ── */
+var WIZ = { step: 0, state: null };
+const WIZ_STEPS = ['Negocio', 'Seguridad', 'Cámaras', 'Cerradura', 'Avisos', 'Listo'];
+async function openWizard(step = 0) {
+  if (!net.online) { toast('El asistente necesita el servidor encendido'); return; }
+  WIZ.step = step; $('#wizOv').classList.add('show'); $('#wizOv').dataset.eqbox = '1'; await wizRender();
+}
+function closeWizard() { $('#wizOv').classList.remove('show'); }
+async function wizRender() {
+  WIZ.state = await eqApi('/api/v1/wizard');
+  const ck = (WIZ.state && WIZ.state.checks) || {};
+  const okBy = [ck.negocio, ck.pins, ck.camaras, ck.cerradura, ck.avisos, false];
+  $('#wizSteps').innerHTML = WIZ_STEPS.map((t, i) => `<span class="${i === WIZ.step ? 'on' : okBy[i] ? 'ok' : ''}">${okBy[i] && i !== WIZ.step ? '✔ ' : ''}${i + 1}. ${t}</span>`).join('');
+  $('#wizBack').hidden = WIZ.step === 0;
+  $('#wizNext').textContent = WIZ.step === WIZ_STEPS.length - 1 ? 'Terminar' : 'Siguiente';
+  const B = $('#wizBody');
+  if (WIZ.step === 0) B.innerHTML = `<h2>Bienvenido a Sistemas VB Seguridad</h2><p class="help">En unos minutos queda funcionando. Todo se puede cambiar después en ⚙ Administración.</p>
+    <div class="ig-row"><label class="f">Nombre del negocio o lugar<input class="inp" id="wzBiz" value="${esc(WIZ.state.business && WIZ.state.business !== 'Mi Negocio' ? WIZ.state.business : '')}" placeholder="Ej.: Kiosco Central" maxlength="60"></label>
+    <label class="f">Tipo de instalación<select class="inp" id="wzSector">${[['comercio', 'Comercio'], ['industria', 'Industria / empresa'], ['campo', 'Campo / finca'], ['residencial', 'Hogar']].map(([v, t]) => `<option value="${v}" ${v === WIZ.state.sector ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div><div class="cfgout" id="wzOut"></div>`;
+  if (WIZ.step === 1) B.innerHTML = `<h2>PINs de seguridad</h2><p class="help">Reemplazá los PINs de fábrica. El <b>PIN de coacción</b> abre igual que el normal pero avisa en silencio que te están obligando.</p>
+    ${ck.pins ? '<p class="ok-msg">✔ Los PINs ya fueron cambiados. Podés dejar estos campos vacíos.</p>' : ''}
+    <div class="ig-row"><label class="f">PIN de puerta<input class="inp" id="wzDoor" type="password" inputmode="numeric" maxlength="8" placeholder="4 a 8 números"></label><label class="f">PIN de coacción<input class="inp" id="wzDuress" type="password" inputmode="numeric" maxlength="8"></label><label class="f">PIN de administración<input class="inp" id="wzAdmin" type="password" inputmode="numeric" maxlength="8"></label></div>
+    <label class="chk"><input type="checkbox" id="wzPanelOn" ${WIZ.state.checks.panelAuth ? '' : 'checked'}>Pedir usuario y contraseña para abrir el panel y las cámaras desde otros equipos de la red (recomendado: sin esto, cualquiera conectado al WiFi del lugar puede ver las cámaras)</label>
+    ${WIZ.state.checks.panelAuth ? '<p class="ok-msg">✔ El panel ya pide usuario y contraseña.</p>' : ''}
+    <div class="ig-row" id="wzPanelRow"><label class="f">Usuario del panel<input class="inp" id="wzPU" autocomplete="off" maxlength="40" placeholder="ej. dueno"></label><label class="f">Contraseña (8+ caracteres)<input class="inp" id="wzPP" type="password" autocomplete="new-password"></label></div>
+    <p class="small muted">Después de guardar, el navegador de cada equipo pide el usuario y la contraseña una sola vez.</p><div class="cfgout" id="wzOut"></div>`;
+  if (WIZ.step === 2) {
+    const n = WIZ.state.cameraCount || 0;
+    B.innerHTML = `<h2>Cámaras y grabadores</h2><p class="help">${ck.camaras ? `✔ Hay ${n} cámara(s) conectada(s). Podés agregar más.` : 'Buscamos las cámaras y grabadores en la red. Después tocá <b>Agregar</b> y escribí el usuario y la clave del equipo.'}</p>
+      <div class="ig-row"><label class="f">Rango (vacío = automático)<input class="inp" data-eqscan placeholder="192.168.1.0/24"></label><button class="btn primary" data-eq="scan">Buscar en la red</button><button class="btn" data-eq="manual">Agregar a mano</button></div>
+      <div data-eqdisc class="small" style="margin-top:10px"></div><div data-eqform></div>
+      <p class="small muted">¿Grabador Dahua de la app DMSS? Se conecta solo con el número de serie en ★ Configuración → Grabador Dahua.</p>`;
+  }
+  if (WIZ.step === 3) B.innerHTML = `<h2>Cerradura eléctrica (opcional)</h2><p class="help">${ck.cerradura ? '✔ Cerradura vinculada.' : 'Si instalaste la cerradura Sistemas VB (ESP32), encendela y conectala al WiFi del lugar desde el celular. Después tocá <b>Buscar y vincular</b>. Si no hay cerradura, seguí: la apertura queda registrada pero simulada.'}</p>
+    <div class="cfgacts"><button class="btn primary" id="wzPair">Buscar y vincular cerradura</button></div><div class="cfgout" id="wzOut"></div>`;
+  if (WIZ.step === 4) B.innerHTML = `<h2>Avisos al celular</h2><p class="help">${ck.avisos ? '✔ Hay avisos configurados.' : 'Para que te lleguen el timbre, el SOS y las alarmas con foto, activá al menos un canal: notificación push (app ntfy), WhatsApp o Telegram.'}</p>
+    <div class="cfgacts"><button class="btn" id="wzGoAv">Configurar avisos ahora</button></div>`;
+  if (WIZ.step === 5) B.innerHTML = `<h2>¡Listo!</h2><p class="help">Resumen de la instalación:</p><div class="ig-chips">${[[ck.negocio, 'Nombre del negocio'], [ck.pins, 'PINs propios'], [ck.camaras, 'Cámaras'], [ck.cerradura, 'Cerradura'], [ck.avisos, 'Avisos al celular']].map(([ok, t]) => `<span class="${ok ? 'ok' : ''}">${ok ? '✔' : '○'} ${t}</span>`).join('')}</div>
+    <p class="small muted">Lo pendiente se completa cuando quieras en ⚙ Administración. Soporte: Vincular Business · WhatsApp (387) 4484132.</p>`;
+  const pair = $('#wzPair'); if (pair) pair.onclick = async () => { $('#wzOut').textContent = 'Buscando la cerradura en la red…'; const r = await eqApi('/api/esp32/discover', {}); $('#wzOut').innerHTML = r.ok ? '<span class="ok-msg">✔ Cerradura vinculada</span>' : `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || r.message || 'No se encontró')}</span>`; if (r.ok) wizRender(); };
+  const goAv = $('#wzGoAv'); if (goAv) goAv.onclick = () => { closeWizard(); showPane('portero'); };
+}
+async function wizNext() {
+  const out = $('#wzOut');
+  const setup = async (body) => { const r = await eqApi('/api/setup', body); if (!r.ok) { if (out) out.innerHTML = `<span class="warn" style="display:inline-block;padding:6px 10px">${esc(r.error || 'No se pudo guardar')}</span>`; Sfx.err(); return false; } return true; };
+  if (WIZ.step === 0) {
+    const biz = $('#wzBiz').value.trim(); const body = { SECTOR: $('#wzSector').value };
+    if (biz) body.BUSINESS_NAME = biz;
+    if (!(await setup(body))) return;
+    if (biz) { S.biz = biz; save(); } await refreshStatus(); applyBrand();
+  }
+  if (WIZ.step === 1) {
+    const d = $('#wzDoor').value.trim(), c = $('#wzDuress').value.trim(), a = $('#wzAdmin').value.trim();
+    if (d || c || a) {
+      if (!WIZ.state.checks.pins && !(d && c && a)) { out.innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">Completá los tres PINs</span>'; return; }
+      const body = {}; if (d) body.DOOR_PIN = d; if (c) body.DURESS_PIN = c; if (a) body.ADMIN_PIN = a;
+      if (!(await setup(body))) return;
+      if (a) { net.adminPin = a; S.adminPin = a; } if (d) S.doorPin = d; if (c) S.duressPin = c; save();
+    } else if (!WIZ.state.checks.pins) { out.innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">Por seguridad, cambiá los PINs de fábrica</span>'; return; }
+    if ($('#wzPanelOn').checked && !WIZ.state.checks.panelAuth) {
+      const u = $('#wzPU').value.trim(), pw = $('#wzPP').value;
+      if (!u || pw.length < 8) { out.innerHTML = '<span class="warn" style="display:inline-block;padding:6px 10px">Completá usuario y una contraseña de 8 caracteres o más, o desmarcá la opción</span>'; return; }
+      if (!(await setup({ PANEL_USER: u, PANEL_PASS: pw }))) return;
+    }
+  }
+  if (WIZ.step === WIZ_STEPS.length - 1) { await eqApi('/api/v1/wizard', { done: true }); closeWizard(); toast('Instalación completada'); Sfx.ok(); buildGrid(); return; }
+  WIZ.step++; wizRender();
+}
+$('#wizNext').addEventListener('click', wizNext);
+$('#wizBack').addEventListener('click', () => { WIZ.step = Math.max(0, WIZ.step - 1); wizRender(); });
+$('#wizSkip').addEventListener('click', closeWizard);
+
 /* ═══════════════════════════ PLATAFORMA (PWA / Electron / Tauri) ═══════════════════════════ */
 let installEvt = null;
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; $('#sysInstall').disabled = false; });
@@ -3241,9 +3711,108 @@ function toggleKiosk() {
   else document.exitFullscreen();
 }
 
+/* ═══════════════════════════ FRENTE DEL PORTERO ═══════════════════════════
+   Pantalla de inicio táctil: timbre, PIN, pase, NFC, voz y emergencia. La consola (cámaras, teclado
+   lateral, eventos) queda un toque más allá, con el botón de cuadrícula. */
+var FRONT = { on: false, html: '' };
+const frIc = (n) => `<svg class="i"><use href="#ic-${n}"/></svg>`;
+function frTitle() {
+  const w = String(S.biz || '').trim().split(/\s+/).filter(Boolean);
+  return w.length > 1 ? `${esc(w.slice(0, -1).join(' '))} <em>${esc(w[w.length - 1])}</em>` : `<em>${esc(S.biz || 'Portero')}</em>`;
+}
+function paintFront() {
+  if (!$('#front')) return;
+  const open = accOpen();
+  const cams = net.status && net.status.cameras;
+  const camOn = !!((cams && cams.configured) || (S.doorSrc === 'local' && typeof localStream !== 'undefined' && localStream));
+  const bio = net.online && (ACC.face || ACC.pk);
+  const nfcOK = 'NDEFReader' in window;
+  const corp = S.mode === 'corp';
+  const tag = S.tagline || (corp ? 'Control de accesos y seguridad' : 'Tu hogar, protegido');
+  const dis = open ? '' : 'blocked';
+  $('#frLogo').src = S.logo || 'assets/rave-logo.jpg';
+  $('#frName').textContent = S.biz;
+  $('#frSub').textContent = ($('#modeLabel') && $('#modeLabel').textContent) || '';
+  $('#frDot').className = 'fr-dot ' + (open ? 'on' : 'off');
+  $('#frSt').textContent = open ? 'Habilitado' : 'Fuera de horario';
+  $('#frWa').href = `https://wa.me/5493874484132?text=${encodeURIComponent(`Hola Vincular Business, consulto por Sistemas VB Seguridad de ${S.biz}`)}`;
+  const fam = !!(S.familyPhone);
+  const html = `
+   <div class="fr-hero">
+     <div><div class="fr-big"><img alt="" src="${esc(S.logo || 'assets/rave-logo.jpg')}"></div>
+       <h1>${frTitle()}</h1><p>${esc(tag)}</p></div>
+     <div>
+       ${open ? '' : `<div class="fr-off">${frIc('clock')}<span><b>Fuera de horario de atención</b><small>Horario: ${esc(ACC.text)}. La emergencia siempre está disponible.</small></span></div>`}
+       <div class="fr-badge">${frIc('shield')} ${camOn ? 'Videovigilancia activa · tu seguridad primero' : 'Sin cámaras · tu privacidad primero'}</div>
+       <div class="fr-infos">
+         <div class="fr-info">${frIc('clock')}<span><b>${esc(ACC.text)}</b></span></div>
+         ${S.addr ? `<div class="fr-info">${frIc('pin')}<span><b>${esc(S.addr)}</b></span></div>` : ''}
+       </div>
+     </div>
+   </div>
+   <div class="fr-tiles">
+     <button class="fr-tile main ${dis}" data-fr="bell">${frIc('bell')}<span><b>${corp ? 'Llamar a oficina' : 'Tocar timbre'}</b><small>Avisá que llegaste</small></span></button>
+     <button class="fr-tile" data-fr="pin">${frIc('key')}<span><b>Ingresar con PIN</b><small>Socios y equipo</small></span></button>
+     <button class="fr-tile ${dis}" data-fr="pass">${frIc('ticket')}<span><b>Tengo un pase</b><small>Código de visita</small></span></button>
+     <button class="fr-tile ${dis}" data-fr="nfc">${frIc('nfc')}<span><b>Tarjeta NFC</b><small>${nfcOK ? 'Acercá tu tarjeta' : 'Según dispositivo'}</small></span></button>
+     <button class="fr-tile" data-fr="voice" ${SR ? '' : 'disabled'}>${frIc('mic')}<span><b>Asistente de voz</b><small>“Abrir puerta”, “Horarios”…</small></span></button>
+     ${bio ? `<button class="fr-tile wide" data-fr="bio">${frIc(ACC.face ? 'face' : 'finger')}<span><b>Personal autorizado</b><small>${ACC.face && ACC.pk ? 'Rostro o huella, previamente registrados' : ACC.face ? 'Rostro, previamente registrado' : 'Huella, previamente registrada'}</small></span></button>` : ''}
+     <button class="fr-tile sos ${fam ? 'half' : ''}" data-fr="sos">${frIc('alert')}<span><b>Emergencia</b><small>Llamar al ${esc(S.emergency || '911')}${fam ? '' : ' o a un contacto de confianza'}</small></span></button>
+     ${fam ? `<button class="fr-tile sos half fam" data-fr="family">${frIc('phone')}<span><b>Llamar ${esc(S.familyName || 'familiar')}</b><small>Contacto de confianza</small></span></button>` : ''}
+   </div>`;
+  if (html !== FRONT.html) { FRONT.html = html; $('#frMain').innerHTML = html; }
+  const bi = $('#dpBio'); if (bi) { $('#dpPk').hidden = !(net.online && ACC.pk); $('#dpFace').hidden = !(net.online && ACC.face); bi.hidden = $('#dpPk').hidden && $('#dpFace').hidden; }
+}
+function showFront(on) {
+  FRONT.on = !!on;
+  $('#front').classList.toggle('on', FRONT.on);
+  document.body.classList.toggle('front-on', FRONT.on);
+  if (FRONT.on) { closeDp(); paintFront(); }
+}
+const dpOpen = () => $('#dpOv').classList.contains('show');
+let dpT = null;
+function paintPin() {
+  renderDots($('#pinDisplay'), pin.length, 'Ingrese PIN');
+  const d = $('#dpDisplay'); if (d) renderDots(d, pin.length, 'Ingrese PIN');
+}
+function openDp() {
+  $('#dpOv').classList.add('show'); paintPin(); paintFront(); armDp();
+}
+function closeDp() {
+  clearTimeout(dpT);
+  const ov = $('#dpOv'); if (!ov || !ov.classList.contains('show')) return;
+  ov.classList.remove('show'); pin = ''; paintPin();
+}
+/** Cierra sola la ventana de PIN si nadie la usa: no queda un PIN a medio escribir en una pantalla pública. */
+function armDp() { clearTimeout(dpT); dpT = setTimeout(closeDp, 25000); }
+const FR_ACT = {
+  bell: () => ring(), pin: () => openDp(), pass: () => openScanner(), nfc: () => readNfc(), voice: () => toggleVoice(),
+  sos: () => startSos('botón'), family: () => callFamily(),
+  bio: () => (net.online && ACC.face ? faceRecognize() : staffPk()),
+  console: () => { showFront(false); setView('door'); }, fs: () => toggleKiosk(),
+};
+function wireFront() {
+  $('#front').addEventListener('click', (e) => { const b = e.target.closest('[data-fr]'); if (b && !b.disabled && FR_ACT[b.dataset.fr]) { lastInteraction = Date.now(); FR_ACT[b.dataset.fr](); } });
+  buildKeypad($('#dpKeys'), (k) => { armDp(); onDoorKey(k); });
+  $('#dpClose').addEventListener('click', closeDp);
+  $('#dpPk').addEventListener('click', () => { closeDp(); staffPk(); });
+  $('#dpFace').addEventListener('click', () => { closeDp(); faceRecognize(); });
+  $('#btnHome').addEventListener('click', () => showFront(true));
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && dpOpen()) closeDp(); });
+  const tick = () => { const c = $('#frClk'); if (c) c.textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }); };
+  tick(); setInterval(tick, 5000);
+  // En la tablet de pared el frente vuelve solo si nadie toca la consola por 2 minutos
+  setInterval(() => {
+    if (FRONT.on || PLAT_PROFILE !== 'pared' || Date.now() - lastInteraction < 120000) return;
+    if (document.querySelector('.ov-full.show')) return;
+    showFront(true);
+  }, 15000);
+}
+
 /* ═══════════════════════════ ARRANQUE ═══════════════════════════ */
 function wire() {
   buildKeypad($('#keypad'), onDoorKey);
+  wireFront();
   buildKeypad($('#adminKeys'), onAdminKey);
   renderDots($('#pinDisplay'), 0, 'Ingrese PIN');
   $$('.tab[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
@@ -3272,6 +3841,7 @@ function wire() {
   });
   $$('#ringOv [data-reply]').forEach((b) => b.addEventListener('click', () => replyRing(b.dataset.reply)));
   $('#ringClose').addEventListener('click', hideRing);
+  $('#ringTalk').addEventListener('click', toggleTalk);
   $('#dbPrint').addEventListener('click', printPoster);
   $('#dbNfc').addEventListener('click', writeDoorbellNfc);
   $('#dbCopy').addEventListener('click', () => navigator.clipboard.writeText(loadDoorbell.url || '').then(() => toast('Enlace copiado')).catch(() => toast('No se pudo copiar')));
@@ -3364,7 +3934,7 @@ function wire() {
   $('#vList').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-del]'); if (!b) return;
     if (net.online && net.adminPin) await api('/api/visitors?id=' + encodeURIComponent(b.dataset.del), { method: 'DELETE', admin: true }).catch(() => {});
-    localStorage.setItem('svb.visitors', JSON.stringify(localVisitors().filter((v) => v.id !== b.dataset.del)));
+    LS.setItem('svb.visitors', JSON.stringify(localVisitors().filter((v) => v.id !== b.dataset.del)));
     renderVisitors();
   });
   $('#vShare').addEventListener('click', () => { if (!lastPass) return; const t = encodeURIComponent(`Pase de acceso a ${S.biz}: código ${lastPass.code}, válido hasta ${fmtTime(lastPass.expires)}${lastPass.max ? ` (${lastPass.max} ingreso${lastPass.max > 1 ? 's' : ''})` : ''}, dentro del horario de atención (${ACC.text}). Tipéelo en el teclado de la puerta.`); window.open(`https://wa.me/?text=${t}`, '_blank'); });
@@ -3379,11 +3949,13 @@ function wire() {
   $('#sysInstall').addEventListener('click', async () => { if (installEvt) { installEvt.prompt(); installEvt = null; $('#sysInstall').disabled = true; } });
   $('#sysMin').addEventListener('click', () => window.electronAPI && window.electronAPI.minimize());
   $('#sysQuit').addEventListener('click', () => window.electronAPI && window.electronAPI.close());
-  $('#sysReset').addEventListener('click', () => { localStorage.removeItem('svb.settings'); location.reload(); });
+  $('#sysReset').addEventListener('click', () => { LS.clear(); location.reload(); });
+  $('#sProf').addEventListener('change', (e) => { S.devProfile = e.target.value === 'auto' ? '' : e.target.value; save(); applyProfile(); toast(`Pantalla: ${PROFILE_TXT[PLAT_PROFILE]}`); });
+  $('#sysWizard').addEventListener('click', () => openWizard(0));
 }
 
 async function boot() {
-  wire(); applyBrand(); platformInfo(); initVoice(); paintAccess();
+  wire(); applyProfile(); if (PLAT_PROFILE !== 'monitor' && !/[?&]consola\b/.test(location.search)) showFront(true); applyBrand(); platformInfo(); initVoice(); paintAccess();
   logEvent('SYSTEM_BOOT', 'INFO', `Panel iniciado (${isElectron ? 'escritorio' : 'web'})`, { sync: false });
   await refreshStatus();
   setInterval(refreshStatus, 15000);
@@ -3393,7 +3965,7 @@ async function boot() {
   document.addEventListener('click', () => ac(), { once: true });
 }
 boot();
-window.SVB = { PLAT, runSceneUi, loadIntegra, S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, ACC, accOpen, setAccess, audit: () => audit };
+window.SVB = { showFront, paintFront, FRONT, EQ, openWizard, applyProfile, detectProfile, peripherals, PLAT, runSceneUi, loadIntegra, S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, ACC, accOpen, setAccess, audit: () => audit };
 </script>
 </body>
 </html>

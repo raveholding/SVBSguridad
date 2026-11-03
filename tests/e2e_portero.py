@@ -66,10 +66,10 @@ try:
     with sync_playwright() as p:
         b = p.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'])
         ctx = b.new_context(viewport={'width': 1366, 'height': 820}, permissions=['camera', 'microphone'])
-        ctx.add_init_script(f"if (!localStorage.getItem('svb.settings')) localStorage.setItem('svb.settings', JSON.stringify({json.dumps(SETTINGS)}))")
+        ctx.add_init_script(f"if (!localStorage.getItem('svbi:'+location.pathname.replace(/[^/]*$/,'')+':svb.settings')) localStorage.setItem('svbi:'+location.pathname.replace(/[^/]*$/,'')+':svb.settings', JSON.stringify({json.dumps(SETTINGS)}))")
         errs = []
         pg = ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
-        pg.goto(WEB + '/index.html'); pg.wait_for_timeout(2500)
+        pg.goto(WEB + '/index.html?consola=1'); pg.wait_for_timeout(2500)
         pg.evaluate("askAdmin()"); pg.wait_for_timeout(200)
         for k in '1234': pg.locator(f'#adminKeys [data-k="{k}"]').click()
         pg.locator('#adminKeys [data-k="OK"]').click(); pg.wait_for_timeout(800)
@@ -77,7 +77,7 @@ try:
         st = pg.inner_text('#dbState')
         check('Sección Portero funciona sin servidor', 'Portero activo en este equipo' in st, st)
         url = pg.text_content("#dbUrl")
-        check('QR del portero con enlace del cliente', url.startswith(WEB + '/timbre.html?t=rave-'), url)
+        check('QR del portero con enlace del cliente', url.startswith(WEB + '/timbre.html?t=svb-'), url)
         topic = pg.evaluate('S.dbTopic'); own = pg.evaluate('S.nTopic')
         check('Configuración de avisos visible', pg.locator('#nQr').is_visible() and pg.locator('#nWaList .waRow').count() == 1)
         pg.screenshot(path=os.path.join(SHOTS, 'p1-portero-sin-servidor.png'), full_page=True)
