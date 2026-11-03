@@ -2,9 +2,31 @@
 
 **Sistemas VB Seguridad — sistema de seguridad integral unificado de Vincular Business** para comercios, industrias y empresas, campos y fincas, y hogares. Panel táctil (web, celular y Windows) con cámaras en vivo de cualquier marca, control de cerradura y portón, PIN de coacción, SOS 911, asistente de voz, pases QR/NFC, huella y rostro, analítica de video unificada (patentes, EPP, caídas, merodeo, aglomeraciones, filtro de fauna y clima), aforo, geocercas, escenas del hogar, red de alerta vecinal, API REST, MQTT/Home Assistant (Alexa, Google, Siri) y avisos con foto al celular de los dueños.
 
-![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20%7C%20Hikvision%20%7C%20ONVIF%20%7C%20RTSP-000?style=flat-square) ![Integraciones](https://img.shields.io/badge/integra-API%20v1%20%7C%20MQTT%20%7C%20Home%20Assistant%20%7C%20Webhooks-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-188%20OK-000?style=flat-square)
+![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20%7C%20Hikvision%20%7C%20ONVIF%20%7C%20RTSP-000?style=flat-square) ![Integraciones](https://img.shields.io/badge/integra-API%20v1%20%7C%20MQTT%20%7C%20Home%20Assistant%20%7C%20Webhooks-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-240%20OK-000?style=flat-square)
 
+> **Revisión de seguridad:** [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md)
+>
 > **Arquitectura técnica completa** (capas, stack, diagramas de flujo, endpoints y estructuras de datos): [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
+
+
+## Instalación en un cliente nuevo (10 minutos)
+
+1. Conectar la PC / mini-PC / Raspberry Pi al router del lugar y ejecutar `iniciar-windows.bat` (o `./iniciar-linux.sh`).
+2. Abrir el panel en la tablet de la puerta (`http://IP-DEL-EQUIPO:8080`) y entrar a ⚙ con el PIN de fábrica `1234`.
+3. El **asistente de instalación** guía 6 pasos: nombre del negocio y tipo de instalación → PINs propios (obligatorio) → **cámaras y grabadores** (Buscar en la red → Agregar con usuario y clave; ONVIF trae los canales y la dirección de video solos) → cerradura ESP32 (se vincula sola) → avisos al celular → resumen.
+4. La pantalla se adapta sola al dispositivo: **tablet de pared** (táctil), **celular**, **PC** (mouse) o **monitor de cámaras** (`?pantalla=monitor` en la dirección, para un televisor fijo). Se puede forzar en Admin → Sistema.
+
+### Equipos compatibles
+
+| Equipo | Cómo se conecta |
+|---|---|
+| Cámaras IP y grabadores NVR/XVR/DVR con **ONVIF** (Dahua, Hikvision, Uniview, Axis, Reolink, genéricas) | Automático: búsqueda en la red + usuario y clave. Trae marca, modelo, canales, resolución y PTZ. |
+| Dahua / Hikvision / Uniview / Axis / Reolink / XMeye **sin ONVIF** | Por marca + cantidad de canales (plantillas RTSP de cada fabricante). |
+| Cualquier cámara con RTSP | Pegando la dirección RTSP. |
+| Grabador Dahua de la app **DMSS** | Por número de serie (lo encuentra en la red aunque cambie de IP), con eventos en vivo, grabaciones y PTZ. |
+| Cerradura / portón | ESP32 + relé (se vincula solo) o por cable USB. |
+| Periféricos del equipo | Cámara y micrófono locales, lector QR USB/Bluetooth, NFC (Android), huella/passkeys, voz, pantalla táctil: se detectan y se muestran en Admin → Equipos y cámaras. |
+
 
 ---
 
@@ -12,7 +34,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph LAN["Almacén Rave · red local"]
+  subgraph LAN["Red local del cliente"]
     DVR["Grabador Dahua<br/>(el mismo de DMSS)"] -- RTSP --> SRV
     SRV["Servidor Sistemas VB<br/>PC / mini-PC<br/>Node.js + go2rtc"] -- WiFi --> ESP["ESP32 + relé<br/>cerradura"]
     TAB["Tablet / PC en la puerta<br/>panel SVB"] <-- "WebRTC / MSE" --> SRV
@@ -31,7 +53,7 @@ flowchart LR
 1. Instalar **Node.js LTS** desde <https://nodejs.org>.
 2. Descargar este repositorio (botón verde **Code → Download ZIP**) y descomprimirlo, por ejemplo en `C:\SVB`.
 3. Doble clic en **`iniciar-windows.bat`**. La primera vez crea el archivo `.env` y lo abre en el Bloc de notas.
-4. Completar en `.env` con los datos de DMSS (DMSS → Dispositivos → *rave* → ⓘ):
+4. Completar en `.env` con los datos de DMSS (DMSS → Dispositivos → *tu grabador* → ⓘ):
    ```ini
    CAM_SERIAL=<Número de serie que muestra DMSS>
    CAM_USER=admin
@@ -203,12 +225,15 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 ## Pruebas
 
 ```bash
-cd server && npm run setup && npm test     # 26 pruebas: plataforma v2 (cifrado, ONVIF, analítica, API v1, MQTT/Home Assistant, webhooks, vigilante de video, coacción invisible), personas, horario, huella (passkeys), rostro, reintento de avisos, configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
+cd server && npm run setup && npm test     # 34 pruebas: seguridad (fuerza bruta, CSRF, DNS rebinding, bloqueo global), inventario multi-marca con ONVIF simulado (alta, canales, PTZ, cifrado, asistente), plataforma v2 (cifrado, ONVIF, analítica, API v1, MQTT/Home Assistant, webhooks, vigilante de video, coacción invisible), personas, horario, huella (passkeys), rostro, reintento de avisos, configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
 python3 tests/e2e.py                       # 88 pruebas de punta a punta con navegador real
 python3 tests/e2e_portero.py               # 21 pruebas: portero y avisos sin servidor (timbre del cliente, push con foto y botones, WhatsApp, horario, SOS)
 python3 tests/e2e_accesos.py               # 22 pruebas: doble toque, personas, horario, huella (autenticador virtual), rostro, lector QR, móvil
 python3 tests/e2e_plataforma.py            # 31 pruebas: sector, escenas con PIN y voz, aforo en vivo, integraciones, tokens, patentes, geocercas, descubrimiento
+python3 tests/e2e_videoportero.py          # 16 pruebas: video portero (cara del visitante en vivo), teclado de PC, almacenamiento separado
+python3 tests/e2e_frente.py                # 35 pruebas: frente del portero (timbre, PIN táctil y de PC, pase, emergencia, consola, fuera de horario, celular)
+python3 tests/e2e_instalacion.py           # 28 pruebas: asistente de instalación, alta ONVIF, equipos y cámaras, grilla, PTZ, periféricos, perfiles de pantalla
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
 
@@ -219,7 +244,7 @@ La prueba e2e levanta un **grabador Dahua simulado** (4 canales RTSP H.264), un 
 ```
 index.html                 Panel completo (un solo archivo, CSS + JS nativo)
 manifest.webmanifest, sw.js  PWA instalable y funcionamiento offline
-assets/                    Logo Rave e íconos
+assets/                    Logo del sistema e íconos
 server/                    Servidor puente (Node.js sin dependencias)
   server.js                API, proxy de video, PINs, relé, alertas, auditoría
   lib/dahua.js             Digest auth, número de serie, URLs RTSP Dahua
@@ -232,6 +257,8 @@ server/                    Servidor puente (Node.js sin dependencias)
   lib/analytics.js         Motor de analítica: normaliza Dahua / Frigate / API y aplica reglas por sector
   lib/platform.js          Sectores, patentes, tokens de API, aforo, permanencia y geocercas
   lib/onvif.js             Descubrimiento multi-marca (ONVIF WS-Discovery, ARP, puertos)
+  lib/onvif-client.js      Cliente ONVIF: datos del equipo, canales, URLs de video y PTZ
+  lib/devices.js           Inventario de cámaras y grabadores de cualquier marca
   lib/mqtt.js              Cliente MQTT 3.1.1 (Home Assistant, Frigate, Node-RED)
   lib/webhooks.js          Webhooks firmados con HMAC-SHA256
   lib/vault.js             Cifrado AES-256-GCM de secretos y datos biométricos

@@ -1,6 +1,6 @@
 {
   "name": "sistemas-vb-seguridad-server",
-  "version": "2.0.0",
+  "version": "2.3.0",
   "description": "Sistemas VB Seguridad: servidor puente (cámaras multi-marca, analítica, cerradura, avisos, API v1, MQTT/Home Assistant). Vincular Business · vincularbusiness@gmail.com",
   "main": "server.js",
   "private": true,

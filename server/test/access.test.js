@@ -137,7 +137,7 @@ function fakeAuthenticator(origin) {
 test('Huella (passkey): registro con consentimiento y verificación en el servidor', async (t) => {
   const { port } = await boot(t);
   const ana = (await req(port, 'POST', '/api/people', { name: 'Ana', role: 'Dueño' }, admin)).body;
-  const auth = fakeAuthenticator('https://panel.rave.ts.net');
+  const auth = fakeAuthenticator('https://panel.negocio.ts.net');
   const ch = async () => (await req(port, 'POST', '/api/webauthn/challenge')).body.challenge;
   const open = async (wa) => req(port, 'POST', '/api/door/open', { webauthn: wa });
 
@@ -162,7 +162,7 @@ test('Huella (passkey): registro con consentimiento y verificación en el servid
   // Origen distinto, sin verificación biométrica, dominio distinto o firma de otra clave → rechaza
   assert.strictEqual((await open(auth.sign(await ch(), { originOverride: 'https://evil.example' }))).body.result, 'denied');
   assert.strictEqual((await open(auth.sign(await ch(), { flags: 0x01 }))).body.result, 'denied');
-  const other = fakeAuthenticator('https://panel.rave.ts.net');
+  const other = fakeAuthenticator('https://panel.negocio.ts.net');
   for (let i = 0; i < 9; i++) other.sign('x'); // contador alto: que falle por la firma, no por el contador
   const forged = other.sign(await ch()); forged.id = auth.reg.id;
   r = await open(forged);
@@ -200,14 +200,14 @@ test('Timbre fuera de horario, armado automático y reintento de avisos', async 
   const { server: ntfy, msgs } = createNtfy(); const nPort = await listen(ntfy);
   const nUrl = `http://127.0.0.1:${nPort}`;
   t.after(() => ntfy.close());
-  const { app, port } = await boot(t, { DOORBELL: '1', DOORBELL_TOPIC: 'rave-test-topic', NTFY_URL: nUrl, PUSH_ENABLED: '1', PUSH_TOPIC: 'own-topic', DOORBELL_COOLDOWN: '0' });
+  const { app, port } = await boot(t, { DOORBELL: '1', DOORBELL_TOPIC: 'svb-test-topic', NTFY_URL: nUrl, PUSH_ENABLED: '1', PUSH_TOPIC: 'own-topic', DOORBELL_COOLDOWN: '0' });
 
   // Cerrado: el cliente recibe el horario en su celular
   await req(port, 'PUT', '/api/hours', { mode: 'sched', autoArm: true, sched: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] } }, admin);
   await new Promise((r) => setTimeout(r, 600));
-  await fetch(`${nUrl}/rave-test-topic`, { method: 'POST', body: JSON.stringify({ type: 'ring', id: 'cli1', name: 'Pedro' }) });
-  for (let i = 0; i < 40 && !msgs.some((m) => m.topic === 'rave-test-topic-r'); i++) await new Promise((r) => setTimeout(r, 100));
-  const reply = msgs.find((m) => m.topic === 'rave-test-topic-r');
+  await fetch(`${nUrl}/svb-test-topic`, { method: 'POST', body: JSON.stringify({ type: 'ring', id: 'cli1', name: 'Pedro' }) });
+  for (let i = 0; i < 40 && !msgs.some((m) => m.topic === 'svb-test-topic-r'); i++) await new Promise((r) => setTimeout(r, 100));
+  const reply = msgs.find((m) => m.topic === 'svb-test-topic-r');
   assert.ok(reply, 'debería responder al cliente');
   assert.match(JSON.parse(reply.message).text, /Estamos cerrados/);
   assert.ok(app.readEvents(10).some((e) => e.type === 'DOORBELL_OFFHOURS'));
@@ -222,7 +222,7 @@ test('Timbre fuera de horario, armado automático y reintento de avisos', async 
 
   // Sin internet: el aviso de SOS queda en cola y sale con demora cuando vuelve la conexión
   ntfy.close(); ntfy.closeAllConnections();
-  await app.alertAll('🚨 Almacén Rave: BOTÓN SOS', null, { kind: 'sos' });
+  await app.alertAll('🚨 Mi Negocio: BOTÓN SOS', null, { kind: 'sos' });
   assert.strictEqual(app.retryQ.length, 1);
   await new Promise((r) => ntfy.listen(nPort, '127.0.0.1', r));
   assert.strictEqual(await app.flushRetry(), 0);

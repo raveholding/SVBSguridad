@@ -1,8 +1,8 @@
 {
   "name": "svb-seguridad-desktop",
   "productName": "Sistemas VB Seguridad",
-  "version": "2.0.0",
-  "description": "Sistemas VB Seguridad — panel de seguridad integral para Windows (Almacén Rave)",
+  "version": "2.3.0",
+  "description": "Sistemas VB Seguridad — panel de seguridad integral para Windows",
   "main": "main.js",
   "private": true,
   "author": "Vincular Business · Sistema VB <vincularbusiness@gmail.com>",

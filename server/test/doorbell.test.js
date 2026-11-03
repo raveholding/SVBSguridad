@@ -47,12 +47,12 @@ test('Portero digital por QR/NFC con respuesta desde el panel y desde Telegram',
 
   // Tema secreto generado y guardado; URL pública para el QR
   const env = fs.readFileSync(envFile, 'utf8');
-  const topic = (env.match(/DOORBELL_TOPIC=(rave-[0-9a-f]{24})/) || [])[1];
+  const topic = (env.match(/DOORBELL_TOPIC=(svb-[0-9a-f]{24})/) || [])[1];
   assert.ok(topic, 'tema secreto en .env');
   const d = await call(port, 'GET', '/api/doorbell', null, admin);
   assert.strictEqual(d.body.connected, true);
   const u = new URL(d.body.url);
-  assert.strictEqual(u.origin + u.pathname, 'https://raveholding.github.io/SVBSguridad/timbre.html');
+  assert.strictEqual(u.origin + u.pathname, 'https://raveholding.github.io/SeguridadRave/timbre.html');
   assert.strictEqual(u.searchParams.get('t'), topic);
   assert.strictEqual((await call(port, 'GET', '/api/doorbell')).status, 403, 'el enlace secreto solo lo ve admin');
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/timbre.html`)).status, 200);

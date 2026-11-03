@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * Sistemas VB Seguridad — Servidor puente (instalación Almacén Rave).
+ * Sistemas VB Seguridad — Servidor puente.
  * Desarrollado por Vincular Business · Sistema VB — WhatsApp (387) 4484132 · vincularbusiness@gmail.com
  *
  *  - Sirve el panel (index.html / PWA).
@@ -28,7 +28,7 @@ const { rtspUrl, redact, DEFAULT_RTSP_TEMPLATE } = require('./lib/dahua');
 const { discover, candidateHosts, portOpen } = require('./lib/discover');
 const { DahuaEvents } = require('./lib/dahua-events');
 const { digestGet, parseKV } = require('./lib/dahua');
-const { NtfyListener, publish, REPLIES } = require('./lib/doorbell');
+const { NtfyListener, publish, REPLIES, fetchVisitorPhoto } = require('./lib/doorbell');
 const SCHEMA = require('./lib/settings-schema');
 const { parseRecipients, sendWhatsApp, sendPush } = require('./lib/notifiers');
 const { AccessStore, BIO_ROLES } = require('./lib/access');
@@ -38,8 +38,10 @@ const { MqttClient, topicMatch } = require('./lib/mqtt');
 const { Webhooks } = require('./lib/webhooks');
 const { PlatformStore, SECTORS } = require('./lib/platform');
 const { AnalyticsEngine, fromDahua, fromFrigate, fromApi } = require('./lib/analytics');
+const { DeviceStore } = require('./lib/devices');
+const { OnvifDevice, ptzVector } = require('./lib/onvif-client');
 
-const VERSION = '2.0.0';
+const VERSION = '2.3.0';
 const PRODUCT = 'Sistemas VB Seguridad';
 const DEVELOPER = { name: 'Vincular Business · Sistema VB', whatsapp: '+54 9 387 448-4132', email: 'vincularbusiness@gmail.com', web: 'https://wa.me/5493874484132' };
 
@@ -72,6 +74,8 @@ function createApp(cfg, opts = {}) {
   const access = new AccessStore(accessFile, { vault, encrypt: cfg.secretsEncrypt });
   // Plataforma: patentes, tokens de API, aforo, geocercas
   const platform = new PlatformStore(path.join(dataDir, 'platform.json'));
+  // Inventario de cámaras y grabadores de cualquier marca (además del grabador Dahua principal del .env)
+  const devices = new DeviceStore(path.join(dataDir, 'devices.json'), { vault: cfg.secretsEncrypt ? getVault() : null });
   const webhooks = new Webhooks({ ...cfg.webhooks, business: cfg.businessName, log: (m) => log('[webhooks]', m) });
 
   const state = {
@@ -137,11 +141,18 @@ function createApp(cfg, opts = {}) {
   }
 
   // ───────────── Cámaras / go2rtc ─────────────
-  function streamNames() {
+  function legacyStreams() {
     const out = [];
-    for (let ch = 1; ch <= cfg.cam.channels; ch++) out.push({ ch, name: cfg.cam.names[ch - 1] || `Canal ${ch}`, sd: `rave_ch${ch}`, hd: `rave_ch${ch}_hd` });
+    for (let ch = 1; ch <= cfg.cam.channels; ch++) out.push({ ch, name: cfg.cam.names[ch - 1] || `Canal ${ch}`, sd: `svb_ch${ch}`, hd: `svb_ch${ch}_hd`, vendor: 'dahua', device: 'principal', caps: { ptz: true, playback: true, dvr: true } });
     return out;
   }
+  /** Todos los canales: grabador principal (1–16) + equipos del inventario (17 en adelante). */
+  function streamNames() {
+    const extra = devices.streams();
+    return (state.camHost || !extra.length ? legacyStreams() : []).concat(extra);
+  }
+  const ptzClients = new Map(); // id de equipo -> cliente ONVIF con su diferencia de reloj
+  const camerasConfigured = () => !!state.camHost || devices.streams().length > 0;
   function go2rtcYaml() {
     const lines = [
       '# Generado automáticamente por server.js — NO subir al repositorio (contiene credenciales).',
@@ -152,8 +163,14 @@ function createApp(cfg, opts = {}) {
       'log:', '  level: warn',
       'streams:',
     ];
+    devices.devices.forEach((d) => d.channels.filter((c) => c.enabled).forEach((c) => {
+      const u = devices.urls(d, c);
+      const q = (x) => String(x || '').replace(/"/g, '%22');
+      if (u.sub) lines.push(`  svb_ch${c.ch}: "${q(u.sub)}"`);
+      if (u.main) lines.push(`  svb_ch${c.ch}_hd: "${q(u.main)}"`);
+    }));
     if (state.camHost) {
-      streamNames().forEach(({ ch, sd, hd }) => {
+      legacyStreams().forEach(({ ch, sd, hd }) => {
         const common = { template: cfg.cam.rtspTemplate || DEFAULT_RTSP_TEMPLATE, user: cfg.cam.user, pass: cfg.cam.pass, host: state.camHost, port: cfg.cam.rtspPort, channel: ch };
         lines.push(`  ${sd}: "${rtspUrl({ ...common, subtype: 1 })}"`);
         lines.push(`  ${hd}: "${rtspUrl({ ...common, subtype: 0 })}"`);
@@ -252,7 +269,7 @@ function createApp(cfg, opts = {}) {
     const d = cfg.doorbell;
     if (!d.enabled) return;
     if (!d.topic) {
-      d.topic = 'rave-' + crypto.randomBytes(12).toString('hex');
+      d.topic = 'svb-' + crypto.randomBytes(12).toString('hex');
       try { writeEnv({ DOORBELL_TOPIC: d.topic }); } catch { /* sin permisos */ }
     }
     bell = new NtfyListener({ base: d.ntfy, topic: d.topic, log: (m) => log('[portero]', m) });
@@ -260,7 +277,7 @@ function createApp(cfg, opts = {}) {
     bell.on('ring', (r) => onRing({ ...r, source: 'qr' }));
     bell.start();
   }
-  async function onRing({ id, name, msg, source, force }) {
+  async function onRing({ id, name, msg, source, force, video }) {
     const now = Date.now();
     if (!force && !access.isOpen()) {
       // Fuera de horario: el cliente ve el horario en su celular y no suena el panel.
@@ -277,12 +294,15 @@ function createApp(cfg, opts = {}) {
     lastRing = now;
     id = id || crypto.randomBytes(6).toString('hex');
     const ring = { id, ts: new Date().toISOString(), name, msg, source, answered: null };
+    // Video portero: el panel recibe la señalización WebRTC por un tema propio de este timbre (no expone el tema principal)
+    if (video && source === 'qr' && /^[\w-]{4,40}$/.test(id)) { ring.video = true; ring.rtc = { base: cfg.doorbell.ntfy, sig: `${cfg.doorbell.topic}-v${id}` }; }
     rings.set(id, ring);
     if (rings.size > 50) rings.delete(rings.keys().next().value);
     addEvent({ type: 'DOORBELL_QR', message: `Timbre desde ${source === 'qr' ? 'el celular del cliente' : source}${name ? ': ' + name : ''}${msg ? ' — ' + msg : ''}` });
     broadcast('ring', ring);
     let photo = null;
-    try { photo = await snapshot(cfg.doorbell.camera, true); } catch { /* sin cámara */ }
+    if (ring.video) photo = await fetchVisitorPhoto(cfg.doorbell.ntfy, ring.rtc.sig, id).catch(() => null); // cara del visitante
+    if (!photo) { try { photo = await snapshot(cfg.doorbell.camera, true); } catch { /* sin cámara */ } }
     const kb = { inline_keyboard: [[{ text: '🙂 Ya voy', callback_data: `r:${id}:voy` }, { text: '⏳ Un momento', callback_data: `r:${id}:momento` }], [{ text: '📦 Dejar en la puerta', callback_data: `r:${id}:deje` }, { text: '🚫 No atendemos', callback_data: `r:${id}:cerrado` }], [{ text: '🔓 Abrir puerta', callback_data: `r:${id}:pase` }]] };
     await alertAll(`🔔 Tocan el timbre en ${cfg.businessName}${name ? `\n👤 ${name}` : ''}${msg ? `\n💬 ${msg}` : ''}\nRespondé con los botones:`, photo, { kind: 'ring', kb, ringId: id });
     return { ok: true, id };
@@ -421,7 +441,7 @@ function createApp(cfg, opts = {}) {
     });
   }
   async function snapshot(ch = 1, hd = false) {
-    const name = `rave_ch${ch}${hd ? '_hd' : ''}`;
+    const name = `svb_ch${ch}${hd ? '_hd' : ''}`;
     const r = await go2rtcRequest(`/api/frame.jpeg?src=${name}`);
     if (r.status !== 200 || !String(r.headers['content-type'] || '').includes('image')) throw new Error(`Sin imagen del canal ${ch} (HTTP ${r.status})`);
     return r.body;
@@ -527,7 +547,7 @@ function createApp(cfg, opts = {}) {
     if (pushCtl) { pushCtl.stop(); pushCtl = null; }
     if (!cfg.push.enabled) return;
     if (!cfg.push.topic) {
-      cfg.push.topic = 'rave-own-' + crypto.randomBytes(12).toString('hex');
+      cfg.push.topic = 'svb-own-' + crypto.randomBytes(12).toString('hex');
       try { writeEnv({ PUSH_TOPIC: cfg.push.topic }); } catch { /* sin permisos */ }
     }
     pushCtl = new NtfyListener({ base: cfg.doorbell.ntfy, topic: cfg.push.topic + '-c', log: (m) => log('[push]', m) });
@@ -798,6 +818,7 @@ function createApp(cfg, opts = {}) {
     if (n) fs.writeFileSync(envFile, text, { mode: 0o600 });
     const wasEnc = (() => { try { return fs.readFileSync(accessFile, 'utf8').startsWith('enc:v1:'); } catch { return null; } })();
     access.vault = v; access.encrypt = encrypt;
+    devices.setVault(encrypt ? v : null);
     if (wasEnc !== null && wasEnc !== encrypt) access.save();
     return n;
   }
@@ -822,11 +843,22 @@ function createApp(cfg, opts = {}) {
   };
   function clientIp(req) { return (req.socket.remoteAddress || '').replace('::ffff:', ''); }
   function lockStatus(ip) {
+    if (globalLocked()) return Math.ceil((globalUntil - Date.now()) / 1000);
     const f = state.failures.get(ip);
     if (f && f.until > Date.now()) return Math.ceil((f.until - Date.now()) / 1000);
     return 0;
   }
+  // Bloqueo global: muchos intentos fallidos desde distintas IPs (ataque distribuido en la red local)
+  const globalFails = []; let globalUntil = 0; let globalAlerted = 0;
+  function globalLocked() { return globalUntil > Date.now(); }
   function registerFailure(ip) {
+    const now = Date.now();
+    globalFails.push(now); while (globalFails.length && now - globalFails[0] > 600000) globalFails.shift();
+    if (globalFails.length >= 30 && !globalLocked()) {
+      globalUntil = now + 300000;
+      addEvent({ type: 'GLOBAL_LOCKOUT', level: 'CRITICAL', message: `${globalFails.length} intentos fallidos en 10 minutos desde la red: accesos por PIN bloqueados 5 minutos` });
+      if (now - globalAlerted > 600000) { globalAlerted = now; alertAll(`🚨 ${cfg.businessName}: posible ataque — ${globalFails.length} intentos de PIN fallidos en 10 minutos. Accesos por PIN bloqueados 5 minutos.`, null, { kind: 'alarm' }); }
+    }
     const f = state.failures.get(ip) || { count: 0, until: 0 };
     f.count++;
     if (f.count >= 5) { f.until = Date.now() + 60000; f.count = 0; }
@@ -837,10 +869,54 @@ function createApp(cfg, opts = {}) {
     if (!cfg.panelUser || !cfg.panelPass) return true;
     const h = req.headers.authorization || '';
     if (!h.startsWith('Basic ')) return false;
+    const ip = clientIp(req);
+    if (lockStatus(ip)) return false;
     const [u, ...rest] = Buffer.from(h.slice(6), 'base64').toString().split(':');
-    return safeEq(u, cfg.panelUser) && safeEq(rest.join(':'), cfg.panelPass);
+    const ok = safeEq(u, cfg.panelUser) && safeEq(rest.join(':'), cfg.panelPass);
+    if (!ok) { registerFailure(ip); addEvent({ type: 'PANEL_AUTH_FAIL', level: 'WARN', message: 'Usuario o contraseña del panel incorrectos', ip }); }
+    return ok;
   }
-  const isAdmin = (req) => safeEq(req.headers['x-admin-pin'] || '', cfg.adminPin);
+  // PIN de administración: cada intento fallido cuenta para el bloqueo (antes solo lo hacía /api/admin/check)
+  const adminCache = new WeakMap();
+  function isAdmin(req) {
+    if (adminCache.has(req)) return adminCache.get(req);
+    const pin = String(req.headers['x-admin-pin'] || '');
+    let ok = false;
+    if (pin) {
+      const ip = clientIp(req);
+      if (!lockStatus(ip)) {
+        ok = safeEq(pin, cfg.adminPin);
+        if (!ok) { registerFailure(ip); addEvent({ type: 'ADMIN_DENIED', level: 'WARN', message: 'PIN de administración incorrecto', ip }); }
+      }
+    }
+    adminCache.set(req, ok);
+    return ok;
+  }
+  // Límite de pedidos por IP para rutas sin PIN que generan avisos o escriben en la auditoría
+  const rate = new Map();
+  function rateLimited(ip, key, max = 20, windowMs = 60000) {
+    const k = `${key}:${ip}`; const now = Date.now();
+    const arr = (rate.get(k) || []).filter((t) => now - t < windowMs);
+    arr.push(now); rate.set(k, arr);
+    if (rate.size > 5000) rate.clear();
+    return arr.length > max;
+  }
+  // Anti DNS-rebinding: solo se atiende si el Host es una IP, localhost, un nombre local o uno permitido
+  const allowedHosts = (process.env.ALLOWED_HOSTS || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+  function hostAllowed(req) {
+    const h = String(req.headers.host || '').toLowerCase().replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+    if (!h) return true;
+    if (h === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':')) return true; // IPv4 / IPv6
+    if (/^[a-z0-9-]+$/.test(h) || /\.(local|lan|home|internal|ts\.net)$/.test(h)) return true; // nombre de la PC, mDNS, Tailscale
+    return allowedHosts.some((a) => h === a || h.endsWith('.' + a));
+  }
+  // Anti CSRF: un sitio web abierto en el mismo equipo no puede mandar órdenes al servidor
+  function originAllowed(req) {
+    const o = req.headers.origin;
+    if (!o || o === 'null') return !o; // sin Origin = app, curl o integración; "null" = sandbox / archivo
+    try { return new URL(o).host.toLowerCase() === String(req.headers.host || '').toLowerCase(); } catch { return false; }
+  }
+  const SEC_HEADERS = { 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'self'", 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Opener-Policy': 'same-origin' };
 
   // ───────────── HTTP ─────────────
   function send(res, status, body, headers = {}) {
@@ -910,6 +986,13 @@ function createApp(cfg, opts = {}) {
     ['POST', '/api/v1/tokens', 'admin', 'Crear token {name, scopes:[read,control,ingest]} (se muestra una sola vez)'],
     ['DELETE', '/api/v1/tokens?id=', 'admin', 'Revocar token'],
     ['POST', '/api/v1/discovery', 'admin', 'Descubrir cámaras y grabadores (ONVIF, ARP, puertos) {scan?}'],
+    ['GET', '/api/v1/devices', 'read', 'Equipos de video del inventario (sin claves)'],
+    ['POST', '/api/v1/devices/probe', 'admin', 'Consultar un equipo por ONVIF sin agregarlo {host, port, user, pass}'],
+    ['POST', '/api/v1/devices', 'admin', 'Agregar equipo: ONVIF {mode:"onvif", host, port, user, pass}, por marca {vendor, host, user, pass, count} o RTSP {url}'],
+    ['PATCH', '/api/v1/devices/{id}', 'admin', 'Renombrar, cambiar clave, habilitar/deshabilitar canales'],
+    ['DELETE', '/api/v1/devices/{id}', 'admin', 'Quitar equipo'],
+    ['GET', '/api/v1/wizard', 'admin', 'Estado del asistente de instalación'],
+    ['POST', '/api/v1/wizard', 'admin', 'Marcar el asistente como terminado {done:true}'],
     ['POST', '/api/v1/webhooks/test', 'admin', 'Enviar un evento de prueba a los webhooks'],
   ];
   function openapi() {
@@ -931,7 +1014,7 @@ function createApp(cfg, opts = {}) {
       product: PRODUCT, version: VERSION, business: cfg.businessName, sector: cfg.sector, sectorInfo: SECTORS[cfg.sector],
       armed: state.armed, night: state.night, hours: access.info(),
       occupancy: { ...platform.occupancy, max: cfg.occupancyMax },
-      cameras: { configured: !!state.camHost, channels: streamNames().map((c) => ({ ch: c.ch, name: c.name, online: state.streams[c.ch] ? state.streams[c.ch].online : null })) },
+      cameras: { configured: camerasConfigured(), devices: devices.devices.length, channels: streamNames().map((c) => ({ ch: c.ch, name: c.name, vendor: c.vendor, device: c.device, online: state.streams[c.ch] ? state.streams[c.ch].online : null })) },
       door: cfg.esp32Url ? 'esp32' : 'simulado',
       integrations: { mqtt: !!(mq && mq.connected), webhooks: webhooks.urls.length, community: !!(community && community.connected), telegram: !!(cfg.telegram.token && cfg.telegram.chatId), tokens: platform.tokens.length },
       analytics: engine.stats, encrypted: cfg.secretsEncrypt,
@@ -1102,8 +1185,64 @@ function createApp(cfg, opts = {}) {
       const b = await readBody(req);
       const scan = typeof b.scan === 'string' && /^[\d.,/ ]*$/.test(b.scan) ? b.scan : cfg.cam.scan;
       const r = await discoverAll({ scan, log: (x) => log('[descubrimiento]', x) });
+      r.devices.forEach((d) => { const known = devices.devices.find((x) => x.host === d.ip); d.added = known ? known.id : (state.camHost === d.ip ? 'principal' : null); });
       addEvent({ type: 'DISCOVERY', message: `Descubrimiento: ${r.devices.length} equipos (${r.onvif} ONVIF) en ${r.scanned} direcciones` });
       return send(res, 200, r);
+    }
+    // ── Inventario de equipos de video (cualquier marca) ──
+    if (pathname === '/api/v1/devices' && m === 'GET') { if (!need('read')) return; return send(res, 200, devices.devices.map((d) => devices.view(d))); }
+    if ((pathname === '/api/v1/devices/probe' || pathname === '/api/v1/devices') && m === 'POST') {
+      if (!adminOnly()) return;
+      const b = await readBody(req);
+      const host = String(b.host || '').trim(); const port = parseInt(b.port, 10) || 80;
+      if (!/^[\w.-]{1,253}$/.test(host)) return send(res, 400, { error: 'Dirección del equipo inválida' });
+      const strip = (u) => { try { const x = new URL(u); x.username = ''; x.password = ''; return x.toString(); } catch { return u; } };
+      const useOnvif = b.mode === 'onvif' || (!b.url && !b.vendor);
+      let probe = null;
+      if (useOnvif || pathname.endsWith('/probe')) {
+        try { probe = await new OnvifDevice({ host, port, user: b.user, pass: b.pass, timeout: 6000 }).probe(); } catch (e) {
+          return send(res, 400, { error: `${e.message}${e.denied ? '' : '. Verificá que ONVIF esté habilitado en el equipo, o agregalo por marca o por dirección RTSP.'}`, denied: !!e.denied });
+        }
+        if (pathname.endsWith('/probe')) return send(res, 200, { info: probe.info, ptz: probe.ptz, channels: probe.channels.map((c) => ({ name: c.name, url: strip(c.main), sub: strip(c.sub), resolution: c.resolution, encoding: c.encoding, ptz: c.ptz })) });
+      }
+      let dev;
+      try {
+        if (probe) dev = devices.add({ name: b.name, host, port, user: b.user, pass: b.pass, mode: 'onvif', vendor: 'onvif', info: probe.info, ptzUrl: probe.ptzUrl, channels: probe.channels.map((c) => ({ name: c.name, main: c.main, sub: c.sub, token: c.mainToken, ptz: c.ptz })) });
+        else if (b.url) dev = devices.add({ name: b.name, host, port, user: b.user, pass: b.pass, vendor: 'rtsp', channels: [{ name: b.name || 'Cámara', main: String(b.url), sub: String(b.subUrl || b.url) }] });
+        else dev = devices.add({ name: b.name, host, port, user: b.user, pass: b.pass, vendor: b.vendor, count: b.count });
+      } catch (e) { return send(res, 400, { error: e.message }); }
+      addEvent({ type: 'DEVICE_ADDED', level: 'HIGH', message: `Equipo agregado: ${dev.name} (${dev.host}) · ${dev.channels.length} canal${dev.channels.length > 1 ? 'es' : ''}` });
+      restartGo2rtc(); broadcast('config', { devices: true });
+      return send(res, 201, devices.view(dev));
+    }
+    const dm = pathname.match(/^\/api\/v1\/devices\/([0-9a-f]{10})$/);
+    if (dm && (m === 'PATCH' || m === 'PUT' || m === 'DELETE')) {
+      if (!adminOnly()) return;
+      if (m === 'DELETE') {
+        const d = devices.get(dm[1]); if (!d) return send(res, 404, { error: 'Equipo inexistente' });
+        devices.remove(d.id); ptzClients.delete(d.id);
+        addEvent({ type: 'DEVICE_REMOVED', level: 'HIGH', message: `Equipo quitado: ${d.name} (${d.host})` });
+        restartGo2rtc(); broadcast('config', { devices: true });
+        return send(res, 200, { ok: true });
+      }
+      try {
+        const d = devices.update(dm[1], await readBody(req)); ptzClients.delete(d.id);
+        restartGo2rtc(); broadcast('config', { devices: true });
+        return send(res, 200, devices.view(d));
+      } catch (e) { return send(res, 400, { error: e.message }); }
+    }
+    // ── Asistente de instalación ──
+    if (pathname === '/api/v1/wizard') {
+      if (!adminOnly()) return;
+      if (m === 'POST') { const b = await readBody(req); devices.wizard = { done: !!b.done, at: new Date().toISOString() }; devices.save(); if (b.done) addEvent({ type: 'SETUP_DONE', level: 'HIGH', message: 'Asistente de instalación completado' }); }
+      return send(res, 200, {
+        done: !!devices.wizard.done || !cfg.wizardAuto, at: devices.wizard.at || null,
+        checks: {
+          negocio: cfg.businessName !== 'Mi Negocio', pins: cfg.doorPin !== '2580' && cfg.duressPin !== '9999' && cfg.adminPin !== '1234',
+          camaras: camerasConfigured(), cerradura: !!cfg.esp32Url, panelAuth: !!(cfg.panelUser && cfg.panelPass), avisos: !!((cfg.telegram.token && cfg.telegram.chatId) || cfg.whatsapp.to || (cfg.push.enabled && cfg.push.topic)),
+        },
+        sector: cfg.sector, business: cfg.businessName, cameraCount: camerasConfigured() ? streamNames().length : 0,
+      });
     }
     if (pathname === '/api/v1/webhooks/test' && m === 'POST') {
       if (!adminOnly()) return;
@@ -1136,7 +1275,8 @@ function createApp(cfg, opts = {}) {
         doorbell: !!(bell && bell.connected),
         access: access.info(),
         cameras: {
-          configured: !!state.camHost,
+          configured: camerasConfigured(),
+          devices: devices.devices.length,
           host: state.camHost ? state.camHost.replace(/\.\d+$/, '.x') : null,
           serialHint: cfg.cam.serial ? cfg.cam.serial.slice(0, 4) + '…' + cfg.cam.serial.slice(-3) : null,
           channels: streamNames(),
@@ -1336,9 +1476,8 @@ function createApp(cfg, opts = {}) {
       const lock = lockStatus(ip);
       if (lock) return send(res, 429, { ok: false, retryIn: lock });
       if (isAdmin(req)) { state.failures.delete(ip); return send(res, 200, { ok: true }); }
-      registerFailure(ip);
-      addEvent({ type: 'ADMIN_DENIED', level: 'WARN', message: 'PIN de administrador incorrecto', ip });
-      return send(res, 403, { ok: false });
+      const locked = lockStatus(ip); // isAdmin ya registró el intento fallido
+      return send(res, locked ? 429 : 403, { ok: false, ...(locked ? { retryIn: locked } : {}) });
     }
 
     if (pathname === '/api/events' && m === 'GET') {
@@ -1346,6 +1485,7 @@ function createApp(cfg, opts = {}) {
       return send(res, 200, readEvents(Math.min(5000, parseInt(query.get('limit'), 10) || 200)));
     }
     if (pathname === '/api/events' && m === 'POST') {
+      if (rateLimited(ip, 'events', 60)) return send(res, 429, { error: 'Demasiados pedidos' });
       const b = await readBody(req);
       const type = String(b.type || 'EVENT').replace(/[^A-Z0-9_]/gi, '').slice(0, 40);
       const e = addEvent({ type, level: String(b.level || 'INFO').slice(0, 10), message: String(b.message || '').slice(0, 500), source: 'panel' });
@@ -1353,6 +1493,7 @@ function createApp(cfg, opts = {}) {
     }
 
     if (pathname === '/api/alert' && m === 'POST') {
+      if (rateLimited(ip, 'alert', 12)) return send(res, 429, { error: 'Demasiados avisos seguidos' });
       const b = await readBody(req);
       const type = String(b.type || 'ALERT').replace(/[^A-Z0-9_]/gi, '').slice(0, 40);
       let photo = null;
@@ -1437,6 +1578,7 @@ function createApp(cfg, opts = {}) {
       return send(res, 200, await onRing({ name: 'Prueba', msg: 'Timbre de prueba desde administración', source: 'prueba', force: true }));
     }
     if (pathname === '/api/doorbell/reply' && m === 'POST') {
+      if (rateLimited(ip, 'reply', 20)) return send(res, 429, { error: 'Demasiados pedidos' });
       const b = await readBody(req);
       const code = String(b.code || '');
       if (code === 'pase') {
@@ -1495,8 +1637,23 @@ function createApp(cfg, opts = {}) {
 
     // ── PTZ (cámaras motorizadas) ──
     if (pathname === '/api/ptz' && m === 'POST') {
-      if (!state.camHost) return send(res, 400, { error: 'Grabador no conectado' });
       const b = await readBody(req);
+      const dc = devices.channel(b.ch);
+      if (dc) { // cámara del inventario: PTZ por ONVIF
+        const codes = ['Up', 'Down', 'Left', 'Right', 'LeftUp', 'RightUp', 'LeftDown', 'RightDown', 'ZoomTele', 'ZoomWide'];
+        if (!codes.includes(b.code)) return send(res, 400, { error: 'Comando PTZ inválido' });
+        if (!dc.c.ptz || !dc.c.token || !dc.dev.ptzUrl) return send(res, 400, { error: 'Esa cámara no es motorizada' });
+        try {
+          let o = ptzClients.get(dc.dev.id);
+          if (!o || Date.now() - o.synced > 600000) { // reloj del equipo sincronizado cada 10 min (WS-Security lo exige)
+            o = new OnvifDevice({ host: dc.dev.host, port: dc.dev.port, user: dc.dev.user, pass: devices.pass(dc.dev) }); o.ptz = dc.dev.ptzUrl;
+            await o.syncTime(); o.synced = Date.now(); ptzClients.set(dc.dev.id, o);
+          }
+          if (b.action === 'stop') await o.stop(dc.c.token); else await o.move(dc.c.token, ptzVector(b.code, parseInt(b.speed, 10) || 4));
+          return send(res, 200, { ok: true, onvif: true });
+        } catch (e) { return send(res, 502, { ok: false, error: e.message }); }
+      }
+      if (!state.camHost) return send(res, 400, { error: 'Grabador no conectado' });
       const codes = ['Up', 'Down', 'Left', 'Right', 'LeftUp', 'RightUp', 'LeftDown', 'RightDown', 'ZoomTele', 'ZoomWide', 'FocusNear', 'FocusFar'];
       const code = codes.includes(b.code) ? b.code : null;
       const ch = Math.max(1, Math.min(cfg.cam.channels, parseInt(b.ch, 10) || 1));
@@ -1512,7 +1669,7 @@ function createApp(cfg, opts = {}) {
     // ── Reproducción de grabaciones del disco del grabador ──
     if (pathname === '/api/playback' && (m === 'POST' || m === 'DELETE')) {
       if (!state.camHost) return send(res, 400, { error: 'Grabador no conectado' });
-      if (m === 'DELETE') { await go2rtcRequest('/api/streams?src=rave_pb', 'DELETE').catch(() => {}); return send(res, 200, { ok: true }); }
+      if (m === 'DELETE') { await go2rtcRequest('/api/streams?src=svb_pb', 'DELETE').catch(() => {}); return send(res, 200, { ok: true }); }
       const b = await readBody(req);
       const ch = Math.max(1, Math.min(cfg.cam.channels, parseInt(b.ch, 10) || 1));
       const start = new Date(String(b.start || ''));
@@ -1523,11 +1680,11 @@ function createApp(cfg, opts = {}) {
       const tpl = cfg.cam.playbackTemplate || 'rtsp://{user}:{pass}@{host}:{port}/cam/playback?channel={channel}&subtype=0&starttime={start}&endtime={end}';
       const url = tpl.replace('{user}', encodeURIComponent(cfg.cam.user)).replace('{pass}', encodeURIComponent(cfg.cam.pass)).replace('{host}', state.camHost)
         .replace('{port}', String(cfg.cam.rtspPort)).replace('{channel}', String(ch)).replace('{start}', f(start)).replace('{end}', f(end));
-      await go2rtcRequest('/api/streams?src=rave_pb', 'DELETE').catch(() => {});
-      const r = await go2rtcRequest(`/api/streams?name=rave_pb&src=${encodeURIComponent(url)}`, 'PUT').catch((e) => ({ status: 502, body: Buffer.from(e.message) }));
+      await go2rtcRequest('/api/streams?src=svb_pb', 'DELETE').catch(() => {});
+      const r = await go2rtcRequest(`/api/streams?name=svb_pb&src=${encodeURIComponent(url)}`, 'PUT').catch((e) => ({ status: 502, body: Buffer.from(e.message) }));
       if (r.status !== 200) return send(res, 502, { error: 'go2rtc no disponible' });
       addEvent({ type: 'PLAYBACK', message: `Reproducción canal ${ch} desde ${start.toLocaleString('es-AR')}` });
-      return send(res, 200, { ok: true, stream: 'rave_pb', channel: ch });
+      return send(res, 200, { ok: true, stream: 'svb_pb', channel: ch });
     }
 
     // ── Configuración desde el panel (escribe .env) ──
@@ -1692,6 +1849,12 @@ function createApp(cfg, opts = {}) {
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
+    Object.entries(SEC_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+    if (!hostAllowed(req)) return send(res, 421, 'Dirección no permitida (agregala en ALLOWED_HOSTS)');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req)) {
+      addEvent({ type: 'CSRF_BLOCKED', level: 'WARN', message: `Pedido bloqueado desde otro sitio (${String(req.headers.origin).slice(0, 80)} → ${url.pathname})`, ip: clientIp(req) });
+      return send(res, 403, { error: 'Origen no permitido' });
+    }
     const v1Token = url.pathname.startsWith('/api/v1/') && !!platform.verifyToken(bearer(req, url.searchParams));
     if (!v1Token && !checkPanelAuth(req)) return send(res, 401, 'Autenticación requerida', { 'WWW-Authenticate': 'Basic realm="Sistemas VB Seguridad"' });
     try {
@@ -1707,7 +1870,7 @@ function createApp(cfg, opts = {}) {
   // WebSocket (video WebRTC/MSE) → go2rtc
   server.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, 'http://x');
-    if (!checkPanelAuth(req) || url.pathname !== '/go2rtc/api/ws') { socket.destroy(); return; }
+    if (!hostAllowed(req) || (req.headers.origin && !originAllowed(req)) || !checkPanelAuth(req) || url.pathname !== '/go2rtc/api/ws') { socket.destroy(); return; }
     const [h, p] = cfg.go2rtc.api.split(':');
     const up = net.connect(+p, h, () => {
       const headers = Object.entries(req.headers).filter(([k]) => k !== 'authorization').map(([k, v]) => `${k}: ${k === 'host' ? cfg.go2rtc.api : v}`);

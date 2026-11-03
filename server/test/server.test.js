@@ -109,8 +109,8 @@ test('API: puerta, coacción, visitas, bloqueo, seguridad de archivos', async (t
   // Autodescubrimiento al arrancar → yaml de go2rtc con la IP encontrada
   assert.strictEqual(app.state.camHost, '127.0.0.1');
   const yaml = app.go2rtcYaml();
-  assert.match(yaml, /rave_ch1: "rtsp:\/\/admin:clave-de-prueba@127\.0\.0\.1:1\/cam\/realmonitor\?channel=1&subtype=1"/);
-  assert.match(yaml, /rave_ch4_hd:/);
+  assert.match(yaml, /svb_ch1: "rtsp:\/\/admin:clave-de-prueba@127\.0\.0\.1:1\/cam\/realmonitor\?channel=1&subtype=1"/);
+  assert.match(yaml, /svb_ch4_hd:/);
 
   // Estado público sin credenciales
   const st = await req(port, 'GET', '/api/status');
@@ -186,11 +186,11 @@ test('API: puerta, coacción, visitas, bloqueo, seguridad de archivos', async (t
 
 test('Basic auth del panel cuando PANEL_USER/PANEL_PASS están definidos', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'svb-'));
-  const app = createApp(readConfig({ PORT: '0', HOST: '127.0.0.1', PANEL_USER: 'rave', PANEL_PASS: 'secreto', GO2RTC_DISABLED: '1', DATA_DIR: dataDir, DOORBELL: '0', PUSH_ENABLED: '0' }), { log: () => {} });
+  const app = createApp(readConfig({ PORT: '0', HOST: '127.0.0.1', PANEL_USER: 'svb', PANEL_PASS: 'secreto', GO2RTC_DISABLED: '1', DATA_DIR: dataDir, DOORBELL: '0', PUSH_ENABLED: '0' }), { log: () => {} });
   const port = (await app.start()).address().port;
   t.after(() => app.stop());
   assert.strictEqual((await req(port, 'GET', '/api/health')).status, 401);
-  const auth = { Authorization: 'Basic ' + Buffer.from('rave:secreto').toString('base64') };
+  const auth = { Authorization: 'Basic ' + Buffer.from('svb:secreto').toString('base64') };
   assert.strictEqual((await req(port, 'GET', '/api/health', null, auth)).status, 200);
 });
 
@@ -230,7 +230,7 @@ test('Video: grabador RTSP falso → go2rtc → snapshot y WebSocket por el serv
 
   // Handshake WebSocket a través del proxy
   const ws = await new Promise((resolve, reject) => {
-    const r = http.request({ host: '127.0.0.1', port, path: '/go2rtc/api/ws?src=rave_ch1', headers: { Connection: 'Upgrade', Upgrade: 'websocket', 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': crypto.randomBytes(16).toString('base64') } });
+    const r = http.request({ host: '127.0.0.1', port, path: '/go2rtc/api/ws?src=svb_ch1', headers: { Connection: 'Upgrade', Upgrade: 'websocket', 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': crypto.randomBytes(16).toString('base64') } });
     r.on('upgrade', (res, socket) => { socket.destroy(); resolve(res.statusCode); });
     r.on('response', (res) => resolve(res.statusCode));
     r.on('error', reject);
@@ -241,11 +241,11 @@ test('Video: grabador RTSP falso → go2rtc → snapshot y WebSocket por el serv
   const st = await req(port, 'GET', '/api/status');
   assert.strictEqual(st.body.cameras.go2rtc.running, true);
 
-  // Reproducción de grabaciones: stream dinámico rave_pb
+  // Reproducción de grabaciones: stream dinámico svb_pb
   const pb = await req(port, 'POST', '/api/playback', { ch: 2, start: '2026-11-01T10:00', minutes: 30 });
-  assert.strictEqual(pb.body.stream, 'rave_pb');
+  assert.strictEqual(pb.body.stream, 'svb_pb');
   let frame;
-  for (let i = 0; i < 8; i++) { frame = await req(port, 'GET', '/go2rtc/api/frame.jpeg?src=rave_pb'); if (frame.status === 200) break; await new Promise((r) => setTimeout(r, 1000)); }
+  for (let i = 0; i < 8; i++) { frame = await req(port, 'GET', '/go2rtc/api/frame.jpeg?src=svb_pb'); if (frame.status === 200) break; await new Promise((r) => setTimeout(r, 1000)); }
   assert.strictEqual(frame.status, 200, 'imagen de la reproducción');
   assert.strictEqual((await req(port, 'DELETE', '/api/playback')).body.ok, true);
 });

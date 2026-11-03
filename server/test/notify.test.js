@@ -38,8 +38,8 @@ test('WhatsApp de los dueños + push con botones', async (t) => {
   await sleep(500);
 
   const env = fs.readFileSync(envFile, 'utf8');
-  const own = (env.match(/PUSH_TOPIC=(rave-own-[0-9a-f]{24})/) || [])[1];
-  const bellTopic = (env.match(/DOORBELL_TOPIC=(rave-[0-9a-f]{24})/) || [])[1];
+  const own = (env.match(/PUSH_TOPIC=(svb-own-[0-9a-f]{24})/) || [])[1];
+  const bellTopic = (env.match(/DOORBELL_TOPIC=(svb-[0-9a-f]{24})/) || [])[1];
   assert.ok(own && bellTopic && own !== bellTopic, 'temas secretos distintos para dueños y clientes');
 
   // Datos para suscribirse desde la app ntfy

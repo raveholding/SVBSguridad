@@ -1,5 +1,5 @@
 /*
- * Sistemas VB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
+ * Sistemas VB Seguridad — Controlador de cerradura para ESP32
  * ------------------------------------------------------------------
  * NO hace falta editar este código: se configura desde el celular.
  *

@@ -1,7 +1,7 @@
 # Sistemas VB Seguridad — Arquitectura técnica
 
 **Sistema de Seguridad Integral Unificado** para comercios, industrias y empresas, campos y fincas, y hogares.
-Versión 2.0 · Instalación de referencia: Almacén Rave (Salta).
+Versión 2.3 · Almacén Rave.
 
 Desarrollado por **Vincular Business · Sistema VB** — WhatsApp (387) 4484132 · vincularbusiness@gmail.com
 
@@ -9,7 +9,7 @@ Desarrollado por **Vincular Business · Sistema VB** — WhatsApp (387) 4484132 
 
 ## 0. Resumen
 
-Sistemas VB Seguridad se apoya en la base que ya funciona en el Almacén Rave (accesos, visitantes, timbre QR/NFC, cerradura ESP32, huella y rostro, avisos push/WhatsApp/Telegram, firmware) y le suma una **plataforma multi-sector** con cinco ideas que lo separan de un DVR/NVR común:
+Sistemas VB Seguridad se apoya en una base probada en instalaciones reales (accesos, visitantes, timbre QR/NFC, cerradura ESP32, huella y rostro, avisos push/WhatsApp/Telegram, firmware) y le suma una **plataforma multi-sector** con cinco ideas que lo separan de un DVR/NVR común:
 
 1. **Una sola puerta de entrada para toda la inteligencia artificial.** No importa si la detección viene del grabador Dahua, de Frigate o de un Jetson en el campo: todo se normaliza a un único formato y pasa por el mismo motor de reglas.
 2. **Reglas por sector.** El mismo software se comporta distinto en un almacén (aforo, permanencia), en una planta (EPP, caídas), en un campo (filtra fauna y clima) o en una casa (escenas, pánico, red vecinal).
@@ -111,6 +111,46 @@ flowchart LR
 
 Plantillas de URL por marca: Dahua `…/cam/realmonitor?channel=1&subtype=0`, Hikvision `…/Streaming/Channels/101`, Uniview `…/unicast/c1/s0/live`, Axis `…/axis-media/media.amp`, Reolink `…/h264Preview_01_main`, XMeye `…/user=…&password=…&channel=1&stream=0.sdp`, genérica `onvif://usuario:clave@ip:puerto`.
 
+### 2.1 bis Inventario de equipos y alta con un botón ✅
+
+Archivos: `server/lib/onvif-client.js`, `server/lib/devices.js` · Pantalla: Admin → **Equipos y cámaras** y el **asistente de instalación**.
+
+```mermaid
+sequenceDiagram
+  participant I as Instalador (panel)
+  participant S as Servidor Sistemas VB
+  participant E as Cámara / NVR (cualquier marca)
+  I->>S: Buscar en la red
+  S->>E: WS-Discovery · ARP · puertos
+  S-->>I: lista de equipos (marca, ONVIF, puertos)
+  I->>S: Agregar (IP, usuario, clave)
+  S->>E: GetSystemDateAndTime (ajuste de reloj)
+  S->>E: GetDeviceInformation · GetCapabilities (WS-Security / HTTP Digest)
+  S->>E: GetProfiles → agrupa por fuente de video (= canal)
+  S->>E: GetStreamUri (principal = mayor resolución, secundario = menor)
+  S->>S: guarda en data/devices.json (clave cifrada) y regenera go2rtc
+  S-->>I: canales 17, 18… en la grilla, con PTZ si corresponde
+```
+
+- Tres formas de alta: **ONVIF** (automática), **por marca** sin ONVIF (plantillas Dahua, Hikvision, Uniview, Axis, Reolink, XMeye + cantidad de canales) y **por URL RTSP**.
+- Los canales del inventario reciben un número global estable desde el **17** (del 1 al 16 quedan para el grabador Dahua principal configurado por número de serie). go2rtc los publica como `svb_ch<N>` y `svb_ch<N>_hd`.
+- **PTZ por ONVIF** (ContinuousMove / Stop) con el perfil principal de cada canal motorizado; el panel muestra el botón PTZ solo en esas cámaras.
+- Claves de los equipos cifradas con la bóveda AES-256-GCM cuando `SECRETS_ENCRYPT=1`.
+
+### 2.1 ter Asistente de instalación y perfiles de pantalla ✅
+
+- **Asistente** (6 pasos, se abre solo la primera vez que se entra a Administración): negocio y sector → PINs propios (obligatorio) → cámaras (buscar y agregar) → cerradura ESP32 → avisos → resumen. Estado en `GET/POST /api/v1/wizard`.
+- **Perfil de pantalla automático** según el dispositivo: puntero táctil + pantalla chica = **celular**; táctil = **tablet de pared / tótem**; mouse = **PC de administración**; `?pantalla=monitor` = **monitor de cámaras** (solo grilla, para televisores fijos). Se puede forzar en Admin → Sistema.
+- **Periféricos detectados** en el equipo del panel: cámaras, micrófonos, parlante, USB serie (cerradura por cable), NFC, huella/passkeys, reconocimiento de voz, pantalla táctil y lector QR USB/Bluetooth (se reconoce por la velocidad de tipeo).
+
+### 2.1 quater Frente del portero (pantalla de inicio) ✅
+
+- **Inicio táctil** pensado para tablets de pared, tótems, celulares y PC: logo y nombre del negocio, estado (Habilitado / Fuera de horario), reloj, y los accesos en botones grandes: **Tocar timbre** (o *Llamar a oficina*), **Ingresar con PIN**, **Tengo un pase**, **Tarjeta NFC**, **Asistente de voz**, **Personal autorizado** (rostro/huella, solo si están activados) y **Emergencia** (más *Llamar a un contacto de confianza* si hay uno cargado). Al pie, los datos del desarrollador (WhatsApp y email).
+- **PIN**: ventana propia con teclado táctil; en PC alcanza con tipear los números (Enter envía, Backspace borra, Esc cierra). Se cierra sola a los 25 s sin uso para no dejar un PIN escrito a medias en una pantalla pública.
+- **Consola**: el botón de cuadrícula del inicio abre la consola (puerta con cámara, teclado lateral, cámaras multicanal, eventos); el botón de casa vuelve. En la tablet de pared vuelve sola a los 2 minutos sin tocar. `?consola=1` arranca en la consola y `?pantalla=monitor` (televisor de cámaras) no muestra el inicio.
+- **Marca**: colores del sistema (negro, plata y blanco), logo y nombre del cliente; la frase y la dirección que se muestran se cargan en Administración → Marca y perfil. La insignia indica si hay cámaras («Videovigilancia activa») o no («Sin cámaras · tu privacidad primero»).
+- Prueba: `tests/e2e_frente.py` (35 comprobaciones).
+
 ### 2.2 Pipeline de streaming ✅
 
 ```mermaid
@@ -147,6 +187,10 @@ flowchart LR
 | Se corta internet | Avisos críticos (timbre, SOS, coacción, alarmas) en cola de reintento 15 minutos. |
 
 ---
+
+### 2.4 Video portero ✅
+
+El visitante escanea el QR, toca **Llamar** y su celular transmite la cámara frontal al panel por **WebRTC** (P2P, cifrado DTLS-SRTP, STUN públicos). La señalización (oferta/respuesta SDP comprimidas con deflate y partidas en mensajes de 3 KB) y una **foto JPEG de respaldo** viajan por el tema propio de la llamada `<tema>-v<id>` del relevo ntfy. El panel muestra la foto al instante y el video en vivo cuando conecta; **Hablar y escuchar** habilita el micrófono del panel. Con servidor, el aviso a los dueños (push, WhatsApp, Telegram) lleva la cara del visitante; si no llega en 6 s, la foto de la cámara de la puerta. Sin cámara o sin permiso, funciona como timbre común.
 
 ## 3. Inteligencia artificial y analítica de video
 
@@ -343,6 +387,11 @@ Autenticación de la API v1: `Authorization: Bearer svb_…` (token creado en Ad
 | GET / POST / DELETE | `/api/v1/tokens` | admin | Tokens de API |
 | POST | `/api/v1/discovery` | admin | Descubrimiento multi-marca `{ "scan": "192.168.1.0/24" }` |
 | POST | `/api/v1/webhooks/test` | admin | Prueba de webhooks |
+| GET | `/api/v1/devices` | read | Equipos de video del inventario (sin claves) |
+| POST | `/api/v1/devices/probe` | admin | Consultar un equipo por ONVIF sin agregarlo |
+| POST | `/api/v1/devices` | admin | Agregar equipo (ONVIF, por marca o RTSP) |
+| PATCH / DELETE | `/api/v1/devices/{id}` | admin | Renombrar, habilitar canales, cambiar clave / quitar |
+| GET / POST | `/api/v1/wizard` | admin | Estado del asistente de instalación |
 
 La API interna del panel (`/api/door/open`, `/api/people`, `/api/hours`, `/api/visitors`, `/api/setup`, `/api/live`, `/api/ptz`, `/api/playback`, etc.) se mantiene sin cambios.
 
@@ -464,6 +513,7 @@ SECRETS_ENCRYPT=1            # cifrado AES-256-GCM en disco
 |---|---|---|
 | Servidor, API interna y v1, orquestación | `server/server.js` | ✅ |
 | Descubrimiento multi-marca | `server/lib/onvif.js`, `server/lib/discover.js` | ✅ |
+| Cliente ONVIF (perfiles, URLs, PTZ) e inventario de equipos | `server/lib/onvif-client.js`, `server/lib/devices.js` | ✅ |
 | Grabador Dahua (Digest, RTSP, eventos, PTZ, reproducción) | `server/lib/dahua.js`, `server/lib/dahua-events.js` | ✅ |
 | Motor de analítica | `server/lib/analytics.js` | ✅ |
 | Patentes, tokens, aforo, permanencia, geocercas | `server/lib/platform.js` | ✅ |
@@ -488,10 +538,11 @@ SECRETS_ENCRYPT=1            # cifrado AES-256-GCM en disco
 ### Pruebas
 
 ```bash
-cd server && npm test           # 26 pruebas: incluye bóveda, ONVIF, analítica, API v1, MQTT con broker simulado,
+cd server && npm test           # 34 pruebas: incluye bóveda, ONVIF, analítica, API v1, MQTT con broker simulado,
                                 # webhooks firmados, vigilante de video y que la coacción no llegue a la pantalla
 python3 tests/e2e.py            # 88 pruebas con navegador real y grabador Dahua simulado
 python3 tests/e2e_plataforma.py # 31 pruebas de la plataforma multi-sector en navegador
+python3 tests/e2e_instalacion.py # 26 pruebas: asistente, alta ONVIF, equipos, grilla, PTZ, periféricos y perfiles de pantalla
 python3 tests/e2e_portero.py    # 21 pruebas del portero sin servidor
 python3 tests/e2e_accesos.py    # 22 pruebas de personas, horario, huella y rostro
 ```

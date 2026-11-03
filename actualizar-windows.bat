@@ -18,12 +18,12 @@ echo.
 if exist "%TMPD%" rmdir /s /q "%TMPD%"
 mkdir "%TMPD%"
 echo Descargando la ultima version...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/raveholding/SVBSguridad/archive/refs/heads/main.zip' -OutFile '%TMPD%\svb.zip'; Expand-Archive -Force -Path '%TMPD%\svb.zip' -DestinationPath '%TMPD%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/raveholding/SeguridadRave/archive/refs/heads/main.zip' -OutFile '%TMPD%\svb.zip'; Expand-Archive -Force -Path '%TMPD%\svb.zip' -DestinationPath '%TMPD%'"
 if errorlevel 1 goto :fail
-if not exist "%TMPD%\SVBSguridad-main\index.html" goto :fail
+if not exist "%TMPD%\SeguridadRave-main\index.html" goto :fail
 
 echo Instalando...
-robocopy "%TMPD%\SVBSguridad-main" "%DEST%" /E /XF .env /XD data bin node_modules .git /NFL /NDL /NJH /NJS /NP >nul
+robocopy "%TMPD%\SeguridadRave-main" "%DEST%" /E /XF .env /XD data bin node_modules .git /NFL /NDL /NJH /NJS /NP >nul
 if errorlevel 8 goto :fail
 rmdir /s /q "%TMPD%"
 

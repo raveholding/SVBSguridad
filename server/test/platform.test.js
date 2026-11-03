@@ -54,7 +54,7 @@ test('Bóveda AES-256-GCM: cifra, detecta alteraciones, migra el .env y protege 
 
   // Activar el cifrado desde el panel: migra los secretos del .env y cifra las personas
   const envFile = path.join(dir, '.env');
-  fs.writeFileSync(envFile, 'CAM_USER=admin\nCAM_PASS=secreta123\nESP32_TOKEN=tok\nWHATSAPP_TO=+5493871111111:1234\nBUSINESS_NAME=Rave\n');
+  fs.writeFileSync(envFile, 'CAM_USER=admin\nCAM_PASS=secreta123\nESP32_TOKEN=tok\nWHATSAPP_TO=+5493871111111:1234\nBUSINESS_NAME=Negocio\n');
   const app = createApp(readConfig(baseEnv(dir)), { log: () => {}, envFile });
   await app.start(); t.after(() => app.stop());
   const port = app.server.address().port;
@@ -158,11 +158,11 @@ test('API v1: tokens con permisos, aforo, escenas, pánico, patentes, geocercas,
   const espPort = await listen(esp);
   const tg = []; const tgSrv = http.createServer((req, res) => { let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => { tg.push(req.url + ' ' + b); res.end('{"ok":true,"result":[]}'); }); });
   const tgPort = await listen(tgSrv);
-  const app = createApp(readConfig(baseEnv(dir, { PANEL_USER: 'rave', PANEL_PASS: 'secreto', ESP32_URL: `http://127.0.0.1:${espPort}`, ESP32_TOKEN: 'x', TELEGRAM_BOT_TOKEN: '1:abc', TELEGRAM_CHAT_ID: '9', TELEGRAM_API: `http://127.0.0.1:${tgPort}`, OCCUPANCY_MAX: '3', PLATE_AUTO_OPEN: '1', SECTOR: 'industria' })), { log: () => {}, envFile: path.join(dir, '.env') });
+  const app = createApp(readConfig(baseEnv(dir, { PANEL_USER: 'svb', PANEL_PASS: 'secreto', ESP32_URL: `http://127.0.0.1:${espPort}`, ESP32_TOKEN: 'x', TELEGRAM_BOT_TOKEN: '1:abc', TELEGRAM_CHAT_ID: '9', TELEGRAM_API: `http://127.0.0.1:${tgPort}`, OCCUPANCY_MAX: '3', PLATE_AUTO_OPEN: '1', SECTOR: 'industria' })), { log: () => {}, envFile: path.join(dir, '.env') });
   await app.start();
   t.after(async () => { await app.stop(); esp.close(); tgSrv.close(); });
   const port = app.server.address().port;
-  const basic = { Authorization: 'Basic ' + Buffer.from('rave:secreto').toString('base64') };
+  const basic = { Authorization: 'Basic ' + Buffer.from('svb:secreto').toString('base64') };
   const A = { ...basic, ...ADMIN };
 
   assert.strictEqual((await call(port, 'GET', '/api/v1/status')).status, 401, 'panel protegido');
@@ -337,7 +337,7 @@ test('MQTT: Home Assistant discovery, estado retenido, comandos y eventos de Fri
   const { srv, st } = fakeBroker();
   const p = await listen(srv);
   const dir = tmp();
-  const app = createApp(readConfig(baseEnv(dir, { MQTT_URL: `mqtt://127.0.0.1:${p}`, MQTT_USER: 'ha', MQTT_PASS: 'clave', FRIGATE_TOPIC: 'frigate/events', BUSINESS_NAME: 'Almacén Rave', SECTOR: 'campo', MQTT_ALLOW_OPEN: '1' })), { log: () => {}, envFile: path.join(dir, '.env') });
+  const app = createApp(readConfig(baseEnv(dir, { MQTT_URL: `mqtt://127.0.0.1:${p}`, MQTT_USER: 'ha', MQTT_PASS: 'clave', FRIGATE_TOPIC: 'frigate/events', BUSINESS_NAME: 'Mi Negocio', SECTOR: 'campo', MQTT_ALLOW_OPEN: '1' })), { log: () => {}, envFile: path.join(dir, '.env') });
   await app.start();
   t.after(async () => { await app.stop(); srv.close(); });
   for (let i = 0; i < 40 && !st.pubs.some((x) => x.topic.endsWith('/sector')); i++) await sleep(50);
@@ -346,7 +346,7 @@ test('MQTT: Home Assistant discovery, estado retenido, comandos y eventos de Fri
   const disc = st.pubs.filter((x) => x.topic.startsWith('homeassistant/'));
   assert.ok(disc.length >= 8 && disc.every((x) => x.retain));
   const sw = JSON.parse(disc.find((x) => x.topic.includes('/switch/')).payload);
-  assert.strictEqual(sw.command_topic, 'sistemasvb/cmd/arm'); assert.strictEqual(sw.device.manufacturer, 'Vincular Business'); assert.match(sw.device.name, /Sistemas VB Seguridad · Almacén Rave/);
+  assert.strictEqual(sw.command_topic, 'sistemasvb/cmd/arm'); assert.strictEqual(sw.device.manufacturer, 'Vincular Business'); assert.match(sw.device.name, /Sistemas VB Seguridad/);
   assert.ok(st.pubs.some((x) => x.topic === 'sistemasvb/status' && x.payload === 'online' && x.retain));
   assert.ok(st.pubs.some((x) => x.topic === 'sistemasvb/sector' && x.payload === 'campo'));
   // Comandos desde Home Assistant / Alexa / Google
@@ -376,7 +376,7 @@ test('Vigilante de video: avisa cortes por cámara y reinicia go2rtc colgado', a
   const g2 = http.createServer((req, res) => {
     if (mode === 'hang') { req.socket.destroy(); return; }
     const online = mode === 'ok';
-    res.end(JSON.stringify({ rave_ch1: { producers: [{ state: online ? 'connected' : 'connecting' }], consumers: [{}] }, rave_ch1_hd: { producers: [], consumers: [] }, rave_ch2: { producers: [], consumers: [] } }));
+    res.end(JSON.stringify({ svb_ch1: { producers: [{ state: online ? 'connected' : 'connecting' }], consumers: [{}] }, svb_ch1_hd: { producers: [], consumers: [] }, svb_ch2: { producers: [], consumers: [] } }));
   });
   const gp = await listen(g2); t.after(() => g2.close());
   const dir = tmp();

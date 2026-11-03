@@ -20,6 +20,7 @@ function readConfig(env = process.env) {
     port: int('PORT', 8080),
     host: env.HOST || '0.0.0.0',
     businessName: env.BUSINESS_NAME || 'Almacén Rave',
+    wizardAuto: env.WIZARD_AUTO === '1', // 0 = instalaciones ya hechas: el asistente no se abre solo (sigue disponible a mano)
     panelUser: env.PANEL_USER || '',
     panelPass: env.PANEL_PASS || '',
     adminPin: env.ADMIN_PIN || '1234',
@@ -60,7 +61,7 @@ function readConfig(env = process.env) {
       enabled: env.DOORBELL !== '0',
       topic: env.DOORBELL_TOPIC || '',
       ntfy: (env.NTFY_URL || 'https://ntfy.sh').replace(/\/$/, ''),
-      page: env.DOORBELL_PAGE || 'https://raveholding.github.io/SVBSguridad/timbre.html',
+      page: env.DOORBELL_PAGE || 'https://raveholding.github.io/SeguridadRave/timbre.html',
       camera: int('DOORBELL_CAMERA', 1),
       cooldown: int('DOORBELL_COOLDOWN', 15),
       whatsapp: env.DOORBELL_WHATSAPP || '',
