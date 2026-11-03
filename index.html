@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="description" content="Sistema Vincular Business — Soluciones de Seguridad">
+<meta name="description" content="Sistemas VB Seguridad — Vincular Business · Soluciones de seguridad integral">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
-<title>SVB Seguridad · Almacén Rave</title>
+<title>Sistemas VB Seguridad · Almacén Rave</title>
 <style>
 :root{
   --bg:#000;--p1:#0A0A0A;--p2:#121212;--p3:#181818;--b1:#222;--b2:#333;--b3:#444;
@@ -161,6 +161,14 @@ main.wide .side{display:none}
 .key.fn{font-size:13px;letter-spacing:1px;color:var(--muted);font-weight:600}
 .key.ok{background:var(--silver);color:#000;border-color:var(--silver)}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scene-acts{grid-template-columns:1fr 1fr 1fr;margin-top:8px}.scene-acts[hidden],.pill[hidden]{display:none}.scene-acts .btn{min-height:52px;font-size:13px;padding:8px 6px}
+.ig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.ig-big{font-size:46px;font-weight:300;color:var(--white);line-height:1;letter-spacing:1px}
+.ig-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.ig-chips span{padding:6px 10px;border-radius:999px;border:1px solid var(--b2);background:var(--p1);font-size:12px;color:var(--muted)}
+.ig-chips span.ok{color:#000;background:var(--silver);border-color:var(--silver);font-weight:600}.ig-chips span.bad{color:var(--white);border-color:var(--white)}
+.ig-tok{font-family:ui-monospace,monospace;font-size:13px;word-break:break-all;user-select:all;padding:10px;border:1px dashed var(--silver);border-radius:10px;color:var(--white);background:#000}
+.ig-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.ig-row .f{flex:1;min-width:120px}
+#integraBox a{color:var(--silver)}
 .btn{min-height:var(--tap);padding:10px 14px;border:1px solid var(--b2);border-radius:var(--r);background:var(--p2);color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;letter-spacing:.3px;text-align:center;transition:transform .08s}
 .btn.primary{background:var(--white);color:#000;border-color:var(--white)}
 .btn.sos{grid-column:1/-1;min-height:84px;font-size:22px;letter-spacing:3px;background:#000;border:2px solid var(--white)}
@@ -342,6 +350,7 @@ html{touch-action:manipulation}
       <span class="pill" id="stCams"><i></i>Cámaras</span>
       <span class="pill" id="stDoor"><i></i>Cerradura</span>
       <span class="pill" id="stAi"><i></i>IA</span>
+      <span class="pill" id="stOcc" hidden title="Aforo: personas dentro"><i></i><span>0</span></span>
     </div>
     <div class="clock" id="clock">--:--</div>
     <button class="ibtn" id="btnMic" aria-label="Asistente de voz"><svg class="i"><use href="#ic-mic"/></svg></button>
@@ -419,8 +428,13 @@ html{touch-action:manipulation}
           <button class="btn" id="btnScan"><svg class="i"><use href="#ic-qr"/></svg>Pase QR</button>
           <button class="btn" id="btnNfc"><svg class="i"><use href="#ic-nfc"/></svg>Tarjeta NFC</button>
         </div>
+        <div class="acts scene-acts" id="sceneActs" hidden>
+          <button class="btn" data-scene="llegada"><svg class="i"><use href="#ic-door"/></svg>Llegué</button>
+          <button class="btn" data-scene="noche"><svg class="i"><use href="#ic-eye"/></svg>Noche</button>
+          <button class="btn" data-scene="salida"><svg class="i"><use href="#ic-lock"/></svg>Salgo</button>
+        </div>
       </div>
-      <div class="devline">Sistema VB · <a id="devLine" href="https://wa.me/5493874484132" target="_blank" rel="noopener">Vincular Business · (387) 4484132</a></div>
+      <div class="devline">Sistemas VB Seguridad · <a id="devLine" href="https://wa.me/5493874484132" target="_blank" rel="noopener">Vincular Business · (387) 4484132</a></div>
     </aside>
   </main>
 
@@ -527,6 +541,12 @@ html{touch-action:manipulation}
       <div id="bioBox"><p class="muted small">Cargando…</p></div>
     </section>
 
+    <section class="pane setup" data-pane="integra" data-n="⚡" data-title="Integraciones y analítica">
+      <h2>Integraciones y analítica</h2>
+      <p class="lead">Estado de cada componente, aforo, escenas, patentes, geocercas, tokens para conectar otros sistemas (ERP, POS, Home Assistant, motores de IA, GPS) y descubrimiento de cámaras de cualquier marca. El sector y las reglas de la IA se eligen en <b>★ Configuración → Sector e inteligencia artificial</b>.</p>
+      <div id="integraBox"><p class="muted small">Cargando…</p></div>
+    </section>
+
     <section class="pane" data-pane="marca" data-n="0" data-title="Marca y perfil">
       <h2>Marca y perfil de operación</h2>
       <p class="lead">Logo, nombre del negocio y nivel de seguridad.</p>
@@ -560,7 +580,7 @@ html{touch-action:manipulation}
 
     <section class="pane" data-pane="voz" data-n="2" data-title="Asistente de voz">
       <h2>Asistente de voz</h2>
-      <p class="lead">Reconocimiento y síntesis nativos del navegador (sin servicios pagos). Comandos: «abrir puerta», «emergencia», «llamar a 911», «ver cámaras», «ver puerta», «tocar timbre», «llamar», «cancelar».</p>
+      <p class="lead">Reconocimiento y síntesis nativos del navegador (sin servicios pagos). Comandos: «abrir puerta», «emergencia», «llamar a 911», «ver cámaras», «ver puerta», «tocar timbre», «llamar», «cancelar», y con el servidor: «modo noche», «llegué a casa», «salgo» (piden PIN).</p>
       <label class="chk"><input type="checkbox" id="sVoiceOn">Escucha continua al iniciar</label>
       <label class="chk"><input type="checkbox" id="sWakeOn">Requiere palabra clave</label>
       <div class="row">
@@ -659,7 +679,7 @@ html{touch-action:manipulation}
       <h2>Manual de integración de video</h2>
       <div class="doc">
         <h3>Cómo se ven las cámaras de DMSS en este panel</h3>
-        <p>DMSS usa P2P (la nube de Dahua) con el número de serie del grabador. Los navegadores no pueden abrir P2P ni RTSP directamente, por eso el <b>servidor SVB</b> (una PC o mini‑PC en el almacén) se conecta al grabador por la red local y convierte el video a WebRTC/MSE con <b>go2rtc</b>. DMSS sigue funcionando igual en paralelo.</p>
+        <p>DMSS usa P2P (la nube de Dahua) con el número de serie del grabador. Los navegadores no pueden abrir P2P ni RTSP directamente, por eso el <b>servidor Sistemas VB</b> (una PC o mini‑PC en el almacén) se conecta al grabador por la red local y convierte el video a WebRTC/MSE con <b>go2rtc</b>. DMSS sigue funcionando igual en paralelo.</p>
         <h3>Datos del grabador</h3>
         <p>Se cargan en <b>★ Configuración → Grabador Dahua</b>: número de serie que muestra DMSS, usuario y contraseña del dispositivo. Con IP en «auto» el sistema encuentra el grabador solo.</p>
         <h3>URLs RTSP Dahua</h3>
@@ -703,7 +723,7 @@ html{touch-action:manipulation}
         <div class="tx"><b>Desarrollado por Vincular Business · Sistema VB</b><span>Software de gestión, digitalización y seguridad para comercios y servicios · Salta, Argentina</span></div>
         <div class="ct"><a class="btn sm primary" id="devWa" href="https://wa.me/5493874484132" target="_blank" rel="noopener"><svg class="i"><use href="#ic-wa"/></svg>WhatsApp (387) 4484132</a><a class="btn sm" href="mailto:vincularbusiness@gmail.com">vincularbusiness@gmail.com</a></div>
       </div>
-      <div class="cfgcard"><h3>SVB Seguridad v1.1</h3><p class="help" id="devInfoTxt" style="margin:0"></p></div>
+      <div class="cfgcard"><h3>Sistemas VB Seguridad v2.0</h3><p class="help" id="devInfoTxt" style="margin:0"></p></div>
     </section>
 
     <section class="pane" data-pane="sistema" data-n="10" data-title="Sistema">
@@ -716,7 +736,7 @@ html{touch-action:manipulation}
         <button class="btn sm" id="sysQuit" disabled>Cerrar app</button>
         <button class="btn sm ghost" id="sysReset">Restablecer ajustes</button>
       </div>
-      <p class="small muted" style="margin-top:16px">SVB Seguridad v1.1 · Sistema Vincular Business · WhatsApp (387) 4484132 · vincularbusiness@gmail.com</p>
+      <p class="small muted" style="margin-top:16px">Sistemas VB Seguridad v2.0 · Sistema Vincular Business · WhatsApp (387) 4484132 · vincularbusiness@gmail.com</p>
     </section>
   </div>
 </div>
@@ -754,7 +774,7 @@ html{touch-action:manipulation}
 <div class="toast" id="toast"></div>
 
 <!--@@FW_BEGIN--><script type="text/plain" id="fw-src">/*
- * SVB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
+ * Sistemas VB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
  * ------------------------------------------------------------------
  * NO hace falta editar este código: se configura desde el celular.
  *
@@ -762,7 +782,7 @@ html{touch-action:manipulation}
  *  2) Al encenderlo por primera vez crea la red WiFi  "SVB-Puerta-XXXX"  (clave: svbpuerta).
  *     Conectate desde el celular: se abre la página de configuración (o entrá a http://192.168.4.1).
  *     Elegí el WiFi del local y su clave → Guardar. El ESP32 se reinicia y se conecta.
- *  3) En el panel SVB: ⚙ → Configuración → Cerradura → "Buscar y vincular cerradura".
+ *  3) En el panel Sistemas VB: ⚙ → Configuración → Cerradura → "Buscar y vincular cerradura".
  *     El panel la encuentra en la red y la vincula con una clave segura automáticamente.
  *
  *  Volver a configurar: mantener apretado el botón BOOT 5 segundos (borra WiFi y vínculo).
@@ -775,7 +795,7 @@ html{touch-action:manipulation}
  *   - Sensor magnético de puerta (reed) → GPIO 27 a GND (opcional)
  *   - Pulsador de salida interior        → GPIO 25 a GND (opcional)
  *
- * API (la usa el servidor SVB):
+ * API (la usa el servidor Sistemas VB):
  *   GET  /status                       estado (puerta, vínculo, IP)
  *   POST /open?ms=3000   X-Token: …    abrir
  *   POST /pair  (body = clave)         vincular (solo sin vincular y dentro de 10 min de encendido)
@@ -841,7 +861,7 @@ background:#fff;color:#000;font-size:17px;font-weight:700}p{color:#8a8a8a;line-h
 
 void handleRoot() {
   String h = FPSTR(PAGE_HEAD);
-  h += "<h1>Cerradura SVB · configuración</h1><p>Elegí el WiFi del local. Después, en el panel SVB tocá <b>Buscar y vincular cerradura</b>.</p><form method='POST' action='/save'><label>Red WiFi</label><select name='s'>";
+  h += "<h1>Cerradura Sistemas VB · configuración</h1><p>Elegí el WiFi del local. Después, en el panel Sistemas VB tocá <b>Buscar y vincular cerradura</b>.</p><form method='POST' action='/save'><label>Red WiFi</label><select name='s'>";
   int n = WiFi.scanNetworks();
   for (int i = 0; i < n; i++) { String s = WiFi.SSID(i); s.replace("<", ""); s.replace(">", ""); h += "<option" + String(s == wifiSsid ? " selected" : "") + ">" + s + "</option>"; }
   h += "</select><label>…o escribí el nombre</label><input name='s2' placeholder='(opcional)'><label>Clave del WiFi</label><input name='p' type='password'><button>Guardar y conectar</button></form>";
@@ -855,7 +875,7 @@ void handleSave() {
   prefs.putString("ssid", s);
   prefs.putString("pass", server.arg("p"));
   String h = FPSTR(PAGE_HEAD);
-  h += "<h1>Guardado ✔</h1><p>La cerradura se reinicia y se conecta a <b>" + s + "</b>.<br>Volvé al WiFi del local y en el panel SVB tocá <b>Buscar y vincular cerradura</b>.</p></body></html>";
+  h += "<h1>Guardado ✔</h1><p>La cerradura se reinicia y se conecta a <b>" + s + "</b>.<br>Volvé al WiFi del local y en el panel Sistemas VB tocá <b>Buscar y vincular cerradura</b>.</p></body></html>";
   server.send(200, "text/html; charset=utf-8", h);
   delay(1500);
   ESP.restart();
@@ -1145,7 +1165,7 @@ const DEFAULTS = {
   relayMs: 3000, relayMode: 'server', doorPin: '2580', duressPin: '9999', adminPin: '1234',
   server: '', doorSrc: 'local', gridQ: 'sd', lowLatency: false, motion: 8, loiter: 10, face: true, aiNotify: true, ir: false, ai: true,
   camNames: {},
-  // Portero y avisos directos desde este equipo (cuando no hay servidor SVB)
+  // Portero y avisos directos desde este equipo (cuando no hay servidor Sistemas VB)
   dbOn: true, dbTopic: '', dbWa: '', dbPage: '', ntfyUrl: 'https://ntfy.sh', cmbUrl: 'https://api.callmebot.com',
   nPush: false, nTopic: '', nWa: false, nRecips: [], nEv: { ring: true, sos: true, duress: true, lock: true, alarm: true, off: false },
 };
@@ -1216,7 +1236,8 @@ async function refreshStatus() {
     const first = !net.online;
     net.online = true; net.status = st;
     if (st.access) setAccess(st.access);
-    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor SVB', { sync: false }); buildGrid(); connectLive(); pullShared(); MON.armed = !!st.armed; paintArm(); }
+    paintPlatform(st);
+    if (first) { logEvent('SERVER_ONLINE', 'INFO', 'Conectado al servidor Sistemas VB', { sync: false }); buildGrid(); connectLive(); pullShared(); MON.armed = !!st.armed; paintArm(); }
   } catch {
     if (net.online) logEvent('SERVER_OFFLINE', 'WARN', 'Servidor no disponible: modo autónomo', { sync: false });
     net.online = false; net.status = null;
@@ -1238,7 +1259,7 @@ function paintStatus() {
   setPill('#stAi', S.ai ? 'on' : '');
   const t = $('#camStatusTxt');
   if (t) {
-    if (!net.online) t.textContent = 'Sin servidor: solo funciona la cámara de esta tablet/PC. Instalá el servidor SVB en una PC del almacén para ver las cámaras Dahua.';
+    if (!net.online) t.textContent = 'Sin servidor: solo funciona la cámara de esta tablet/PC. Instalá el servidor Sistemas VB en una PC del almacén para ver las cámaras Dahua.';
     else if (!cams.configured) t.textContent = 'Servidor conectado, pero todavía no encontró el grabador Dahua. Revisá la contraseña y el número de serie en ★ Configuración → Grabador o tocá «Buscar grabador».';
     else t.textContent = `Grabador ${cams.serialHint || ''} en ${cams.host} · ${cams.channels.length} canales · go2rtc ${cams.go2rtc.running ? 'activo' : 'detenido'}${cams.go2rtc.error ? ' · ' + cams.go2rtc.error : ''}`;
   }
@@ -1286,11 +1307,12 @@ let lastInteraction = Date.now();
 function applyBrand() {
   $('#bizName').textContent = S.biz;
   $('#logo').src = S.logo || 'assets/rave-logo.jpg';
-  $('#modeLabel').textContent = S.mode === 'corp' ? 'Modo corporativo · alta seguridad' : 'Modo residencial · doméstico';
+  const sec = PLAT && PLAT.st && net.online && PLAT.st.sector;
+  $('#modeLabel').textContent = sec ? `${SECTOR_TXT[sec] || sec} · ${S.mode === 'corp' ? 'alta seguridad' : 'doméstico'}` : S.mode === 'corp' ? 'Modo corporativo · alta seguridad' : 'Modo residencial · doméstico';
   $('#ringLabel').textContent = S.mode === 'corp' ? 'Llamar a oficina' : 'Tocar timbre';
   $('#familyLabel').textContent = 'Llamar ' + (S.familyName || 'familiar');
-  document.title = `SVB Seguridad · ${S.biz}`;
-  const wa = `https://wa.me/5493874484132?text=${encodeURIComponent(`Hola Vincular Business, consulto por SVB Seguridad de ${S.biz}`)}`;
+  document.title = `Sistemas VB Seguridad · ${S.biz}`;
+  const wa = `https://wa.me/5493874484132?text=${encodeURIComponent(`Hola Vincular Business, consulto por Sistemas VB Seguridad de ${S.biz}`)}`;
   $('#devWa').href = wa; $('#devLine').href = wa;
 }
 function setView(v) {
@@ -1354,7 +1376,7 @@ async function submitPin(p, source) {
 /** Huella o rostro: siempre los valida el servidor. */
 async function bioOpen(body, source) {
   if (Date.now() < lockedUntil) { flash(null, 'BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
-  if (!net.online) { toast('La huella y el rostro necesitan el servidor SVB encendido'); return; }
+  if (!net.online) { toast('La huella y el rostro necesitan el servidor Sistemas VB encendido'); return; }
   const r = await api('/api/door/open', { method: 'POST', body: { ...body, source, ms: S.relayMs }, timeout: 15000 }).catch(() => null);
   if (!r) { toast('El servidor no respondió'); return; }
   return doorResult(r, source);
@@ -1644,7 +1666,7 @@ async function writeDoorbellNfc() {
 }
 
 /* ═══════════════════════ PORTERO Y AVISOS DIRECTOS (sin servidor, como el portero Cannabismática) ═══════════════════════
- * Si el servidor SVB no está, este mismo equipo escucha los timbres del QR/NFC por el relevo gratuito ntfy.sh,
+ * Si el servidor Sistemas VB no está, este mismo equipo escucha los timbres del QR/NFC por el relevo gratuito ntfy.sh,
  * avisa a los dueños (notificación push con foto y botones, y WhatsApp por CallMeBot) y responde al cliente.
  * Requiere que este equipo quede encendido, con el panel abierto y con internet.
  */
@@ -1803,14 +1825,14 @@ setInterval(flushDirectQ, 30000); addEventListener('online', () => { flushDirect
 function renderDirectCfg() {
   const box = $('#directCfg'); if (!box) return;
   if (net.online) {
-    box.innerHTML = `<div class="cfgcard"><h3>Avisos al celular de los dueños</h3><p class="help" style="margin:0 0 10px">Con el servidor SVB encendido, los avisos (WhatsApp, notificación push con foto y botones, y Telegram) los envía el servidor. Se configuran en <b>★ Configuración → Avisos a los dueños</b>.</p><button class="btn sm" data-dc="goalerts">Ir a Avisos a los dueños</button></div>`;
+    box.innerHTML = `<div class="cfgcard"><h3>Avisos al celular de los dueños</h3><p class="help" style="margin:0 0 10px">Con el servidor Sistemas VB encendido, los avisos (WhatsApp, notificación push con foto y botones, y Telegram) los envía el servidor. Se configuran en <b>★ Configuración → Avisos a los dueños</b>.</p><button class="btn sm" data-dc="goalerts">Ir a Avisos a los dueños</button></div>`;
     return;
   }
   ensureTopics();
   const ev = { ...DEFAULTS.nEv, ...(S.nEv || {}) };
   const sub = `${ntfyBase()}/${S.nTopic}`;
   box.innerHTML = `<div class="cfgcard"><h3>Portero en este equipo</h3>
-      <p class="help">No hay servidor SVB: este equipo escucha los timbres del QR/NFC, avisa a los dueños y responde al cliente. Tiene que quedar encendido, con el panel abierto y con internet.</p>
+      <p class="help">No hay servidor Sistemas VB: este equipo escucha los timbres del QR/NFC, avisa a los dueños y responde al cliente. Tiene que quedar encendido, con el panel abierto y con internet.</p>
       <label class="chk"><input type="checkbox" data-dc-bind="dbOn" ${S.dbOn !== false ? 'checked' : ''}>Portero activo en este equipo</label>
       <div class="cfgrow"><label class="f">WhatsApp del local para que el cliente escriba (opcional, botón en su pantalla)<input class="inp" data-dc-bind="dbWa" inputmode="tel" placeholder="+54 9 387 …" value="${esc(S.dbWa || '')}"></label></div></div>
     <div class="cfgcard"><h3>1 · Notificación al celular (recomendado, gratis)</h3>
@@ -1908,7 +1930,7 @@ async function buildGrid() {
     const c = slice[i];
     if (!c) {
       const e = document.createElement('div'); e.className = 'cell empty'; e.style.order = i;
-      e.textContent = list.length ? '—' : (net.online ? 'Grabador Dahua no configurado' : 'Instale el servidor SVB para ver las cámaras Dahua');
+      e.textContent = list.length ? '—' : (net.online ? 'Grabador Dahua no configurado' : 'Instale el servidor Sistemas VB para ver las cámaras Dahua');
       grid.appendChild(e); continue;
     }
     const cell = makeCell(c, split); cell.style.order = i; grid.appendChild(cell);
@@ -2086,6 +2108,12 @@ function connectLive() {
   liveES.addEventListener('settings', (e) => { const d = JSON.parse(e.data); if (d.by !== S.deviceId) pullShared(); });
   liveES.addEventListener('config', () => refreshStatus());
   liveES.addEventListener('access', (e) => setAccess(JSON.parse(e.data)));
+  liveES.addEventListener('occupancy', (e) => paintOcc(JSON.parse(e.data)));
+  liveES.addEventListener('scene', (e) => { const d = JSON.parse(e.data); applyNight(d.night); toast(`${d.label} · sistema ${d.armed ? 'ARMADO' : 'desarmado'}`); tick('ESCENA', `${d.label} (${d.by})`); });
+  liveES.addEventListener('analytics', (e) => { const d = JSON.parse(e.data); PLAT.recent.unshift(d); if (PLAT.recent.length > 40) PLAT.recent.length = 40; if (d.type && !d.filtered && !['PLATE_READ', 'OCCUPANCY_COUNT', 'DWELL'].includes(d.type)) tick('IA', d.message || d.kind); });
+  liveES.addEventListener('community', (e) => { const d = JSON.parse(e.data); tick('VECINAL', `${d.from}: ${d.text || d.kind}`); toast(`🏘 Alerta vecinal · ${d.from}: ${d.text || d.kind}`); Sfx.alarm(); });
+  liveES.addEventListener('stream', (e) => { const d = JSON.parse(e.data); tick('VIDEO', `${d.online ? 'Video recuperado' : 'Sin video'} · canal ${d.ch}`); });
+  liveES.addEventListener('geofence', (e) => { const d = JSON.parse(e.data); tick('GEOCERCA', `${d.name}: ${d.event === 'exit' ? 'salió de' : d.event === 'enter' ? 'entró a' : 'volvió a'} ${d.fence}`); });
   liveES.addEventListener('ring-reply', (e) => { const d = JSON.parse(e.data); if (curRing && curRing.id === d.id) { hideRing(); toast(`Respondido (${d.by}): ${d.text}`); } });
   liveES.onerror = () => { if (liveES && liveES.readyState === 2) { liveES = null; setTimeout(connectLive, 5000); } };
   api('/api/dvr/events').then((l) => { if (Array.isArray(l)) l.slice().reverse().forEach((e) => addDvrEvent(e, false)); }).catch(() => {});
@@ -2258,6 +2286,9 @@ function handleVoice(raw, conf = 1) {
   if (/\bver puerta\b/.test(t)) { setView('door'); return; }
   if (/\b(timbre|tocar)\b/.test(t) || /^llamar?$/.test(t) || /\bllamar (a la )?(oficina|residente|dueno)\b/.test(t)) { ring(); return; }
   if (/\bllamar\b.*\b(familiar|familia|contacto|mama|papa)\b/.test(t)) { callFamily(); return; }
+  if (net.online && /\b(modo noche|activar noche|buenas noches)\b/.test(t)) { runSceneUi('noche'); return; }
+  if (net.online && /\b(llegue|llegamos)\b/.test(t)) { runSceneUi('llegada'); return; }
+  if (net.online && /\b(salgo|me voy|salimos)\b/.test(t)) { runSceneUi('salida'); return; }
   if (/\bllamar\b/.test(t)) { ring(); return; }
 }
 function initVoice() {
@@ -2425,7 +2456,7 @@ const GROUP_EXTRA = {
 };
 async function loadSetup() {
   const form = $('#cfgForm');
-  if (!net.online) { $('#setupWarn').innerHTML = '<div class="warn">Sin servidor: la configuración necesita el servidor SVB encendido.</div>'; form.innerHTML = ''; return; }
+  if (!net.online) { $('#setupWarn').innerHTML = '<div class="warn">Sin servidor: la configuración necesita el servidor Sistemas VB encendido.</div>'; form.innerHTML = ''; return; }
   const r = await api('/api/setup', { admin: true }).catch(() => null);
   if (!r || !r.fields) { form.innerHTML = '<div class="warn">No se pudo leer la configuración.</div>'; return; }
   CFG = r;
@@ -2531,7 +2562,7 @@ async function cfgAction(act) {
   if (act === 'checkPage') {
     show('#cfgPageOut', 'Verificando…');
     const r = await api('/api/check/doorbell-page', { method: 'POST', admin: true, timeout: 20000 }).catch((e) => ({ error: e.message }));
-    return show('#cfgPageOut', r.ok ? '<span class="ok-msg">✔ La página del portero está publicada y funciona desde internet.</span>' : '<span class="warn" style="display:inline-block;padding:6px 10px">La página del timbre no responde desde internet. Revisá la conexión o consultá a soporte SVB.</span>');
+    return show('#cfgPageOut', r.ok ? '<span class="ok-msg">✔ La página del portero está publicada y funciona desde internet.</span>' : '<span class="warn" style="display:inline-block;padding:6px 10px">La página del timbre no responde desde internet. Revisá la conexión o consultá a soporte de Sistemas VB.</span>');
   }
 }
 
@@ -2591,6 +2622,7 @@ function showPane(id) {
   if (id === 'auditoria') { renderLog(); renderVault(); }
   if (id === 'portero') loadDoorbell();
   if (id === 'bio') checkFaceModel();
+  if (id === 'integra') loadIntegra();
   if (id === 'soporte') $('#devInfoTxt').textContent = `Cliente: ${S.biz}. Panel ${isElectron ? 'de escritorio' : 'web'} en ${location.origin}. Servidor ${net.online ? 'conectado' : 'no disponible'}. Personas cargadas: ${ACC.people || 0}. Horario: ${ACC.text}.`;
 }
 const BIND = { sBiz: 'biz', sMode: 'mode', sEmergency: 'emergency', sFamilyName: 'familyName', sFamilyPhone: 'familyPhone', sFamilyWa: 'familyWa', sOfficePhone: 'officePhone', sRingCall: 'ringCall',
@@ -2725,7 +2757,7 @@ function goCheck(go) {
 let HOURS = null;
 async function loadHours() {
   const box = $('#hoursForm');
-  if (!net.online) { box.innerHTML = '<div class="warn">Sin servidor: el horario se guarda en el servidor SVB. Este equipo sigue usando el último horario recibido.</div>'; return; }
+  if (!net.online) { box.innerHTML = '<div class="warn">Sin servidor: el horario se guarda en el servidor Sistemas VB. Este equipo sigue usando el último horario recibido.</div>'; return; }
   const r = await api('/api/hours', { admin: true }).catch(() => null);
   if (!r || !r.sched) { box.innerHTML = '<div class="warn">No se pudo leer el horario.</div>'; return; }
   HOURS = { mode: r.mode, staffOff: r.staffOff, autoArm: r.autoArm, sched: r.sched };
@@ -2785,7 +2817,7 @@ const ROLES = ['Dueño', 'Empleado', 'Proveedor'];
 const fdate = (t) => new Date(t).toLocaleDateString('es-AR');
 async function loadPeople() {
   if (!net.online) {
-    const w = '<div class="warn">Sin servidor: las personas, huellas y rostros se guardan en el servidor SVB. Mientras tanto funcionan el PIN general y los pases de este equipo.</div>';
+    const w = '<div class="warn">Sin servidor: las personas, huellas y rostros se guardan en el servidor Sistemas VB. Mientras tanto funcionan el PIN general y los pases de este equipo.</div>';
     $('#peopleBox').innerHTML = w; $('#bioBox').innerHTML = w; return;
   }
   const r = await api('/api/people', { admin: true }).catch(() => null);
@@ -2870,7 +2902,7 @@ const b64u = {
 const pkOK = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
 async function staffPk() {
   if (!pkOK()) { toast('La huella requiere abrir el panel por https o en la PC del servidor (localhost)'); return; }
-  if (!net.online) { toast('La huella necesita el servidor SVB encendido'); return; }
+  if (!net.online) { toast('La huella necesita el servidor Sistemas VB encendido'); return; }
   const c = await api('/api/webauthn/challenge', { method: 'POST' }).catch(() => null);
   if (!c || !c.challenge) { toast(c && c.retryIn ? `Bloqueado ${c.retryIn} s` : 'Sin servidor'); return; }
   let a;
@@ -2881,7 +2913,7 @@ async function staffPk() {
 async function pkRegister(p, attach) {
   const c = await api('/api/webauthn/challenge', { method: 'POST' });
   const cred = await navigator.credentials.create({ publicKey: {
-    rp: { name: `SVB Seguridad · ${S.biz}`, id: location.hostname },
+    rp: { name: `Sistemas VB Seguridad · ${S.biz}`, id: location.hostname },
     user: { id: new TextEncoder().encode(p.id), name: p.name, displayName: `${p.name} · ${S.biz}` },
     challenge: b64u.dec(c.challenge), pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
     excludeCredentials: p.pk.map((k) => ({ type: 'public-key', id: b64u.dec(k.id) })),
@@ -2945,7 +2977,7 @@ async function faceStart(title) {
   return { f, run, opts: new f.TinyFaceDetectorOptions({ inputSize: FACE.src.input, scoreThreshold: 0.5 }) };
 }
 async function faceRecognize() {
-  if (!net.online) { toast('El rostro necesita el servidor SVB encendido'); return; }
+  if (!net.online) { toast('El rostro necesita el servidor Sistemas VB encendido'); return; }
   if (Date.now() < lockedUntil) { flash(null, 'BLOQUEADO', `Reintente en ${Math.ceil((lockedUntil - Date.now()) / 1000)} s`); return; }
   let ctx;
   try { ctx = await faceStart('RECONOCIMIENTO FACIAL'); } catch (e) { stopFace(); toast('Rostro: ' + (e.message || e.name)); return; }
@@ -3065,6 +3097,134 @@ async function bioClick(e) {
   } catch (x) { toast(x && x.name === 'NotAllowedError' ? 'Registro cancelado o tiempo agotado' : x && x.name === 'InvalidStateError' ? 'Esa huella ya estaba registrada' : 'Huella: ' + (x.message || x.name)); }
   loadPeople();
 }
+
+/* ═══════════════════════════ PLATAFORMA MULTI-SECTOR (Sistemas VB Seguridad v2) ═══════════════════════════ */
+var PLAT = { st: null, recent: [] }; // var: applyBrand() la consulta antes de esta línea
+var SECTOR_TXT = { comercio: 'Comercio', industria: 'Industria', campo: 'Campo / finca', residencial: 'Hogar' };
+function paintPlatform(st) {
+  PLAT.st = st;
+  const sec = st && st.sector;
+  // El sector del servidor decide el perfil del panel (hogar = doméstico; comercio, industria y campo = alta seguridad)
+  if (st && st.sectorInfo && st.sectorInfo.panelMode && S.mode !== st.sectorInfo.panelMode) S.mode = st.sectorInfo.panelMode;
+  applyBrand();
+  $('#sceneActs').hidden = !(net.online && sec === 'residencial');
+  if (st && st.occupancy) paintOcc(st.occupancy);
+  if (st && typeof st.night === 'boolean' && PLAT.night !== st.night) { PLAT.night = st.night; applyNight(st.night); }
+}
+function paintOcc(o) {
+  const p = $('#stOcc');
+  const show = net.online && (o.max > 0 || o.count > 0 || ['comercio', 'industria'].includes(PLAT.st && PLAT.st.sector) && o.inToday > 0);
+  p.hidden = !show;
+  if (!show) return;
+  $('span', p).textContent = `${o.count}${o.max ? '/' + o.max : ''}`;
+  setPill('#stOcc', o.max && o.count >= o.max ? 'warn' : 'on', `Aforo: ${o.count} personas dentro${o.max ? ` (máximo ${o.max})` : ''}`);
+  const big = $('#igOcc'); if (big) big.textContent = `${o.count}${o.max ? ' / ' + o.max : ''}`;
+}
+function applyNight(night) { if (!!S.ir !== !!night) $('#tgIr').click(); }
+async function runSceneUi(name) {
+  const labels = { llegada: 'Llegué a casa', noche: 'Modo noche', salida: 'Salgo', dia: 'Modo día' };
+  if (!net.online) { toast('Las escenas necesitan el servidor Sistemas VB'); return; }
+  const pin = await askPin(labels[name] || 'Escena');
+  if (!pin) return;
+  const r = await api(`/api/v1/scenes/${name}`, { method: 'POST', body: { pin, by: 'panel' } }).catch(() => null);
+  if (!r || !r.ok) { Sfx.err(); toast(r && r._status === 429 ? `Bloqueado ${r.retryIn}s` : 'PIN incorrecto'); return; }
+  Sfx.ok(); speak(`${labels[name]}. Sistema ${r.armed ? 'armado' : 'desarmado'}.`);
+}
+$('#sceneActs').addEventListener('click', (e) => { const b = e.target.closest('[data-scene]'); if (b) runSceneUi(b.dataset.scene); });
+
+/* ── Administración → Integraciones y analítica ── */
+const ago = (ts) => { if (!ts) return 'nunca'; const s = Math.round((Date.now() - Date.parse(ts)) / 1000); return s < 60 ? 'recién' : s < 3600 ? `hace ${Math.round(s / 60)} min` : s < 86400 ? `hace ${Math.round(s / 3600)} h` : fmtTime(ts); };
+async function loadIntegra(msg = '') {
+  const box = $('#integraBox');
+  if (!net.online) { box.innerHTML = '<div class="warn">Esta sección necesita el servidor Sistemas VB encendido.</div>'; return; }
+  const g = (p) => api(p, { admin: true }).catch(() => ({}));
+  const [h, occ, plates, toks, an, geo, com, st] = await Promise.all([g('/api/v1/health'), g('/api/v1/occupancy'), g('/api/v1/plates'), g('/api/v1/tokens'), g('/api/v1/analytics/recent?limit=15'), g('/api/v1/geofences'), g('/api/v1/community'), g('/api/v1/status')]);
+  const c = h.components || {};
+  const chip = (ok, t) => `<span class="${ok === true ? 'ok' : ok === false ? 'bad' : ''}">${ok === true ? '✔' : ok === false ? '✕' : '○'} ${esc(t)}</span>`;
+  const NAMES = { servidor: 'Servidor', video: 'Video (go2rtc)', grabador: 'Grabador', cerradura: 'Cerradura', portero: 'Portero QR', mqtt: 'MQTT / Home Assistant', webhooks: 'Webhooks', vecinal: 'Red vecinal' };
+  const sc = st.sectorInfo || {};
+  const plList = Array.isArray(plates) ? plates : []; const tkList = Array.isArray(toks) ? toks : [];
+  const stats = an.stats || { in: 0, filtered: 0, alerts: 0, byReason: {} };
+  box.innerHTML = `${msg}
+  <div class="cfgcard"><h3>Estado del sistema · ${esc(h.product || 'Sistemas VB Seguridad')} v${esc(h.version || '')}</h3>
+    <div class="ig-chips">${Object.entries(NAMES).map(([k, t]) => { const x = c[k] || {}; const off = (k === 'mqtt' && !x.configurado) || (k === 'webhooks' && !x.urls) || (k === 'vecinal' && !x.activa) || (k === 'portero' && !x.activo); return chip(off ? null : !!x.ok, off ? `${t}: apagado` : k === 'cerradura' ? `${t}: ${x.modo}` : t); }).join('')}
+      ${chip(c.cifrado && c.cifrado.activo ? true : null, c.cifrado && c.cifrado.activo ? 'Cifrado AES-256' : 'Cifrado en disco: apagado')}</div>
+    <p class="help" style="margin:0">Sector: <b>${esc(sc.label || st.sector || '—')}</b> — ${esc(sc.help || '')} ${c.video && c.video.vigilante ? `· Vigilante de video ${c.video.vigilante.on ? 'activo' : 'apagado'}${c.video.vigilante.reinicios ? ` (${c.video.vigilante.reinicios} reinicios)` : ''}` : ''}${c.avisosPendientes ? ` · ${c.avisosPendientes} avisos esperando conexión` : ''}</p></div>
+  <div class="ig-grid">
+    <div class="cfgcard"><h3>Aforo</h3><div class="ig-big" id="igOcc">${occ.count ?? 0}${occ.max ? ' / ' + occ.max : ''}</div>
+      <p class="help">Hoy: entraron ${occ.inToday || 0}, salieron ${occ.outToday || 0}, máximo simultáneo ${occ.peak || 0}${occ.dwell && occ.dwell.n ? ` · permanencia promedio ${Math.round(occ.dwell.avgS / 60)} min (p90 ${Math.round(occ.dwell.p90S / 60)} min)` : ''}.</p>
+      <div class="ig-row"><button class="btn" data-ig="occ+">+1 entra</button><button class="btn" data-ig="occ-">−1 sale</button><label class="f">Corregir<input class="inp" id="igOccSet" type="number" min="0" placeholder="${occ.count ?? 0}"></label><button class="btn sm" data-ig="occSet">Fijar</button></div>
+      <p class="small muted">Con contadores de cámara (Dahua, Frigate) o un molinete, el número se actualiza solo por la API.</p></div>
+    <div class="cfgcard"><h3>Escenas</h3><p class="help">Cambian armado y modo noche en todos los equipos. El pánico silencioso avisa a los dueños (y a la red vecinal) sin mostrar nada en pantalla.</p>
+      <div class="ig-row"><button class="btn" data-sc="llegada">Llegué a casa</button><button class="btn" data-sc="salida">Salgo / cierro</button><button class="btn" data-sc="noche">Modo noche</button><button class="btn" data-sc="dia">Modo día</button><button class="btn ghost" data-sc="panico">Pánico silencioso</button></div>
+      <p class="small muted">Estado: ${st.armed ? 'ARMADO' : 'desarmado'}${st.night ? ' · modo noche' : ''}. También desde Telegram (/noche /llegue /salgo), Home Assistant, Alexa o Google.</p></div>
+  </div>
+  <div class="cfgcard"><h3>Patentes (lectura automática ANPR)</h3><p class="help">Autorizadas: si está activada la apertura automática, el portón se abre solo con lectura exacta y en horario (o siempre, si se marca). Bloqueadas: aviso urgente con foto, también con lecturas parecidas (errores típicos de lectura como 0/O u 8/B).</p>
+    <div class="ig-row"><label class="f">Patente<input class="inp" id="igPlate" placeholder="AB123CD" maxlength="10" style="text-transform:uppercase"></label><label class="f">Nombre<input class="inp" id="igPlName" placeholder="Camión de reparto" maxlength="60"></label>
+      <label class="f">Lista<select class="inp" id="igPlList"><option value="allow">Autorizada</option><option value="deny">Bloqueada</option></select></label><label class="chk" style="min-height:48px"><input type="checkbox" id="igPlAlways">Entra fuera de horario</label><button class="btn primary" data-ig="plateAdd">Agregar</button></div>
+    <div class="list" style="margin-top:10px">${plList.map((p) => `<div class="li"><div class="grow"><b style="color:#fff;letter-spacing:2px">${esc(p.plate)}</b> <span class="muted small">· ${p.list === 'allow' ? 'autorizada' : 'BLOQUEADA'}${p.name ? ' · ' + esc(p.name) : ''}${p.always ? ' · fuera de horario' : ''}</span></div><button class="btn sm" data-plate-del="${esc(p.id)}">Quitar</button></div>`).join('') || '<p class="muted small">Sin patentes cargadas.</p>'}</div></div>
+  <div class="cfgcard"><h3>Analítica de video</h3><div class="ig-chips">${chip(null, `${stats.in} detecciones`)}${chip(null, `${stats.filtered} descartadas`)}${chip(null, `${stats.alerts} alertas`)}${Object.entries(stats.byReason || {}).map(([k, v]) => chip(null, `${k}: ${v}`)).join('')}</div>
+    <div class="list">${(an.recent || []).map((d) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(d.type || d.kind)}</b> <span class="muted small">· ${esc(d.camera || '')} · ${Math.round((d.confidence || 0) * 100)}% · ${esc(d.source || '')} · ${ago(d.ts)}${d.plate ? ' · ' + esc(d.plate) : ''}${d.filtered ? ` · descartada: ${esc(d.filtered)}` : ''}</span></div></div>`).join('') || '<p class="muted small">Todavía no hay detecciones. Llegan de los eventos inteligentes del grabador Dahua, de Frigate (MQTT) o de cualquier motor de IA por la API.</p>'}</div></div>
+  <div class="cfgcard"><h3>Geocercas (maquinaria y vehículos)</h3><p class="help">Un GPS (app Traccar/OsmAnd, rastreador o el sistema de la maquinaria) informa la posición por la API; si un tractor sale del lote o un vehículo entra a una zona prohibida, avisa con el mapa.</p>
+    <div class="ig-row"><label class="f">Nombre<input class="inp" id="igGfName" placeholder="Lote 7"></label><label class="f">Latitud<input class="inp" id="igGfLat" placeholder="-24.7821" inputmode="decimal"></label><label class="f">Longitud<input class="inp" id="igGfLng" placeholder="-65.4232" inputmode="decimal"></label><label class="f">Radio (m)<input class="inp" id="igGfR" type="number" value="500"></label>
+      <label class="f">Avisar al<select class="inp" id="igGfMode"><option value="inside">salir</option><option value="outside">entrar</option></select></label><button class="btn sm" data-ig="gfHere">Mi ubicación</button><button class="btn primary" data-ig="gfAdd">Crear</button></div>
+    <div class="list" style="margin-top:10px">${(geo.geofences || []).map((f) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(f.name)}</b> <span class="muted small">· ${f.radius} m · avisa al ${f.mode === 'inside' ? 'salir' : 'entrar'} · ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}</span></div><button class="btn sm" data-gf-del="${esc(f.id)}">Quitar</button></div>`).join('')}
+      ${Object.entries(geo.assets || {}).map(([id, a]) => `<div class="li"><div class="grow">📍 <b style="color:#fff">${esc(a.name)}</b> <span class="muted small">· ${ago(a.ts)}${a.speed ? ` · ${a.speed} km/h` : ''}</span></div><a class="btn sm" target="_blank" rel="noopener" href="https://maps.google.com/?q=${a.lat},${a.lng}">Mapa</a></div>`).join('') || ((geo.geofences || []).length ? '' : '<p class="muted small">Sin geocercas.</p>')}</div></div>
+  <div class="ig-grid">
+    <div class="cfgcard"><h3>Tokens de API</h3><p class="help">Para conectar un ERP, punto de venta, Home Assistant, un motor de IA o un GPS. Permisos: <b>read</b> (consultar), <b>control</b> (armar, escenas, abrir), <b>ingest</b> (enviar detecciones, conteos y posiciones; con la apertura por patente activada puede abrir el portón, así que solo para motores de confianza).</p>
+      <div class="ig-row"><label class="f">Nombre<input class="inp" id="igTkName" placeholder="Sistema de caja" maxlength="40"></label><label class="chk"><input type="checkbox" data-scope="read" checked>read</label><label class="chk"><input type="checkbox" data-scope="control">control</label><label class="chk"><input type="checkbox" data-scope="ingest">ingest</label><button class="btn primary" data-ig="tokAdd">Crear token</button></div>
+      <div id="igTokOut"></div>
+      <div class="list" style="margin-top:10px">${tkList.map((t) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(t.name)}</b> <span class="muted small">· ${esc(t.prefix)}… · ${t.scopes.join(', ')} · usado ${ago(t.lastUsed)}</span></div><button class="btn sm" data-tok-del="${esc(t.id)}">Revocar</button></div>`).join('') || '<p class="muted small">Sin tokens.</p>'}</div>
+      <p class="small muted">Documentación de la API: <a href="${esc(base())}/api/v1/openapi.json" target="_blank" rel="noopener">${esc(base())}/api/v1/openapi.json</a></p></div>
+    <div class="cfgcard"><h3>Red de alerta vecinal</h3><p class="help">${com.enabled ? `Activa${com.connected ? ' y conectada' : ' (conectando…)'}. Los SOS, pánicos, fuego e intrusiones confirmadas se comparten con los vecinos que usan el mismo código.` : 'Apagada. Se activa cargando el mismo código en cada vecino: ★ Configuración → Integraciones.'}</p>
+      ${com.enabled ? `<div class="ig-row"><label class="f">Aviso a los vecinos<input class="inp" id="igComTxt" maxlength="200" placeholder="Auto sospechoso dando vueltas por la cuadra"></label><button class="btn" data-ig="comSend">Enviar</button></div>` : ''}
+      <div class="list" style="margin-top:10px">${(com.alerts || []).slice(0, 8).map((a) => `<div class="li"><div class="grow"><b style="color:#fff">${esc(a.from)}</b> <span class="muted small">· ${esc(a.text || a.kind)} · ${ago(a.ts)}</span></div></div>`).join('')}</div>
+      <h3 style="margin-top:18px">Webhooks</h3><p class="help">${c.webhooks && c.webhooks.urls ? `${c.webhooks.urls} destino(s) · enviados ${c.webhooks.sent || 0} · fallidos ${c.webhooks.failed || 0}` : 'Sin destinos: se cargan en ★ Configuración → Integraciones.'}</p>
+      ${c.webhooks && c.webhooks.urls ? '<button class="btn sm" data-ig="whTest">Probar webhooks</button>' : ''}</div>
+  </div>
+  <div class="cfgcard"><h3>Descubrir cámaras y grabadores (cualquier marca)</h3><p class="help">Busca en la red con ONVIF (WS-Discovery), la tabla ARP y los puertos típicos de Dahua, Hikvision, Uniview, Axis, Reolink y XMeye, y propone la dirección de video de cada equipo. También encuentra cerraduras ESP32.</p>
+    <div class="ig-row"><label class="f">Rango (vacío = automático)<input class="inp" id="igScan" placeholder="192.168.1.0/24"></label><button class="btn primary" data-ig="disc">Buscar en la red</button></div><div id="igDiscOut" class="small" style="margin-top:10px;user-select:text"></div></div>`;
+}
+async function integraClick(e) {
+  const b = e.target.closest('button'); if (!b) return;
+  const post = (p, body, method = 'POST') => api(p, { method, admin: true, body, timeout: 90000 }).catch((er) => ({ error: er.message }));
+  const done = (r, ok) => { if (r && (r.error || (r._status && r._status >= 400))) { Sfx.err(); toast(r.error || 'No se pudo'); return false; } if (ok) toast(ok); Sfx.ok(); return true; };
+  const a = b.dataset.ig;
+  if (b.dataset.sc) {
+    if (b.dataset.sc === 'panico' && !confirm('¿Enviar pánico silencioso a los dueños? Úsalo solo si hay una emergencia real.')) return;
+    const r = await post(`/api/v1/scenes/${b.dataset.sc}`, { by: 'administración' }); done(r, b.dataset.sc === 'panico' ? 'Pánico enviado' : `Escena: ${b.textContent}`); return loadIntegra();
+  }
+  if (a === 'occ+' || a === 'occ-') { const r = await post('/api/v1/occupancy', { delta: a === 'occ+' ? 1 : -1 }); if (done(r)) paintOcc(r); return; }
+  if (a === 'occSet') { const v = $('#igOccSet').value; if (v === '') return; const r = await post('/api/v1/occupancy', { set: +v }); if (done(r, 'Aforo corregido')) paintOcc(r); return; }
+  if (a === 'plateAdd') { const r = await post('/api/v1/plates', { plate: $('#igPlate').value, name: $('#igPlName').value, list: $('#igPlList').value, always: $('#igPlAlways').checked }); if (done(r, 'Patente guardada')) loadIntegra(); return; }
+  if (b.dataset.plateDel) { await post(`/api/v1/plates?id=${encodeURIComponent(b.dataset.plateDel)}`, null, 'DELETE'); return loadIntegra(); }
+  if (a === 'gfHere') {
+    if (!navigator.geolocation) return toast('Este equipo no tiene ubicación');
+    navigator.geolocation.getCurrentPosition((p) => { $('#igGfLat').value = p.coords.latitude.toFixed(6); $('#igGfLng').value = p.coords.longitude.toFixed(6); }, () => toast('No se pudo obtener la ubicación'), { enableHighAccuracy: true, timeout: 10000 });
+    return;
+  }
+  if (a === 'gfAdd') { const r = await post('/api/v1/geofences', { name: $('#igGfName').value, lat: +$('#igGfLat').value.replace(',', '.'), lng: +$('#igGfLng').value.replace(',', '.'), radius: +$('#igGfR').value, mode: $('#igGfMode').value }); if (done(r, 'Geocerca creada')) loadIntegra(); return; }
+  if (b.dataset.gfDel) { await post(`/api/v1/geofences?id=${encodeURIComponent(b.dataset.gfDel)}`, null, 'DELETE'); return loadIntegra(); }
+  if (a === 'tokAdd') {
+    const scopes = $$('#integraBox [data-scope]').filter((x) => x.checked).map((x) => x.dataset.scope);
+    const r = await post('/api/v1/tokens', { name: $('#igTkName').value || 'Integración', scopes });
+    if (!done(r)) return;
+    await loadIntegra();
+    $('#igTokOut').innerHTML = `<p class="small" style="margin:10px 0 6px"><b>Copiá el token ahora:</b> no se vuelve a mostrar.</p><div class="ig-tok">${esc(r.token)}</div><p class="small muted">Uso: encabezado <code>Authorization: Bearer ${esc(r.prefix)}…</code></p>`;
+    return;
+  }
+  if (b.dataset.tokDel) { if (!confirm('¿Revocar este token? El sistema conectado dejará de funcionar.')) return; await post(`/api/v1/tokens?id=${encodeURIComponent(b.dataset.tokDel)}`, null, 'DELETE'); return loadIntegra(); }
+  if (a === 'comSend') { const r = await post('/api/v1/community', { text: $('#igComTxt').value }); if (done(r, 'Aviso enviado a los vecinos')) loadIntegra(); return; }
+  if (a === 'whTest') { const r = await post('/api/v1/webhooks/test'); if (r.results) toast(r.results.map((x) => `${x.ok ? '✔' : '✕'} ${x.url}`).join(' · ')); else done(r); return; }
+  if (a === 'disc') {
+    const out = $('#igDiscOut'); out.textContent = 'Buscando… (puede tardar hasta un minuto)';
+    const r = await post('/api/v1/discovery', { scan: $('#igScan').value.trim() });
+    if (!r.devices) { out.textContent = r.error || 'No se pudo buscar'; return; }
+    const V = { dahua: 'Dahua', hikvision: 'Hikvision', axis: 'Axis', reolink: 'Reolink', uniview: 'Uniview', xmeye: 'XMeye', espressif: 'ESP32 (cerradura)' };
+    out.innerHTML = `<p class="muted">${r.devices.length} equipos · ${r.onvif} responden ONVIF · ${r.scanned} direcciones revisadas en ${Math.round(r.ms / 1000)} s.</p>` + (r.devices.length ? `<table class="t"><thead><tr><th>IP</th><th>Fabricante</th><th>ONVIF</th><th>Puertos</th><th>Dirección de video sugerida</th></tr></thead><tbody>${r.devices.map((d) => `<tr><td>${esc(d.ip)}</td><td>${esc(V[d.vendor] || d.vendor || '—')}</td><td>${d.onvif ? esc(`${d.onvif.name || d.onvif.hardware || 'sí'}${d.onvif.profiles.length ? ' · Perfil ' + d.onvif.profiles.join('/') : ''}`) : '—'}</td><td>${esc(d.ports.join(', '))}</td><td style="user-select:all">${esc(d.url || '—')}</td></tr>`).join('')}</tbody></table><p class="small muted">Reemplazá {user} y {pass} por el usuario y la clave del equipo. El grabador Dahua de DMSS se configura en ★ Configuración → Grabador.</p>` : '');
+  }
+}
+$('#integraBox').addEventListener('click', integraClick);
 
 /* ═══════════════════════════ PLATAFORMA (PWA / Electron / Tauri) ═══════════════════════════ */
 let installEvt = null;
@@ -3233,7 +3393,7 @@ async function boot() {
   document.addEventListener('click', () => ac(), { once: true });
 }
 boot();
-window.SVB = { S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, ACC, accOpen, setAccess, audit: () => audit };
+window.SVB = { PLAT, runSceneUi, loadIntegra, S, net, submitPin, startSos, cancelSos, handleVoice, captureEvidence, Vault, qrEncode, AI, ACC, accOpen, setAccess, audit: () => audit };
 </script>
 </body>
 </html>

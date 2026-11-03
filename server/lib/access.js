@@ -122,18 +122,31 @@ const fdist = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) { const 
 
 /* ───────────── Almacén ───────────── */
 class AccessStore {
-  constructor(file) {
-    this.file = file;
+  /**
+   * @param {string} file
+   * @param {{vault?:object, encrypt?:boolean}} [opts] con vault + encrypt el archivo (plantillas biométricas,
+   *   hashes de PIN, passkeys) se guarda cifrado con AES-256-GCM. Lee los dos formatos.
+   */
+  constructor(file, { vault = null, encrypt = false } = {}) {
+    this.file = file; this.vault = vault; this.encrypt = !!(encrypt && vault);
     this.challenges = new Map(); // desafío -> vence
     let doc = {};
-    try { doc = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* primera vez */ }
+    try {
+      let text = fs.readFileSync(file, 'utf8');
+      if (text.startsWith('enc:v1:')) {
+        if (!vault) throw new Error('access.json está cifrado y falta la clave maestra (data/master.key o SVB_MASTER_KEY)');
+        text = vault.decrypt(text.trim());
+      }
+      doc = JSON.parse(text);
+    } catch (e) { if (e.code !== 'ENOENT' && /clave maestra|auth/i.test(e.message)) throw e; /* primera vez */ }
     this.people = Array.isArray(doc.people) ? doc.people : [];
     this.hours = normalizeHours(doc.hours || {}, DEFAULT_HOURS);
     this.bio = { ...DEFAULT_BIO, ...(doc.bio || {}) };
   }
   save() {
     const tmp = this.file + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify({ people: this.people, hours: this.hours, bio: this.bio }, null, 1), { mode: 0o600 });
+    const json = JSON.stringify({ people: this.people, hours: this.hours, bio: this.bio }, null, 1);
+    fs.writeFileSync(tmp, this.encrypt ? this.vault.encrypt(json) : json, { mode: 0o600 });
     fs.renameSync(tmp, this.file);
   }
   isOpen(d) { return isOpen(this.hours, d); }

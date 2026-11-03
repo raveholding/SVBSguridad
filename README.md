@@ -1,8 +1,10 @@
-# SVB Seguridad · Almacén Rave
+# Sistemas VB Seguridad · Almacén Rave
 
-**Sistema Vincular Business — Soluciones de Seguridad.** Panel de seguridad táctil (web, celular y Windows) con cámaras Dahua en vivo, control de cerradura, PIN de coacción, botón SOS 911, asistente de voz, pases QR/NFC para proveedores, detección de merodeo y sabotaje con IA en el borde, y alertas con foto al celular del dueño.
+**Sistemas VB Seguridad — sistema de seguridad integral unificado de Vincular Business** para comercios, industrias y empresas, campos y fincas, y hogares. Panel táctil (web, celular y Windows) con cámaras en vivo de cualquier marca, control de cerradura y portón, PIN de coacción, SOS 911, asistente de voz, pases QR/NFC, huella y rostro, analítica de video unificada (patentes, EPP, caídas, merodeo, aglomeraciones, filtro de fauna y clima), aforo, geocercas, escenas del hogar, red de alerta vecinal, API REST, MQTT/Home Assistant (Alexa, Google, Siri) y avisos con foto al celular de los dueños.
 
-![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20DMSS%20%7C%20RTSP%20%7C%20ONVIF-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-100%20OK-000?style=flat-square)
+![Panel](https://img.shields.io/badge/panel-HTML5%20%7C%20PWA%20%7C%20Electron-000?style=flat-square) ![Cámaras](https://img.shields.io/badge/c%C3%A1maras-Dahua%20%7C%20Hikvision%20%7C%20ONVIF%20%7C%20RTSP-000?style=flat-square) ![Integraciones](https://img.shields.io/badge/integra-API%20v1%20%7C%20MQTT%20%7C%20Home%20Assistant%20%7C%20Webhooks-000?style=flat-square) ![Pruebas](https://img.shields.io/badge/pruebas-188%20OK-000?style=flat-square)
+
+> **Arquitectura técnica completa** (capas, stack, diagramas de flujo, endpoints y estructuras de datos): [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
 
 ---
 
@@ -12,7 +14,7 @@
 flowchart LR
   subgraph LAN["Almacén Rave · red local"]
     DVR["Grabador Dahua<br/>(el mismo de DMSS)"] -- RTSP --> SRV
-    SRV["Servidor SVB<br/>PC / mini-PC<br/>Node.js + go2rtc"] -- WiFi --> ESP["ESP32 + relé<br/>cerradura"]
+    SRV["Servidor Sistemas VB<br/>PC / mini-PC<br/>Node.js + go2rtc"] -- WiFi --> ESP["ESP32 + relé<br/>cerradura"]
     TAB["Tablet / PC en la puerta<br/>panel SVB"] <-- "WebRTC / MSE" --> SRV
   end
   SRV -- "alertas con foto" --> TG["Telegram del dueño"]
@@ -20,7 +22,7 @@ flowchart LR
   DMSS["App DMSS"] -. "P2P nube Dahua" .-> DVR
 ```
 
-- **DMSS sigue funcionando igual.** DMSS entra por P2P (la nube de Dahua) con el número de serie. Los navegadores no pueden usar ese P2P, así que el **servidor SVB** se conecta al grabador **por la red local** (RTSP) y convierte el video a WebRTC/MSE con [go2rtc](https://github.com/AlexxIT/go2rtc).
+- **DMSS sigue funcionando igual.** DMSS entra por P2P (la nube de Dahua) con el número de serie. Los navegadores no pueden usar ese P2P, así que el **servidor Sistemas VB** se conecta al grabador **por la red local** (RTSP) y convierte el video a WebRTC/MSE con [go2rtc](https://github.com/AlexxIT/go2rtc).
 - **No hace falta saber la IP del grabador:** con `CAM_HOST=auto`, el servidor barre la red y encuentra el equipo cuyo número de serie coincide con el de DMSS.
 - **El panel funciona aunque se caiga el servidor** (modo autónomo con PINs de respaldo y cámara local).
 
@@ -72,7 +74,29 @@ flowchart LR
 | **Voz** | «abrir puerta 2 5 8 0», «emergencia», «llamar a 911», «ver cámaras», «tocar timbre», «cancelar». Sin servicios pagos. |
 | **Pases QR / NFC** | Códigos de 6 dígitos con vencimiento y **cantidad de usos** para proveedores; QR por cámara o **lector QR USB/Bluetooth**, tag NFC (Android) o tipeados. Envío por WhatsApp. Solo en horario de atención. |
 | **Auditoría** | Log en el servidor (`data/events.jsonl`) + en el panel; exportación JSON y **CSV para Excel**; bóveda de fotos de evidencia. |
-| **Admin** (PIN `1234`, **doble toque** en una zona libre o ⚙) | Lista de **puesta en marcha**, horario, personas, huella y rostro, soporte del desarrollador, configuración rápida, info del grabador (modelo, firmware, disco), marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
+| **Admin** (PIN `1234`, **doble toque** en una zona libre o ⚙) | Lista de **puesta en marcha**, horario, personas, huella y rostro, **integraciones y analítica**, soporte del desarrollador, configuración rápida, info del grabador (modelo, firmware, disco), marca/logo, perfil Residencial/Corporativo, contactos, voz, pases, timbres, relé 100–10000 ms, cámaras, firmware ESP32, manual de streaming, auditoría, sistema. |
+
+## Novedades v2 · plataforma multi-sector
+
+| Módulo | Qué hace |
+|---|---|
+| **Sector** | ★ Configuración → *Sector e inteligencia artificial*: **Comercio**, **Industria / empresa**, **Campo / finca** u **Hogar**. Cambia reglas, avisos, perfil del panel y módulos visibles. |
+| **Analítica de video unificada** | Eventos inteligentes del grabador Dahua (persona, vehículo, cruce de línea, intrusión, merodeo, aglomeración, caída, fuego, patentes ANPR), **Frigate** por MQTT (YOLO, rostros, patentes) y cualquier motor de IA por la API pasan por un mismo motor de reglas. |
+| **Filtro de falsas alarmas (campo)** | Descarta fauna, movimiento sin clasificar, baja confianza y ráfagas de viento/lluvia/vegetación; pide confirmación (2 detecciones en 10 s) salvo confianza muy alta. Cuenta cada descarte por motivo. |
+| **Patentes** | Listas autorizadas y bloqueadas, formatos argentinos, tolerancia a errores de lectura (0/O, 8/B…). Apertura automática del portón solo con lectura exacta y en horario. Bloqueada = aviso urgente con foto. |
+| **Industria** | EPP incompleto (casco, chaleco, botas, guantes, anteojos), caídas, persona inmóvil, carreras, exceso de velocidad y contramano. |
+| **Aforo y permanencia** | Contador en vivo (encabezado del panel, Home Assistant, Telegram `/aforo`), máximo con aviso, entradas/salidas y pico del día, permanencia promedio y p90. |
+| **Escenas del hogar** | *Llegué*, *Noche* (arma + visión nocturna en todos los paneles), *Salgo*, *Día*, y **pánico silencioso**. Desde la pantalla con PIN, por voz, Telegram (`/llegue` `/noche` `/salgo`), Home Assistant o la API. |
+| **Red de alerta vecinal** | Los vecinos/comercios con el mismo código comparten SOS, pánicos, fuego e intrusiones confirmadas, y avisos manuales. |
+| **Geocercas** | Tractores, cosechadoras y camionetas informan su GPS (app gratuita *Traccar Client* o la API); aviso con mapa al salir del lote o entrar a una zona prohibida. |
+| **Descubrimiento multi-marca** | ONVIF WS-Discovery + tabla ARP + puertos típicos: encuentra cámaras y grabadores Dahua, Hikvision, Uniview, Axis, Reolink, XMeye y cerraduras ESP32, y propone la dirección de video. |
+| **Vigilante de video** | Avisa si una cámara se corta (y cuando vuelve) y reinicia el servidor de video si se cuelga. |
+| **API REST v1** | Tokens con permisos *read / control / ingest*, eventos en vivo (SSE), especificación en `/api/v1/openapi.json`. Para ERP, POS, centrales de monitoreo, motores de IA y GPS. |
+| **MQTT + Home Assistant** | Aparece solo en Home Assistant (armado, modo noche, horario, aforo, último evento y botones de escenas) → **Alexa, Google y Siri**. Recibe eventos de Frigate. |
+| **Webhooks** | Cada evento como POST JSON firmado con HMAC-SHA256, con reintentos y filtro por nivel. |
+| **Cifrado AES-256-GCM** | Contraseñas, tokens y claves del `.env` y el archivo de personas con plantillas biométricas cifrados en el disco (`SECRETS_ENCRYPT=1`). |
+
+Todo se configura desde el panel: ★ Configuración (*Sector e inteligencia artificial* e *Integraciones*) y Admin → **Integraciones y analítica** (estado, aforo, escenas, patentes, geocercas, tokens, red vecinal, webhooks y descubrimiento).
 
 ## Cerradura (ESP32) — sin editar código
 
@@ -128,7 +152,7 @@ Panel → ⚙ → **Configuración → Avisos a los dueños**:
 ```mermaid
 flowchart LR
   C["Celular del cliente<br/>(escanea QR / NFC)"] -- "timbre.html (GitHub Pages)" --> N["Relevo ntfy.sh<br/>(tema secreto)"]
-  N --> S["Servidor SVB<br/>en el local"]
+  N --> S["Servidor Sistemas VB<br/>en el local"]
   S --> P["Panel: suena + cámara"]
   S --> T["Telegram del dueño<br/>con botones"]
   P & T -- respuesta --> N -- "«Ya voy»" --> C
@@ -137,7 +161,7 @@ flowchart LR
 1. Panel → **Portero y avisos al celular** → **Imprimir cartel para la puerta**.
 2. (Opcional) Desde un Android con Chrome: **Grabar sticker NFC** (NTAG213/215).
 
-**Sin servidor también funciona:** si el panel se abre sin el servidor SVB (por ejemplo desde GitHub Pages en la tablet de la puerta), ese mismo equipo escucha los timbres, suena con la imagen de su cámara, avisa a los dueños y responde al cliente. En Panel → **Portero y avisos al celular** se cargan la notificación push (app ntfy, con foto y botones *Ya voy · Un momento · Dejar en puerta*) y los **WhatsApp que elijan los dueños** (CallMeBot), y se elige qué se avisa: timbre, SOS, coacción, intentos fallidos, alarmas de cámara y fuera de horario. El equipo tiene que quedar encendido, con el panel abierto y con internet.
+**Sin servidor también funciona:** si el panel se abre sin el servidor Sistemas VB (por ejemplo desde GitHub Pages en la tablet de la puerta), ese mismo equipo escucha los timbres, suena con la imagen de su cámara, avisa a los dueños y responde al cliente. En Panel → **Portero y avisos al celular** se cargan la notificación push (app ntfy, con foto y botones *Ya voy · Un momento · Dejar en puerta*) y los **WhatsApp que elijan los dueños** (CallMeBot), y se elige qué se avisa: timbre, SOS, coacción, intentos fallidos, alarmas de cámara y fuera de horario. El equipo tiene que quedar encendido, con el panel abierto y con internet.
 
 Funciona con los datos móviles del cliente, sin abrir puertos del router. El enlace lleva un código secreto; si alguien abusa, **Regenerar código** invalida los carteles viejos. Comandos de Telegram: `/foto` `/armar` `/desarmar` `/estado`.
 
@@ -173,17 +197,18 @@ sudo cp docs/svb-seguridad.service /etc/systemd/system/ && sudo systemctl enable
 
 - **Credenciales solo en `.env`**, que está en `.gitignore`. Este repositorio es público: nunca subir contraseñas, números de serie ni tokens.
 - El servidor **no publica** `.env`, `data/` ni el código del servidor, y bloquea los endpoints de go2rtc que contienen contraseñas (`/api/config`, `/api/streams`).
-- go2rtc escucha solo en `127.0.0.1`; todo pasa por el servidor SVB.
+- go2rtc escucha solo en `127.0.0.1`; todo pasa por el servidor Sistemas VB.
 - Cambiar los PINs por defecto y usar una **contraseña fuerte en el grabador Dahua** (DMSS → Cambiar la contraseña del dispositivo; luego actualizar `CAM_PASS`).
 
 ## Pruebas
 
 ```bash
-cd server && npm run setup && npm test     # 17 pruebas: personas, horario, huella (passkeys), rostro, reintento de avisos, configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
+cd server && npm run setup && npm test     # 26 pruebas: plataforma v2 (cifrado, ONVIF, analítica, API v1, MQTT/Home Assistant, webhooks, vigilante de video, coacción invisible), personas, horario, huella (passkeys), rostro, reintento de avisos, configuración total, vinculación ESP32, WhatsApp/push, portero QR/NFC, Digest, autodescubrimiento, API, coacción, eventos push, armado, PTZ, grabaciones, configuración, video real
 python3 tests/qr.test.py                   # QR legible en versiones 1–10
 python3 tests/e2e.py                       # 88 pruebas de punta a punta con navegador real
 python3 tests/e2e_portero.py               # 21 pruebas: portero y avisos sin servidor (timbre del cliente, push con foto y botones, WhatsApp, horario, SOS)
 python3 tests/e2e_accesos.py               # 22 pruebas: doble toque, personas, horario, huella (autenticador virtual), rostro, lector QR, móvil
+python3 tests/e2e_plataforma.py            # 31 pruebas: sector, escenas con PIN y voz, aforo en vivo, integraciones, tokens, patentes, geocercas, descubrimiento
 node tools/embed.js --check                # index.html sincronizado con firmware y QR
 ```
 
@@ -204,6 +229,13 @@ server/                    Servidor puente (Node.js sin dependencias)
   lib/notifiers.js         WhatsApp (CallMeBot) y notificación push (ntfy)
   lib/settings-schema.js   Esquema de toda la configuración (genera los formularios del panel)
   lib/access.js            Personas con PIN propio, horario de atención, huella (WebAuthn) y rostro
+  lib/analytics.js         Motor de analítica: normaliza Dahua / Frigate / API y aplica reglas por sector
+  lib/platform.js          Sectores, patentes, tokens de API, aforo, permanencia y geocercas
+  lib/onvif.js             Descubrimiento multi-marca (ONVIF WS-Discovery, ARP, puertos)
+  lib/mqtt.js              Cliente MQTT 3.1.1 (Home Assistant, Frigate, Node-RED)
+  lib/webhooks.js          Webhooks firmados con HMAC-SHA256
+  lib/vault.js             Cifrado AES-256-GCM de secretos y datos biométricos
+docs/ARQUITECTURA.md       Arquitectura técnica completa del sistema
 face/                      Reconocimiento facial (face-api + modelos, licencia MIT)
 timbre.html                Página pública del portero (celular del cliente)
   scripts/                 Descarga de go2rtc, búsqueda por consola
@@ -219,4 +251,4 @@ Cada cliente nuevo es: una PC/mini‑PC o Raspberry Pi con el servidor, su `.env
 
 ---
 
-Desarrollado por **SVB · Sistema VB (Vincular Business)** — WhatsApp (387) 4484132 · vincularbusiness@gmail.com
+**Sistemas VB Seguridad** · Desarrollado por **Vincular Business · Sistema VB** — WhatsApp (387) 4484132 · vincularbusiness@gmail.com

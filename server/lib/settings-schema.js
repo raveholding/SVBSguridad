@@ -4,7 +4,7 @@
  * El panel arma los formularios a partir de esta lista: agregar un campo aquí lo vuelve configurable.
  *
  * type: text | pin | secret | int | bool | url | names
- * apply: subsistema a reiniciar al cambiar (cam | doorbell | telegram)
+ * apply: subsistema a reiniciar al cambiar (cam | doorbell | telegram | push | sector | mqtt | webhooks | community | vault)
  */
 const GROUPS = [
   { id: 'negocio', title: 'Negocio', help: 'Nombre que aparece en alertas, en el portero y en el panel.' },
@@ -13,6 +13,8 @@ const GROUPS = [
   { id: 'cerradura', title: 'Cerradura (ESP32)', help: 'Dirección del ESP32 en la red y su clave. Vacío = apertura simulada.' },
   { id: 'alertas', title: 'Avisos a los dueños: WhatsApp, notificación push y Telegram', help: 'Timbre, SOS, coacción, sabotaje y movimiento con el sistema armado.' },
   { id: 'portero', title: 'Portero digital QR / NFC', help: 'Timbre desde el celular del cliente.' },
+  { id: 'sector', title: 'Sector e inteligencia artificial', help: 'Tipo de instalación (comercio, industria, campo u hogar) y reglas de la analítica de video: filtro de falsas alarmas, patentes, aforo y velocidad.' },
+  { id: 'integraciones', title: 'Integraciones: Home Assistant, MQTT, webhooks y red vecinal', help: 'Conecta el sistema con Home Assistant (Alexa, Google, Siri), Frigate, Node-RED, ERP/POS y con los vecinos. Los tokens de API se crean en Integraciones y analítica.' },
 ];
 
 const int = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; };
@@ -56,6 +58,31 @@ const FIELDS = [
   { key: 'DOORBELL_WHATSAPP', group: 'portero', label: 'WhatsApp para que el cliente escriba (botón en la página del timbre, vacío = sin botón)', type: 'phone', clearable: true, get: (c) => c.doorbell.whatsapp, set: (c, v) => { c.doorbell.whatsapp = v; }, apply: 'doorbell' },
   { key: 'DOORBELL_COOLDOWN', group: 'portero', label: 'Segundos mínimos entre timbres', type: 'int', min: 0, max: 600, get: (c) => c.doorbell.cooldown, set: (c, v) => { c.doorbell.cooldown = v; } },
   { key: 'DOORBELL_PAGE', group: 'portero', label: 'Página pública del portero', type: 'url', advanced: true, get: (c) => c.doorbell.page, set: (c, v) => { c.doorbell.page = v; }, apply: 'doorbell' },
+  { key: 'SECTOR', group: 'sector', label: 'Tipo de instalación', type: 'select', options: [['comercio', 'Comercio: aforo, permanencia, pases de proveedores'], ['industria', 'Industria / empresa: EPP, caídas, ingreso vehicular'], ['campo', 'Campo / finca: filtro de fauna y clima, perímetro, geocercas'], ['residencial', 'Residencial / hogar: escenas, pánico, red vecinal']], get: (c) => c.sector, set: (c, v) => { c.sector = v; }, apply: 'sector' },
+  { key: 'RURAL_FILTER', group: 'sector', label: 'Filtro de falsas alarmas (fauna, viento, lluvia, vegetación) — siempre activo en campo', type: 'bool', get: (c) => c.analytics.ruralFilter, set: (c, v) => { c.analytics.ruralFilter = v; } },
+  { key: 'ANALYTICS_MIN_CONF', group: 'sector', label: 'Confianza mínima de la IA para avisar (%)', type: 'int', min: 10, max: 95, get: (c) => Math.round(c.analytics.minConf * 100), set: (c, v) => { c.analytics.minConf = v / 100; } },
+  { key: 'ANALYTICS_PERSIST_N', group: 'sector', label: 'Detecciones seguidas para confirmar una intrusión', type: 'int', min: 1, max: 5, advanced: true, get: (c) => c.analytics.persistN, set: (c, v) => { c.analytics.persistN = v; } },
+  { key: 'ANALYTICS_PERSIST_S', group: 'sector', label: 'Ventana para confirmar (segundos)', type: 'int', min: 2, max: 120, advanced: true, get: (c) => c.analytics.persistS, set: (c, v) => { c.analytics.persistS = v; } },
+  { key: 'PLATE_AUTO_OPEN', group: 'sector', label: 'Abrir el portón solo a patentes autorizadas (lectura exacta)', type: 'bool', get: (c) => c.analytics.plateAutoOpen, set: (c, v) => { c.analytics.plateAutoOpen = v; } },
+  { key: 'OCCUPANCY_MAX', group: 'sector', label: 'Aforo máximo (personas, 0 = sin control)', type: 'int', min: 0, max: 20000, get: (c) => c.occupancyMax, set: (c, v) => { c.occupancyMax = v; } },
+  { key: 'SPEED_LIMIT', group: 'sector', label: 'Velocidad máxima dentro del predio (km/h)', type: 'int', min: 5, max: 200, advanced: true, get: (c) => c.analytics.speedLimit, set: (c, v) => { c.analytics.speedLimit = v; } },
+  { key: 'CROWD_MIN', group: 'sector', label: 'Personas para considerar aglomeración', type: 'int', min: 2, max: 500, advanced: true, get: (c) => c.analytics.crowdMin, set: (c, v) => { c.analytics.crowdMin = v; } },
+  { key: 'STREAM_WATCHDOG', group: 'sector', label: 'Vigilante de video: avisa si una cámara se corta y reinicia el servidor de video si se cuelga', type: 'bool', get: (c) => c.watchdog, set: (c, v) => { c.watchdog = v; } },
+
+  { key: 'MQTT_URL', group: 'integraciones', label: 'Servidor MQTT (ej. mqtt://192.168.1.10:1883, vacío = apagado)', type: 'text', clearable: true, max: 200, get: (c) => c.mqtt.url, set: (c, v) => { c.mqtt.url = v; }, apply: 'mqtt', validate: (v) => /^mqtts?:\/\/[\w.-]+(:\d+)?\/?(\?.*)?$/.test(v) },
+  { key: 'MQTT_USER', group: 'integraciones', label: 'Usuario MQTT', type: 'text', clearable: true, max: 60, get: (c) => c.mqtt.user, set: (c, v) => { c.mqtt.user = v; }, apply: 'mqtt' },
+  { key: 'MQTT_PASS', group: 'integraciones', label: 'Contraseña MQTT', type: 'secret', clearable: true, get: (c) => c.mqtt.pass, set: (c, v) => { c.mqtt.pass = v; }, apply: 'mqtt' },
+  { key: 'HA_DISCOVERY', group: 'integraciones', label: 'Aparecer solo en Home Assistant (MQTT discovery)', type: 'bool', get: (c) => c.mqtt.haDiscovery, set: (c, v) => { c.mqtt.haDiscovery = v; }, apply: 'mqtt' },
+  { key: 'FRIGATE_TOPIC', group: 'integraciones', label: 'Eventos de Frigate (ej. frigate/events, vacío = no usar)', type: 'text', clearable: true, max: 80, get: (c) => c.mqtt.frigateTopic, set: (c, v) => { c.mqtt.frigateTopic = v; }, apply: 'mqtt', validate: (v) => /^[\w/+#-]+$/.test(v) },
+  { key: 'MQTT_PREFIX', group: 'integraciones', label: 'Prefijo de tópicos MQTT', type: 'text', max: 40, advanced: true, get: (c) => c.mqtt.prefix, set: (c, v) => { c.mqtt.prefix = v.replace(/\/+$/, ''); }, apply: 'mqtt', validate: (v) => /^[\w/-]+$/.test(v) },
+  { key: 'MQTT_ALLOW_OPEN', group: 'integraciones', label: 'Permitir abrir la puerta por MQTT (exige el PIN en el mensaje)', type: 'bool', advanced: true, get: (c) => c.mqtt.allowOpen, set: (c, v) => { c.mqtt.allowOpen = v; } },
+  { key: 'WEBHOOK_URLS', group: 'integraciones', label: 'Webhooks: URLs que reciben cada evento (ERP, POS, planilla), separadas por coma', type: 'text', clearable: true, max: 1000, get: (c) => c.webhooks.urls, set: (c, v) => { c.webhooks.urls = v; }, apply: 'webhooks', validate: (v) => v.split(/[\s,]+/).filter(Boolean).every((u) => /^https?:\/\/\S+$/i.test(u)) },
+  { key: 'WEBHOOK_SECRET', group: 'integraciones', label: 'Clave para firmar los webhooks (HMAC-SHA256)', type: 'secret', clearable: true, get: (c) => c.webhooks.secret, set: (c, v) => { c.webhooks.secret = v; }, apply: 'webhooks' },
+  { key: 'WEBHOOK_MIN_LEVEL', group: 'integraciones', label: 'Qué eventos se envían por webhook', type: 'select', options: [['INFO', 'Todos'], ['WARN', 'Advertencias y más graves'], ['HIGH', 'Importantes y críticos'], ['CRITICAL', 'Solo críticos (coacción, pánico, fuego)']], get: (c) => c.webhooks.minLevel, set: (c, v) => { c.webhooks.minLevel = v; }, apply: 'webhooks' },
+  { key: 'COMMUNITY_TOPIC', group: 'integraciones', label: 'Red de alerta vecinal: código compartido con los vecinos (vacío = apagada)', type: 'text', clearable: true, max: 80, get: (c) => c.community.topic, set: (c, v) => { c.community.topic = v; }, apply: 'community', validate: (v) => /^[\w-]{12,80}$/.test(v) },
+  { key: 'COMMUNITY_NAME', group: 'integraciones', label: 'Cómo te ven los vecinos (ej. "Almacén Rave · Av. Belgrano")', type: 'text', clearable: true, max: 60, get: (c) => c.community.name, set: (c, v) => { c.community.name = v; }, apply: 'community' },
+  { key: 'SECRETS_ENCRYPT', group: 'integraciones', label: 'Cifrar contraseñas, tokens y datos biométricos en el disco (AES-256)', type: 'bool', get: (c) => c.secretsEncrypt, set: (c, v) => { c.secretsEncrypt = v; }, apply: 'vault' },
+
   { key: 'NTFY_URL', group: 'portero', label: 'Servidor de relevo (ntfy)', type: 'url', advanced: true, get: (c) => c.doorbell.ntfy, set: (c, v) => { c.doorbell.ntfy = v.replace(/\/$/, ''); }, apply: 'doorbell' },
 ];
 
