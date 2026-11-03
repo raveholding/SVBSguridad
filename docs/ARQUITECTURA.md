@@ -261,7 +261,7 @@ flowchart LR
 ```
 
 - **Conectividad resiliente**: Starlink como enlace principal y router 4G/LTE de respaldo con *failover* automático; radioenlaces 5 GHz punto a punto o punto-multipunto para cámaras lejanas del casco. Todo el análisis ocurre en el casco: por el enlace satelital solo viajan avisos con foto (pocos KB). El video en vivo se ve bajo demanda por Tailscale.
-- **Energía**: cámaras y radios en postes con panel solar + batería LiFePO4 dimensionada para 3 días nublados; servidor con UPS. La pérdida de energía y de enlace se informa como evento.
+- **Energía**: cámaras y radios en postes con panel solar + batería LiFePO4 dimensionada para 3 días nublados; servidor con UPS. Hoy se detecta la pérdida de video de cada cámara (vigilante + `VideoLoss`); 🗺 medición de tensión de baterías y aviso de corte de energía con un ESP32.
 - **Geocercas** ✅: cada activo (tractor, cosechadora, camioneta) envía su posición por `POST /api/v1/telemetry` o por GET al estilo OsmAnd (la app gratuita *Traccar Client* lo hace sin configurar nada más). Modo *inside* avisa al **salir** del lote; modo *outside* avisa al **entrar** a una zona prohibida. Aviso con enlace a Google Maps.
 - **Alertas perimetrales solares**: sirena/reflector controlados por un segundo ESP32 (mismo firmware de relé) o por las salidas de alarma del grabador.
 
