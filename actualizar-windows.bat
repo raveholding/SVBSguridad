@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title SVB Seguridad - Actualizar
+title Sistemas VB Seguridad - Actualizar
 
 rem Se copia a TEMP y se ejecuta desde ahi, porque este mismo archivo se reemplaza al actualizar.
 if not "%~1"=="" goto :update
@@ -11,7 +11,7 @@ copy /y "%~f0" "%TEMP%\svb-actualizar.bat" >nul
 set "DEST=%~f1"
 set "TMPD=%TEMP%\svb-update"
 echo.
-echo  Actualizando SVB Seguridad en:
+echo  Actualizando Sistemas VB Seguridad en:
 echo  %DEST%
 echo  Tu configuracion .env, los registros y las fotos NO se tocan.
 echo.
@@ -29,7 +29,7 @@ rmdir /s /q "%TMPD%"
 
 echo.
 echo  =============================================
-echo   LISTO: SVB Seguridad actualizado.
+echo   LISTO: Sistemas VB Seguridad actualizado.
 echo   1. Cerra la ventana negra del sistema si esta abierta.
 echo   2. Abri de nuevo iniciar-windows.
 echo   3. En el navegador apreta Ctrl + F5.

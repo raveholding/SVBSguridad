@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SVB Seguridad — inicio en Linux / Raspberry Pi / mini PC
+# Sistemas VB Seguridad — inicio en Linux / Raspberry Pi / mini PC
 set -e
 cd "$(dirname "$0")"
 command -v node >/dev/null || { echo "Falta Node.js (>=18): https://nodejs.org"; exit 1; }

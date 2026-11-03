@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * SVB Seguridad — Servidor puente para Almacén Rave.
+ * Sistemas VB Seguridad — Servidor puente (instalación Almacén Rave).
+ * Desarrollado por Vincular Business · Sistema VB — WhatsApp (387) 4484132 · vincularbusiness@gmail.com
  *
  *  - Sirve el panel (index.html / PWA).
  *  - Levanta go2rtc y le pasa las cámaras Dahua (RTSP) → el navegador las ve por WebRTC/MSE.
  *  - Valida PINs de puerta (normal / coacción / visitas) del lado servidor, con bloqueo anti fuerza bruta.
  *  - Acciona la cerradura vía ESP32 (WiFi) y manda alertas con foto a Telegram.
  *  - Guarda el log de auditoría en disco (data/events.jsonl).
+ *
+ *  - Plataforma multi-sector (v2): analítica de video unificada (Dahua, Frigate, motores externos),
+ *    patentes, EPP, caídas, aforo, filtro rural, geocercas, escenas, red vecinal, descubrimiento ONVIF,
+ *    vigilante de video, API REST v1 con tokens, SSE, MQTT/Home Assistant, webhooks y cifrado AES-256.
+ *    Arquitectura completa: docs/ARQUITECTURA.md
  *
  * Sin dependencias npm: solo Node.js >= 18.
  */
@@ -26,6 +32,16 @@ const { NtfyListener, publish, REPLIES } = require('./lib/doorbell');
 const SCHEMA = require('./lib/settings-schema');
 const { parseRecipients, sendWhatsApp, sendPush } = require('./lib/notifiers');
 const { AccessStore, BIO_ROLES } = require('./lib/access');
+const { Vault, isSecretKey } = require('./lib/vault');
+const { discoverAll } = require('./lib/onvif');
+const { MqttClient, topicMatch } = require('./lib/mqtt');
+const { Webhooks } = require('./lib/webhooks');
+const { PlatformStore, SECTORS } = require('./lib/platform');
+const { AnalyticsEngine, fromDahua, fromFrigate, fromApi } = require('./lib/analytics');
+
+const VERSION = '2.0.0';
+const PRODUCT = 'Sistemas VB Seguridad';
+const DEVELOPER = { name: 'Vincular Business · Sistema VB', whatsapp: '+54 9 387 448-4132', email: 'vincularbusiness@gmail.com', web: 'https://wa.me/5493874484132' };
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -47,8 +63,16 @@ function createApp(cfg, opts = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
   const eventsFile = path.join(dataDir, 'events.jsonl');
   const visitorsFile = path.join(dataDir, 'visitors.json');
+  // Bóveda AES-256-GCM: se crea solo si se pidió cifrar o si ya hay datos cifrados
+  const accessFile = path.join(dataDir, 'access.json');
+  const accessEncrypted = (() => { try { return fs.readFileSync(accessFile, 'utf8').startsWith('enc:v1:'); } catch { return false; } })();
+  let vault = opts.vault || (cfg.secretsEncrypt || accessEncrypted || fs.existsSync(path.join(dataDir, 'master.key')) ? new Vault({ dataDir }) : null);
+  const getVault = () => (vault = vault || new Vault({ dataDir }));
   // Personas con PIN propio, huella, rostro y horario de atención
-  const access = new AccessStore(path.join(dataDir, 'access.json'));
+  const access = new AccessStore(accessFile, { vault, encrypt: cfg.secretsEncrypt });
+  // Plataforma: patentes, tokens de API, aforo, geocercas
+  const platform = new PlatformStore(path.join(dataDir, 'platform.json'));
+  const webhooks = new Webhooks({ ...cfg.webhooks, business: cfg.businessName, log: (m) => log('[webhooks]', m) });
 
   const state = {
     camHost: cfg.cam.host && cfg.cam.host !== 'auto' ? cfg.cam.host : '',
@@ -60,24 +84,41 @@ function createApp(cfg, opts = {}) {
     dvrEvents: [],      // últimos eventos del grabador
     dvrConnected: false,
     cooldown: new Map(), // code:canal -> último aviso
+    night: false,        // escena "modo noche"
+    streams: {},         // vigilante de video: canal -> {online, since}
   };
   const sse = new Set();
+  let mq = null; // cliente MQTT (Home Assistant / Frigate)
+  const sseV1 = new Set(); // clientes de la API v1 (/api/v1/stream): reciben además cada evento de auditoría
   const stateFile = path.join(dataDir, 'state.json');
   const panelFile = path.join(dataDir, 'panel-settings.json');
   // Ajustes del panel que se comparten (los PINs de respaldo y preferencias del dispositivo NO)
   const SHARED_KEYS = ['biz', 'mode', 'logo', 'emergency', 'familyName', 'familyPhone', 'familyWa', 'officePhone', 'ringCall', 'wakeOn', 'wake', 'lang', 'sens', 'rate',
     'chime', 'vol', 'relayMs', 'gridQ', 'motion', 'loiter', 'face', 'aiNotify', 'camNames', 'camOrder', 'ringCam', 'split'];
-  try { state.armed = !!JSON.parse(fs.readFileSync(stateFile, 'utf8')).armed; } catch { /* primera vez */ }
-  const saveState = () => fs.writeFileSync(stateFile, JSON.stringify({ armed: state.armed }));
+  try { const st = JSON.parse(fs.readFileSync(stateFile, 'utf8')); state.armed = !!st.armed; state.night = !!st.night; } catch { /* primera vez */ }
+  const saveState = () => { fs.writeFileSync(stateFile, JSON.stringify({ armed: state.armed, night: state.night })); if (typeof mqttState === 'function') mqttState(); };
+  // Motor de analítica: usa la configuración vigente en cada evaluación
+  const engine = new AnalyticsEngine(() => ({ sector: cfg.sector, ...cfg.analytics, armed: state.armed }));
   function broadcast(type, data) {
     const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
     sse.forEach((res) => { try { res.write(msg); } catch { sse.delete(res); } });
+    broadcastV1(type, data);
+  }
+  function broadcastV1(type, data) {
+    if (!sseV1.size) return;
+    const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
+    sseV1.forEach((res) => { try { res.write(msg); } catch { sseV1.delete(res); } });
   }
 
   // ───────────── Persistencia ─────────────
   function addEvent(ev) {
     const e = { id: crypto.randomUUID(), ts: new Date().toISOString(), level: 'INFO', ...ev };
     fs.appendFileSync(eventsFile, JSON.stringify(e) + '\n');
+    // Integraciones: webhooks (ERP/POS), MQTT (Home Assistant / Node-RED) y SSE para la API v1
+    const pub = { id: e.id, ts: e.ts, type: e.type, level: e.level, message: e.message, ...(e.camera ? { camera: e.camera } : {}), ...(e.who ? { who: e.who } : {}), ...(e.source ? { source: e.source } : {}) };
+    try { webhooks.dispatch(pub); } catch { /* nunca frena el evento */ }
+    if (typeof mqttEvent === 'function') mqttEvent(pub);
+    broadcastV1('event', pub); // el panel de la puerta no los recibe (la coacción sigue invisible)
     return e;
   }
   function readEvents(limit = 200) {
@@ -169,6 +210,14 @@ function createApp(cfg, opts = {}) {
     state.dvrEvents.unshift(ev);
     if (state.dvrEvents.length > 200) state.dvrEvents.length = 200;
     broadcast('dvr', ev);
+    // Analítica: los eventos inteligentes (persona, vehículo, patente, merodeo, caída, fuego…) pasan por el motor de reglas
+    const det = fromDahua(e, name);
+    if (det) { handleDetection(det).catch((err) => log('[analítica]', err.message)); return; }
+    // Filtro rural: el movimiento sin clasificar (viento, animales, sombras, lluvia) no avisa en campo
+    if (e.code === 'VideoMotion' && !e.always && (cfg.sector === 'campo' || cfg.analytics.ruralFilter)) {
+      engine.stats.filtered++; engine.stats.byReason['movimiento sin clasificar'] = (engine.stats.byReason['movimiento sin clasificar'] || 0) + 1;
+      return;
+    }
     const notifyIt = e.always || state.armed;
     const key = `${e.code}:${e.channel}`;
     const last = state.cooldown.get(key) || 0;
@@ -301,8 +350,13 @@ function createApp(cfg, opts = {}) {
       addEvent({ type: state.armed ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: `${state.armed ? 'Armado' : 'Desarmado'} desde Telegram` });
       broadcast('arm', { armed: state.armed });
       await notify(state.armed ? '🔒 Sistema ARMADO' : '🔓 Sistema desarmado');
+    } else if (['/noche', '/llegue', '/salgo', '/dia'].includes(cmd)) {
+      const r = await runScene({ '/noche': 'noche', '/llegue': 'llegada', '/salgo': 'salida', '/dia': 'dia' }[cmd], 'Telegram');
+      await notify(r.ok ? `✅ ${SCENES[r.scene].label}: sistema ${r.armed ? 'ARMADO' : 'desarmado'}` : r.error);
+    } else if (cmd === '/aforo') {
+      const o = platform.occupancy; await notify(`👥 ${cfg.businessName}: ${o.count}${cfg.occupancyMax ? '/' + cfg.occupancyMax : ''} personas dentro · hoy entraron ${o.inToday}, salieron ${o.outToday}`);
     } else if (cmd === '/estado' || cmd === '/start' || cmd === '/ayuda') {
-      await notify(`🛡 ${cfg.businessName}\nSistema: ${state.armed ? 'ARMADO' : 'desarmado'}\nGrabador: ${state.camHost ? 'conectado' : 'sin conexión'} · eventos ${state.dvrConnected ? 'activos' : 'inactivos'}\nPortero QR: ${bell && bell.connected ? 'activo' : 'inactivo'}\nHorario: ${access.isOpen() ? 'ABIERTO' : 'CERRADO'} (${access.info().text})\n\nComandos: /foto /armar /desarmar /estado`);
+      await notify(`🛡 ${cfg.businessName}\nSistema: ${state.armed ? 'ARMADO' : 'desarmado'}\nGrabador: ${state.camHost ? 'conectado' : 'sin conexión'} · eventos ${state.dvrConnected ? 'activos' : 'inactivos'}\nPortero QR: ${bell && bell.connected ? 'activo' : 'inactivo'}\nHorario: ${access.isOpen() ? 'ABIERTO' : 'CERRADO'} (${access.info().text})\nSector: ${SECTORS[cfg.sector].label}${state.night ? ' · modo noche' : ''}\n\nComandos: /foto /armar /desarmar /noche /llegue /salgo /aforo /estado\n${PRODUCT} · Vincular Business`);
     }
   }
 
@@ -318,7 +372,9 @@ function createApp(cfg, opts = {}) {
     let text = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
     const nl = text.includes('\r\n') ? '\r\n' : '\n';
     Object.entries(changes).forEach(([k, v]) => {
-      const line = `${k}=${String(v).replace(/[\r\n]/g, '')}`;
+      let val = String(v).replace(/[\r\n]/g, '');
+      if (cfg.secretsEncrypt && val && isSecretKey(k)) val = getVault().encrypt(val); // AES-256-GCM en reposo
+      const line = `${k}=${val}`;
       const re = new RegExp(`^${k}=.*$`, 'm');
       text = re.test(text) ? text.replace(re, line) : text + (text && !text.endsWith('\n') ? nl : '') + line + nl;
     });
@@ -497,6 +553,268 @@ function createApp(cfg, opts = {}) {
     }
   }
 
+  // ═════════════ Sistemas VB Seguridad · Plataforma multi-sector ═════════════
+  const camByName = (n) => { const i = cfg.cam.names.findIndex((x) => x && n && x.toLowerCase() === String(n).toLowerCase()); return i >= 0 ? i + 1 : null; };
+  const alertCool = new Map();
+  /** Detección normalizada (Dahua, Frigate, API) → reglas → auditoría, panel, avisos, MQTT, webhooks. */
+  async function handleDetection(det, photo = null) {
+    const r = engine.evaluate(det);
+    broadcast('analytics', { id: r.det.id, ts: r.det.ts, kind: r.det.kind, camera: r.det.camera, confidence: r.det.confidence, plate: r.det.plate || null, filtered: r.filtered || null, type: r.type || null, message: r.message || null });
+    if (r.filtered && !r.type) return r;
+    if (r.plate) return { ...r, plate: await onPlate(r.det, photo) };
+    if (r.occupancy) { setOccupancy({ delta: r.det.delta || 0, set: r.det.delta ? null : r.det.count }, r.det.source); return r; }
+    if (r.dwell) { platform.addDwell(r.det.seconds, r.det.zone || r.det.camera); return r; }
+    addEvent({ type: r.type, level: r.level, message: r.message, camera: r.det.camera || undefined, source: 'ia:' + r.det.source });
+    if (!r.notify) return r;
+    const key = `${r.type}:${r.det.camera}`;
+    if (r.level !== 'CRITICAL' && Date.now() - (alertCool.get(key) || 0) < cfg.dvrCooldown * 1000) return { ...r, cooled: true };
+    alertCool.set(key, Date.now());
+    const ch = r.det.channel || camByName(r.det.camera);
+    if (!photo && ch) { try { photo = await snapshot(ch, true); } catch { /* sin imagen */ } }
+    const emoji = { CRITICAL: '🔥', HIGH: '🚨', WARN: '⚠️' }[r.level] || 'ℹ️';
+    await alertAll(`${emoji} ${cfg.businessName}: ${r.message}`, photo, { kind: r.alertKind || 'alarm' });
+    if (r.level === 'CRITICAL' || (r.type === 'INTRUSION' && cfg.sector !== 'comercio')) communityAlert(r.type === 'FIRE_ALERT' ? 'fuego' : 'intrusion', r.message);
+    return r;
+  }
+
+  /* ── Patentes: listas permitidas/bloqueadas, apertura automática ── */
+  async function onPlate(det, photo) {
+    const m = platform.matchPlate(det.plate);
+    const where = det.camera || 'acceso vehicular';
+    const extra = [det.attrs && det.attrs.vehicle, det.attrs && det.attrs.color, det.attrs && det.attrs.brand].filter(Boolean).join(' ');
+    const ch = det.channel || camByName(det.camera);
+    const pic = async () => photo || (ch ? await snapshot(ch, true).catch(() => null) : null);
+    if (m.entry && m.entry.list === 'deny') {
+      addEvent({ type: 'PLATE_DENY', level: 'CRITICAL', message: `Patente BLOQUEADA ${m.plate}${m.match === 'probable' ? ` (lectura parecida a ${m.entry.plate})` : ''} en ${where}${m.entry.name ? ' · ' + m.entry.name : ''}${extra ? ' · ' + extra : ''}`, camera: where });
+      await alertAll(`🚫 ${cfg.businessName}: patente bloqueada ${m.plate} en ${where}${m.entry.note ? `\n📝 ${m.entry.note}` : ''}`, await pic(), { kind: 'alarm' });
+      return { result: 'deny', ...m };
+    }
+    if (m.match === 'exact' && m.entry.list === 'allow') {
+      const inHours = access.isOpen() || m.entry.always;
+      let opened = false;
+      if (cfg.analytics.plateAutoOpen && inHours) { const rl = await triggerRelay(); opened = rl.ok; }
+      addEvent({ type: opened ? 'DOOR_OPEN' : 'PLATE_ALLOW', level: 'INFO', message: `${opened ? 'Portón abierto' : 'Patente autorizada'} · ${m.plate}${m.entry.name ? ' — ' + m.entry.name : ''} (${where})${!inHours ? ' · fuera de horario, no se abrió' : ''}`, camera: where, source: 'patente', who: m.entry.name || m.plate });
+      return { result: opened ? 'open' : 'allow', ...m };
+    }
+    addEvent({ type: 'PLATE_SEEN', message: `Patente ${m.plate} (${m.format}) en ${where}${m.match === 'probable' ? ` · parecida a la autorizada ${m.entry.plate}, no se abre` : ''}${extra ? ' · ' + extra : ''}`, camera: where });
+    if (state.armed) await alertAll(`🚗 ${cfg.businessName}: vehículo ${m.plate} en ${where} con el sistema ARMADO`, await pic(), { kind: 'motion' });
+    return { result: 'unknown', ...m };
+  }
+
+  /* ── Aforo ── */
+  let occFull = false;
+  function setOccupancy({ delta = 0, set = null }, by = 'panel') {
+    const o = platform.updateOccupancy({ delta, set });
+    const max = cfg.occupancyMax;
+    broadcast('occupancy', { count: o.count, max, inToday: o.inToday, outToday: o.outToday, peak: o.peak });
+    if (mq && mq.connected) mq.publish(`${cfg.mqtt.prefix}/occupancy`, String(o.count), { retain: true });
+    if (max && o.count >= max && !occFull) {
+      occFull = true;
+      addEvent({ type: 'OCCUPANCY_FULL', level: 'HIGH', message: `Aforo completo: ${o.count}/${max} personas (${by})` });
+      alertAll(`👥 ${cfg.businessName}: aforo completo (${o.count}/${max}). No dejar ingresar más personas.`, null, { kind: 'alarm' });
+    } else if (max && o.count < max * 0.9) occFull = false;
+    return { ...o, max };
+  }
+
+  /* ── Escenas (hogar y cualquier sector) ── */
+  const SCENES = {
+    llegada: { label: 'Llegué a casa', armed: false, night: false },
+    salida: { label: 'Salgo / cierro', armed: true, night: false },
+    noche: { label: 'Modo noche', armed: true, night: true },
+    dia: { label: 'Modo día', armed: false, night: false },
+    panico: { label: 'Pánico silencioso', panic: true },
+  };
+  async function runScene(name, by = 'panel') {
+    const sc = SCENES[name];
+    if (!sc) return { ok: false, error: `Escena inexistente. Opciones: ${Object.keys(SCENES).join(', ')}` };
+    if (sc.panic) {
+      // Igual que la coacción: no cambia nada visible, avisa a todos con foto y a la red vecinal
+      addEvent({ type: 'CRITICAL_PANIC_EVENT', level: 'CRITICAL', message: `Pánico silencioso (${by})` });
+      (async () => {
+        let photo = null; try { photo = await snapshot(cfg.doorbell.camera, true); } catch { /* sin cámara */ }
+        await alertAll(`🚨 PÁNICO en ${cfg.businessName}\nAlguien activó el botón de pánico silencioso (${by}) a las ${new Date().toLocaleTimeString('es-AR')}. Llamá al 911.`, photo, { kind: 'duress' });
+        communityAlert('panico', `${cfg.community.name || cfg.businessName}: pedido de ayuda (pánico)`);
+      })();
+      return { ok: true, scene: name };
+    }
+    const changed = state.armed !== sc.armed;
+    state.armed = sc.armed; state.night = sc.night; saveState();
+    addEvent({ type: 'SCENE', level: changed ? 'HIGH' : 'INFO', message: `Escena «${sc.label}» (${by}): sistema ${state.armed ? 'ARMADO' : 'desarmado'}${state.night ? ', modo noche' : ''}` });
+    broadcast('arm', { armed: state.armed });
+    broadcast('scene', { name, label: sc.label, armed: state.armed, night: state.night, by });
+    if (changed) alertAll(`${state.armed ? '🔒' : '🔓'} ${cfg.businessName}: ${sc.label} — sistema ${state.armed ? 'ARMADO' : 'desarmado'} (${by})`, null, { kind: 'info' });
+    return { ok: true, scene: name, armed: state.armed, night: state.night };
+  }
+
+  /* ── Red de alerta vecinal (tema ntfy compartido entre vecinos/comercios) ── */
+  const NODE_ID = crypto.createHash('sha256').update(dataDir + cfg.businessName).digest('hex').slice(0, 12);
+  let community = null; const communityLog = [];
+  function startCommunity() {
+    if (community) { community.stop(); community = null; }
+    if (!cfg.community.topic) return;
+    community = new NtfyListener({ base: cfg.doorbell.ntfy, topic: cfg.community.topic, log: (m) => log('[vecinal]', m) });
+    community.on('data', (p) => {
+      if (!p || p.type !== 'community' || p.node === NODE_ID) return;
+      const a = { ts: new Date().toISOString(), from: String(p.from || 'Vecino').slice(0, 60), kind: String(p.kind || 'alerta').slice(0, 20), text: String(p.text || '').slice(0, 200) };
+      communityLog.unshift(a); if (communityLog.length > 50) communityLog.length = 50;
+      addEvent({ type: 'COMMUNITY_ALERT', level: 'WARN', message: `Alerta vecinal de ${a.from}: ${a.text || a.kind}` });
+      broadcast('community', a);
+      alertAll(`🏘 Alerta vecinal — ${a.from}\n${a.text || a.kind}`, null, { kind: 'alarm' });
+    });
+    community.start();
+  }
+  function communityAlert(kind, text) {
+    if (!cfg.community.topic) return;
+    publish(cfg.doorbell.ntfy, cfg.community.topic, { type: 'community', node: NODE_ID, from: cfg.community.name || cfg.businessName, kind, text: String(text).slice(0, 200), ts: Date.now() }).catch(() => {});
+  }
+
+  /* ── MQTT: Home Assistant (→ Alexa / Google / Siri), Node-RED, Frigate, SCADA ── */
+  const slug = () => cfg.businessName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'svb';
+  function mqttState() {
+    if (!mq || !mq.connected) return;
+    const p = cfg.mqtt.prefix;
+    mq.publish(`${p}/armed`, state.armed ? 'ON' : 'OFF', { retain: true });
+    mq.publish(`${p}/night`, state.night ? 'ON' : 'OFF', { retain: true });
+    mq.publish(`${p}/hours`, access.isOpen() ? 'ON' : 'OFF', { retain: true });
+    mq.publish(`${p}/occupancy`, String(platform.occupancy.count), { retain: true });
+    mq.publish(`${p}/sector`, cfg.sector, { retain: true });
+  }
+  function mqttEvent(e) {
+    if (!mq || !mq.connected) return;
+    mq.publish(`${cfg.mqtt.prefix}/event`, e);
+    mq.publish(`${cfg.mqtt.prefix}/last_event`, { type: e.type, level: e.level, message: e.message, ts: e.ts }, { retain: true });
+  }
+  function haDiscovery() {
+    const p = cfg.mqtt.prefix; const id = `svb_${slug()}`;
+    const device = { identifiers: [id], name: `${PRODUCT} · ${cfg.businessName}`, manufacturer: 'Vincular Business', model: PRODUCT, sw_version: VERSION, configuration_url: 'https://wa.me/5493874484132' };
+    const avail = { availability_topic: `${p}/status`, payload_available: 'online', payload_not_available: 'offline' };
+    const ent = [
+      ['switch', 'armado', { name: 'Sistema armado', state_topic: `${p}/armed`, command_topic: `${p}/cmd/arm`, payload_on: 'ON', payload_off: 'OFF', icon: 'mdi:shield-lock' }],
+      ['binary_sensor', 'noche', { name: 'Modo noche', state_topic: `${p}/night`, payload_on: 'ON', payload_off: 'OFF', icon: 'mdi:weather-night' }],
+      ['binary_sensor', 'horario', { name: 'Horario de atención', state_topic: `${p}/hours`, payload_on: 'ON', payload_off: 'OFF', icon: 'mdi:store-clock' }],
+      ['sensor', 'aforo', { name: 'Personas dentro', state_topic: `${p}/occupancy`, unit_of_measurement: 'personas', state_class: 'measurement', icon: 'mdi:account-group' }],
+      ['sensor', 'ultimo_evento', { name: 'Último evento', state_topic: `${p}/last_event`, value_template: '{{ value_json.message[:250] }}', json_attributes_topic: `${p}/last_event`, icon: 'mdi:cctv' }],
+      ['button', 'llegada', { name: 'Llegué a casa', command_topic: `${p}/cmd/scene`, payload_press: 'llegada', icon: 'mdi:home-import-outline' }],
+      ['button', 'noche_btn', { name: 'Activar modo noche', command_topic: `${p}/cmd/scene`, payload_press: 'noche', icon: 'mdi:weather-night' }],
+      ['button', 'salida', { name: 'Salgo (armar)', command_topic: `${p}/cmd/scene`, payload_press: 'salida', icon: 'mdi:home-export-outline' }],
+    ];
+    ent.forEach(([comp, obj, conf]) => mq.publish(`homeassistant/${comp}/${id}/${obj}/config`, { ...conf, unique_id: `${id}_${obj}`, object_id: `${id}_${obj}`, device, ...avail }, { retain: true }));
+  }
+  function startMqtt() {
+    if (mq) { mq.stop(); mq = null; }
+    if (!cfg.mqtt.url) return;
+    const p = cfg.mqtt.prefix;
+    try {
+      mq = new MqttClient({ url: cfg.mqtt.url, user: cfg.mqtt.user, pass: cfg.mqtt.pass, clientId: `svb-${NODE_ID}`, will: { topic: `${p}/status`, payload: 'offline', retain: true }, log: (m) => log('[mqtt]', m) });
+    } catch (e) { log('[mqtt] URL inválida:', e.message); return; }
+    mq.on('connect', () => {
+      log('[mqtt] conectado a', cfg.mqtt.url.replace(/\/\/[^@]*@/, '//***@'));
+      mq.publish(`${p}/status`, 'online', { retain: true });
+      if (cfg.mqtt.haDiscovery) haDiscovery();
+      mqttState();
+    });
+    mq.on('message', (topic, payload) => onMqtt(topic, payload).catch((e) => log('[mqtt]', e.message)));
+    mq.subscribe(`${p}/cmd/#`);
+    if (cfg.mqtt.frigateTopic) mq.subscribe(cfg.mqtt.frigateTopic);
+    mq.start();
+  }
+  const frigateSeen = new Set();
+  async function onMqtt(topic, payload) {
+    const p = cfg.mqtt.prefix;
+    if (cfg.mqtt.frigateTopic && topicMatch(cfg.mqtt.frigateTopic, topic)) {
+      const det = fromFrigate(payload, frigateSeen);
+      if (det) await handleDetection(det);
+      return;
+    }
+    const cmd = topic.slice(p.length + 5); // "<p>/cmd/xxx"
+    if (!topic.startsWith(`${p}/cmd/`)) return;
+    if (cmd === 'arm') {
+      const on = /^(on|1|true|armar|arm)$/i.test(payload.trim());
+      state.armed = on; saveState();
+      addEvent({ type: on ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: `${on ? 'Armado' : 'Desarmado'} por MQTT / Home Assistant` });
+      broadcast('arm', { armed: state.armed });
+    } else if (cmd === 'scene') await runScene(payload.trim().toLowerCase(), 'Home Assistant');
+    else if (cmd === 'occupancy') { const n = parseInt(payload, 10); if (/^[+-]/.test(payload.trim())) setOccupancy({ delta: n }, 'mqtt'); else if (Number.isFinite(n)) setOccupancy({ set: n }, 'mqtt'); }
+    else if (cmd === 'open') {
+      if (!cfg.mqtt.allowOpen) { addEvent({ type: 'ACCESS_DENIED', level: 'WARN', message: 'Apertura por MQTT rechazada (desactivada en Integraciones)' }); return; }
+      if (lockStatus('mqtt')) return;
+      let pin = ''; try { pin = String(JSON.parse(payload).pin || ''); } catch { pin = payload.trim(); }
+      if (!(pin && (safeEq(pin, cfg.doorPin) || safeEq(pin, cfg.adminPin)))) { registerFailure('mqtt'); addEvent({ type: 'ACCESS_DENIED', level: 'WARN', message: 'PIN incorrecto por MQTT', source: 'mqtt' }); return; }
+      const rl = await triggerRelay();
+      addEvent({ type: 'DOOR_OPEN', level: 'HIGH', message: `Puerta abierta por MQTT / Home Assistant (${rl.simulated ? 'simulado' : rl.ok ? 'OK' : 'falló'})`, source: 'mqtt' });
+    }
+  }
+
+  /* ── Vigilante de video (watchdog): cortes por cámara y go2rtc colgado ── */
+  const wd = { misses: new Map(), apiFail: 0, restarts: 0, lastCheck: null };
+  async function watchdogTick() {
+    if (!cfg.watchdog || cfg.go2rtc.disabled || !state.camHost || !state.go2rtc.running) return null;
+    wd.lastCheck = new Date().toISOString();
+    const st = await streamsStatus();
+    if (!st) {
+      if (++wd.apiFail >= 3) {
+        wd.apiFail = 0; wd.restarts++;
+        log('[vigilante] go2rtc no responde: reiniciando');
+        addEvent({ type: 'VIDEO_SERVER_RESTART', level: 'WARN', message: 'Vigilante de video: el servidor de video no respondía y se reinició solo' });
+        restartGo2rtc();
+      }
+      return null;
+    }
+    wd.apiFail = 0;
+    for (const { ch, name, sd, hd } of streamNames()) {
+      const a = st[sd] || {}; const b = st[hd] || {};
+      const watched = (a.consumers || 0) + (b.consumers || 0) > 0;
+      const online = !!(a.online || b.online);
+      const prev = state.streams[ch] || { online: true };
+      if (!watched) { wd.misses.set(ch, 0); continue; } // sin nadie mirando, go2rtc no conecta: es normal
+      if (online) {
+        wd.misses.set(ch, 0);
+        if (prev.online === false) { addEvent({ type: 'STREAM_RECOVERED', message: `Video recuperado · ${name}`, camera: name }); broadcast('stream', { ch, online: true }); }
+        state.streams[ch] = { online: true, since: prev.online ? prev.since || wd.lastCheck : wd.lastCheck };
+      } else {
+        const n = (wd.misses.get(ch) || 0) + 1; wd.misses.set(ch, n);
+        if (n === 3) {
+          state.streams[ch] = { online: false, since: wd.lastCheck };
+          addEvent({ type: 'STREAM_DOWN', level: 'WARN', message: `Sin video desde ${name} (se reintenta solo)`, camera: name });
+          broadcast('stream', { ch, online: false });
+        }
+      }
+    }
+    return state.streams;
+  }
+
+  /* ── .env: cifrado de secretos al activar/desactivar SECRETS_ENCRYPT ── */
+  function migrateEnvSecrets(encrypt) {
+    if (!fs.existsSync(envFile)) return 0;
+    const v = getVault(); let n = 0;
+    const text = fs.readFileSync(envFile, 'utf8').replace(/^([A-Z0-9_]+)=(.*)$/gm, (line, k, val) => {
+      if (!isSecretKey(k) || !val) return line;
+      try {
+        const out = encrypt ? v.encrypt(Vault.isEncrypted(val) ? v.decrypt(val) : val) : v.decrypt(val);
+        if (out !== val) n++;
+        return `${k}=${out}`;
+      } catch { return line; }
+    });
+    if (n) fs.writeFileSync(envFile, text, { mode: 0o600 });
+    const wasEnc = (() => { try { return fs.readFileSync(accessFile, 'utf8').startsWith('enc:v1:'); } catch { return null; } })();
+    access.vault = v; access.encrypt = encrypt;
+    if (wasEnc !== null && wasEnc !== encrypt) access.save();
+    return n;
+  }
+
+  /* ── Autenticación de la API v1: PIN admin (panel) o token Bearer con permiso ── */
+  function bearer(req, query) {
+    const h = String(req.headers.authorization || '');
+    if (h.startsWith('Bearer ')) return h.slice(7).trim();
+    // ?token= solo se acepta en /api/v1/telemetry (Traccar/OsmAnd no pueden enviar encabezados)
+    return query && query.get('token') && /^\/api\/v1\/telemetry\b/.test(String(req.url || '')) ? String(query.get('token')) : '';
+  }
+  function authV1(req, scope, query) {
+    if (isAdmin(req)) return { by: 'administración', admin: true };
+    const t = platform.verifyToken(bearer(req, query), scope);
+    return t ? { by: `token ${t.name}`, token: t } : null;
+  }
+
   // ───────────── Seguridad ─────────────
   const safeEq = (a, b) => {
     const A = Buffer.from(String(a)); const B = Buffer.from(String(b));
@@ -561,16 +879,255 @@ function createApp(cfg, opts = {}) {
     req.pipe(preq);
   }
 
+  // ═════════════ API REST v1 (integraciones: ERP, POS, Home Assistant, motores de IA, GPS) ═════════════
+  // [método, ruta, permiso, descripción] — también genera /api/v1/openapi.json
+  const V1_ROUTES = [
+    ['GET', '/api/v1', 'público', 'Producto, versión y datos del desarrollador'],
+    ['GET', '/api/v1/openapi.json', 'público', 'Esta especificación (OpenAPI 3)'],
+    ['GET', '/api/v1/health', 'público / read', 'Salud de cada componente (detalle con permiso read)'],
+    ['GET', '/api/v1/sectors', 'público', 'Perfiles por sector y módulos'],
+    ['GET', '/api/v1/status', 'read', 'Estado general: armado, horario, aforo, cámaras, integraciones, analítica'],
+    ['GET', '/api/v1/events', 'read', 'Auditoría (?limit=&since=ISO&level=&type=)'],
+    ['GET', '/api/v1/stream', 'read', 'Eventos en vivo por Server-Sent Events (event, analytics, arm, ring, occupancy, scene…)'],
+    ['POST', '/api/v1/arm', 'control', 'Armar / desarmar {armed:true|false}'],
+    ['GET', '/api/v1/scenes', 'read', 'Escenas disponibles'],
+    ['POST', '/api/v1/scenes/{name}', 'control o PIN', 'Ejecutar escena: llegada, salida, noche, dia, panico'],
+    ['POST', '/api/v1/door/open', 'control', 'Accionar la cerradura {ms?, reason?}'],
+    ['GET', '/api/v1/occupancy', 'read', 'Aforo actual, máximo, entradas/salidas del día, permanencia'],
+    ['POST', '/api/v1/occupancy', 'control / ingest', 'Actualizar aforo {delta:+1|-1} o {set:n}'],
+    ['POST', '/api/v1/analytics/events', 'ingest', 'Detecciones de motores de IA externos (una o lista de hasta 50)'],
+    ['GET', '/api/v1/analytics/recent', 'read', 'Últimas detecciones y estadísticas del filtro'],
+    ['GET', '/api/v1/plates', 'read', 'Listas de patentes'],
+    ['POST', '/api/v1/plates', 'admin', 'Agregar/actualizar patente {plate, list:allow|deny, name, note, always}'],
+    ['DELETE', '/api/v1/plates?id=', 'admin', 'Quitar patente'],
+    ['GET', '/api/v1/geofences', 'read', 'Geocercas y última posición de cada activo'],
+    ['POST', '/api/v1/geofences', 'admin', 'Crear geocerca {name, lat, lng, radius, mode:inside|outside}'],
+    ['DELETE', '/api/v1/geofences?id=', 'admin', 'Quitar geocerca'],
+    ['POST', '/api/v1/telemetry', 'ingest', 'Posición GPS {id, name, lat, lng, speed} (también GET estilo OsmAnd/Traccar)'],
+    ['GET', '/api/v1/community', 'read', 'Últimas alertas de la red vecinal'],
+    ['POST', '/api/v1/community', 'admin', 'Enviar aviso a la red vecinal {text}'],
+    ['GET', '/api/v1/tokens', 'admin', 'Tokens de API'],
+    ['POST', '/api/v1/tokens', 'admin', 'Crear token {name, scopes:[read,control,ingest]} (se muestra una sola vez)'],
+    ['DELETE', '/api/v1/tokens?id=', 'admin', 'Revocar token'],
+    ['POST', '/api/v1/discovery', 'admin', 'Descubrir cámaras y grabadores (ONVIF, ARP, puertos) {scan?}'],
+    ['POST', '/api/v1/webhooks/test', 'admin', 'Enviar un evento de prueba a los webhooks'],
+  ];
+  function openapi() {
+    const paths = {};
+    V1_ROUTES.forEach(([m, p, scope, desc]) => {
+      const key = p.replace(/\?.*$/, '');
+      paths[key] = paths[key] || {};
+      paths[key][m.toLowerCase()] = { summary: desc, 'x-permiso': scope, ...(/público/.test(scope) ? {} : { security: [{ bearer: [] }, { adminPin: [] }] }), responses: { 200: { description: 'OK' }, 401: { description: 'Falta token/PIN' } } };
+    });
+    return {
+      openapi: '3.0.3',
+      info: { title: `${PRODUCT} — API`, version: VERSION, description: 'API REST de integración. Autenticación: "Authorization: Bearer svb_…" (token con permisos read / control / ingest, creado en Administración → Integraciones y analítica) o encabezado X-Admin-Pin.', contact: { name: DEVELOPER.name, email: DEVELOPER.email, url: DEVELOPER.web } },
+      components: { securitySchemes: { bearer: { type: 'http', scheme: 'bearer' }, adminPin: { type: 'apiKey', in: 'header', name: 'X-Admin-Pin' } } },
+      paths,
+    };
+  }
+  function v1Status() {
+    return {
+      product: PRODUCT, version: VERSION, business: cfg.businessName, sector: cfg.sector, sectorInfo: SECTORS[cfg.sector],
+      armed: state.armed, night: state.night, hours: access.info(),
+      occupancy: { ...platform.occupancy, max: cfg.occupancyMax },
+      cameras: { configured: !!state.camHost, channels: streamNames().map((c) => ({ ch: c.ch, name: c.name, online: state.streams[c.ch] ? state.streams[c.ch].online : null })) },
+      door: cfg.esp32Url ? 'esp32' : 'simulado',
+      integrations: { mqtt: !!(mq && mq.connected), webhooks: webhooks.urls.length, community: !!(community && community.connected), telegram: !!(cfg.telegram.token && cfg.telegram.chatId), tokens: platform.tokens.length },
+      analytics: engine.stats, encrypted: cfg.secretsEncrypt,
+    };
+  }
+  function health() {
+    return {
+      servidor: { ok: true, version: VERSION, uptime: Math.round((Date.now() - state.startedAt) / 1000), node: process.version },
+      video: { ok: cfg.go2rtc.disabled || state.go2rtc.running, running: state.go2rtc.running, restarts: state.go2rtc.restarts, error: state.go2rtc.lastError || null, vigilante: { on: cfg.watchdog, reinicios: wd.restarts, ultimoControl: wd.lastCheck, camaras: state.streams } },
+      grabador: { ok: !!state.camHost, eventos: state.dvrConnected },
+      cerradura: { ok: true, modo: cfg.esp32Url ? 'esp32' : 'simulado' },
+      portero: { ok: !cfg.doorbell.enabled || !!(bell && bell.connected), activo: cfg.doorbell.enabled },
+      mqtt: { ok: !cfg.mqtt.url || !!(mq && mq.connected), configurado: !!cfg.mqtt.url, conectado: !!(mq && mq.connected) },
+      webhooks: { ok: webhooks.stats.failed === 0 || !!(webhooks.stats.last && webhooks.stats.last.ok), urls: webhooks.urls.length, ...webhooks.stats },
+      vecinal: { ok: !cfg.community.topic || !!(community && community.connected), activa: !!cfg.community.topic },
+      avisosPendientes: retryQ.length,
+      cifrado: { activo: cfg.secretsEncrypt, clave: vault ? vault.source : null },
+    };
+  }
+
+  async function apiV1(req, res, pathname, query) {
+    const m = req.method; const ip = clientIp(req);
+    const need = (scope) => { const a = authV1(req, scope, query); if (!a) send(res, 401, { error: `Falta token con permiso "${scope}" o PIN de administración`, scope }); return a; };
+    const adminOnly = () => { if (isAdmin(req)) return true; send(res, 403, { error: 'PIN admin requerido' }); return false; };
+
+    if ((pathname === '/api/v1' || pathname === '/api/v1/') && m === 'GET') return send(res, 200, { product: PRODUCT, version: VERSION, business: cfg.businessName, developer: DEVELOPER, docs: '/api/v1/openapi.json' });
+    if (pathname === '/api/v1/openapi.json' && m === 'GET') return send(res, 200, openapi());
+    if (pathname === '/api/v1/sectors' && m === 'GET') return send(res, 200, { current: cfg.sector, sectors: SECTORS });
+    if (pathname === '/api/v1/health' && m === 'GET') {
+      const basic = { ok: true, product: PRODUCT, version: VERSION, uptime: Math.round((Date.now() - state.startedAt) / 1000) };
+      return send(res, 200, authV1(req, 'read', query) ? { ...basic, components: health() } : basic);
+    }
+    if (pathname === '/api/v1/status' && m === 'GET') { if (!need('read')) return; return send(res, 200, v1Status()); }
+    if (pathname === '/api/v1/events' && m === 'GET') {
+      if (!need('read')) return;
+      const since = query.get('since') ? Date.parse(query.get('since')) : 0; const lv = query.get('level'); const ty = query.get('type');
+      let list = readEvents(Math.min(5000, parseInt(query.get('limit'), 10) || 200));
+      if (since) list = list.filter((e) => Date.parse(e.ts) > since);
+      if (lv) list = list.filter((e) => e.level === lv.toUpperCase());
+      if (ty) list = list.filter((e) => e.type === ty.toUpperCase());
+      return send(res, 200, list.map(({ ip: _ip, ...e }) => e));
+    }
+    if (pathname === '/api/v1/stream' && m === 'GET') {
+      const a = need('read'); if (!a) return;
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+      res.write(`event: hello\ndata: ${JSON.stringify({ product: PRODUCT, version: VERSION, armed: state.armed, night: state.night, by: a.by })}\n\n`);
+      sseV1.add(res);
+      const hb = setInterval(() => res.write(': ping\n\n'), 20000);
+      req.on('close', () => { clearInterval(hb); sseV1.delete(res); });
+      return;
+    }
+    if (pathname === '/api/v1/arm' && m === 'POST') {
+      const a = need('control'); if (!a) return;
+      const b = await readBody(req);
+      state.armed = !!b.armed; saveState();
+      addEvent({ type: state.armed ? 'SYSTEM_ARMED' : 'SYSTEM_DISARMED', level: 'HIGH', message: `${state.armed ? 'Armado' : 'Desarmado'} por API (${a.by})` });
+      broadcast('arm', { armed: state.armed });
+      return send(res, 200, { ok: true, armed: state.armed });
+    }
+    if (pathname === '/api/v1/scenes' && m === 'GET') { if (!need('read')) return; return send(res, 200, Object.entries(SCENES).map(([id, sc]) => ({ id, label: sc.label }))); }
+    const sm = pathname.match(/^\/api\/v1\/scenes\/([a-z]+)$/);
+    if (sm && m === 'POST') {
+      let a = authV1(req, 'control', query);
+      const b = await readBody(req);
+      if (!a) {
+        const lock = lockStatus(ip); if (lock) return send(res, 429, { ok: false, retryIn: lock });
+        const pin = String(b.pin || '');
+        const person = /^\d{4,8}$/.test(pin) ? access.findByPin(pin) : null;
+        if (pin && (safeEq(pin, cfg.doorPin) || safeEq(pin, cfg.adminPin) || safeEq(pin, cfg.duressPin) || (person && person.on))) a = { by: person ? person.name : 'PIN', duress: safeEq(pin, cfg.duressPin) };
+        else { registerFailure(ip); return send(res, 403, { ok: false, error: 'PIN o token requerido' }); }
+        state.failures.delete(ip);
+      }
+      const r = await runScene(sm[1], b.by ? String(b.by).slice(0, 30) : a.by);
+      // Coacción: la escena se ejecuta igual (nada distinto en pantalla) y se avisa en silencio
+      if (a.duress && sm[1] !== 'panico') runScene('panico', 'PIN de coacción en una escena');
+      return send(res, r.ok ? 200 : 400, sm[1] === 'panico' ? { ok: true, scene: 'panico' } : r);
+    }
+    if (pathname === '/api/v1/door/open' && m === 'POST') {
+      const a = need('control'); if (!a) return;
+      const b = await readBody(req);
+      const rl = await triggerRelay(b.ms);
+      addEvent({ type: 'DOOR_OPEN', level: 'HIGH', message: `Puerta abierta por API (${a.by})${b.reason ? ' · ' + String(b.reason).slice(0, 80) : ''}`, source: 'api', who: a.token ? a.token.name : 'admin' });
+      return send(res, 200, { ok: rl.ok, relay: { simulated: rl.simulated, ms: rl.ms } });
+    }
+    if (pathname === '/api/v1/occupancy') {
+      if (m === 'GET') { if (!need('read')) return; return send(res, 200, { ...platform.occupancy, max: cfg.occupancyMax, full: !!(cfg.occupancyMax && platform.occupancy.count >= cfg.occupancyMax), dwell: platform.dwellStats() }); }
+      if (m === 'POST') {
+        const a = authV1(req, 'control', query) || authV1(req, 'ingest', query);
+        if (!a) return send(res, 401, { error: 'Falta token (control o ingest) o PIN de administración' });
+        const b = await readBody(req);
+        return send(res, 200, setOccupancy({ delta: b.delta, set: b.set ?? null }, a.by));
+      }
+    }
+    if (pathname === '/api/v1/analytics/events' && m === 'POST') {
+      if (!need('ingest')) return;
+      const b = await readBody(req);
+      const list = (Array.isArray(b) ? b : Array.isArray(b.events) ? b.events : [b]).slice(0, 50);
+      const out = [];
+      for (const raw of list) {
+        let det; try { det = fromApi(raw || {}); } catch (e) { out.push({ ok: false, error: e.message }); continue; }
+        let photo = null;
+        if (raw.snapshot && /^data:image\/jpeg;base64,/.test(raw.snapshot)) photo = Buffer.from(raw.snapshot.split(',')[1], 'base64');
+        const r = await handleDetection(det, photo);
+        out.push({ ok: true, id: r.det.id, kind: r.det.kind, filtered: r.filtered || null, type: r.type || null, notified: !!r.notify && !r.cooled, ...(r.plate ? { plate: { result: r.plate.result, match: r.plate.match, format: r.plate.format } } : {}) });
+      }
+      return send(res, 200, Array.isArray(b) || Array.isArray(b.events) ? out : out[0]);
+    }
+    if (pathname === '/api/v1/analytics/recent' && m === 'GET') { if (!need('read')) return; return send(res, 200, { stats: engine.stats, recent: engine.recent.slice(0, Math.min(100, parseInt(query.get('limit'), 10) || 50)) }); }
+    if (pathname === '/api/v1/plates') {
+      if (m === 'GET') { if (!need('read')) return; return send(res, 200, platform.plates); }
+      if (!adminOnly()) return;
+      try {
+        if (m === 'POST') {
+          const b = await readBody(req);
+          const p = platform.addPlate(b);
+          if (b.always !== undefined) { p.always = !!b.always; platform.save(true); }
+          addEvent({ type: 'PLATE_LIST', level: 'HIGH', message: `Patente ${p.plate} en lista ${p.list === 'allow' ? 'autorizada' : 'BLOQUEADA'}${p.name ? ' · ' + p.name : ''}` });
+          return send(res, 201, p);
+        }
+        if (m === 'DELETE') { const ok = platform.removePlate(String(query.get('id') || '')); if (ok) addEvent({ type: 'PLATE_LIST', message: 'Patente quitada de las listas' }); return send(res, ok ? 200 : 404, { ok }); }
+      } catch (e) { return send(res, 400, { error: e.message }); }
+    }
+    if (pathname === '/api/v1/geofences') {
+      if (m === 'GET') { if (!need('read')) return; return send(res, 200, { geofences: platform.geofences, assets: platform.assets }); }
+      if (!adminOnly()) return;
+      try {
+        if (m === 'POST') { const g = platform.addGeofence(await readBody(req)); addEvent({ type: 'GEOFENCE', level: 'HIGH', message: `Geocerca «${g.name}» (${g.radius} m, avisa al ${g.mode === 'inside' ? 'salir' : 'entrar'})` }); return send(res, 201, g); }
+        if (m === 'DELETE') { const ok = platform.removeGeofence(String(query.get('id') || '')); return send(res, ok ? 200 : 404, { ok }); }
+      } catch (e) { return send(res, 400, { error: e.message }); }
+    }
+    if (pathname === '/api/v1/telemetry' && (m === 'POST' || m === 'GET')) {
+      if (!need('ingest')) return;
+      const b = m === 'POST' ? await readBody(req) : {};
+      const pos = { id: b.id || b.deviceId || query.get('id'), name: b.name || query.get('name'), lat: b.lat ?? b.latitude ?? query.get('lat'), lng: b.lng ?? b.lon ?? b.longitude ?? query.get('lon') ?? query.get('lng'), speed: b.speed ?? query.get('speed') };
+      let changes;
+      try { changes = platform.trackAsset(pos); } catch (e) { return send(res, 400, { error: e.message }); }
+      const name = platform.assets[String(pos.id).slice(0, 40)].name;
+      for (const c of changes) {
+        const msg = c.event === 'exit' ? `${name} salió de la geocerca «${c.fence.name}» (a ${c.distance} m)` : c.event === 'enter' ? `${name} entró a la zona restringida «${c.fence.name}»` : `${name} volvió a «${c.fence.name}»`;
+        addEvent({ type: c.event === 'back' ? 'GEOFENCE_BACK' : 'GEOFENCE_ALERT', level: c.event === 'back' ? 'INFO' : 'HIGH', message: msg });
+        broadcast('geofence', { asset: pos.id, name, fence: c.fence.name, event: c.event });
+        if (c.event !== 'back') alertAll(`📍 ${cfg.businessName}: ${msg}\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}`, null, { kind: 'alarm' });
+      }
+      return send(res, 200, { ok: true, events: changes.map((c) => ({ fence: c.fence.name, event: c.event })) });
+    }
+    if (pathname === '/api/v1/community') {
+      if (m === 'GET') { if (!need('read')) return; return send(res, 200, { enabled: !!cfg.community.topic, connected: !!(community && community.connected), alerts: communityLog }); }
+      if (m === 'POST') {
+        if (!adminOnly()) return;
+        if (!cfg.community.topic) return send(res, 400, { error: 'Red vecinal apagada: cargá el código compartido en ★ Configuración → Integraciones' });
+        const b = await readBody(req); const text = String(b.text || '').trim().slice(0, 200);
+        if (!text) return send(res, 400, { error: 'Escribí el aviso' });
+        communityAlert('aviso', text);
+        addEvent({ type: 'COMMUNITY_SENT', level: 'HIGH', message: `Aviso enviado a la red vecinal: ${text}` });
+        return send(res, 200, { ok: true });
+      }
+    }
+    if (pathname === '/api/v1/tokens') {
+      if (!adminOnly()) return;
+      try {
+        if (m === 'GET') return send(res, 200, platform.tokens.map((t) => platform.viewToken(t)));
+        if (m === 'POST') { const t = platform.createToken(await readBody(req)); addEvent({ type: 'API_TOKEN_CREATED', level: 'HIGH', message: `Token de API «${t.name}» (${t.scopes.join(', ')})` }); return send(res, 201, t); }
+        if (m === 'DELETE') { const ok = platform.revokeToken(String(query.get('id') || '')); if (ok) addEvent({ type: 'API_TOKEN_REVOKED', level: 'HIGH', message: 'Token de API revocado' }); return send(res, ok ? 200 : 404, { ok }); }
+      } catch (e) { return send(res, 400, { error: e.message }); }
+    }
+    if (pathname === '/api/v1/discovery' && m === 'POST') {
+      if (!adminOnly()) return;
+      const b = await readBody(req);
+      const scan = typeof b.scan === 'string' && /^[\d.,/ ]*$/.test(b.scan) ? b.scan : cfg.cam.scan;
+      const r = await discoverAll({ scan, log: (x) => log('[descubrimiento]', x) });
+      addEvent({ type: 'DISCOVERY', message: `Descubrimiento: ${r.devices.length} equipos (${r.onvif} ONVIF) en ${r.scanned} direcciones` });
+      return send(res, 200, r);
+    }
+    if (pathname === '/api/v1/webhooks/test' && m === 'POST') {
+      if (!adminOnly()) return;
+      if (!webhooks.enabled) return send(res, 400, { error: 'No hay webhooks configurados (★ Configuración → Integraciones)' });
+      return send(res, 200, { results: await webhooks.test({ id: crypto.randomUUID(), ts: new Date().toISOString(), type: 'WEBHOOK_TEST', level: 'INFO', message: `Prueba de webhook de ${cfg.businessName}` }) });
+    }
+    return send(res, 404, { error: 'No existe', docs: '/api/v1/openapi.json' });
+  }
+
   async function api(req, res, pathname, query) {
     const m = req.method;
     const ip = clientIp(req);
+    if (pathname === '/api/v1' || pathname.startsWith('/api/v1/')) return apiV1(req, res, pathname, query);
 
     if (pathname === '/api/health') return send(res, 200, { ok: true, uptime: Math.round((Date.now() - state.startedAt) / 1000) });
 
     if (pathname === '/api/status' && m === 'GET') {
       return send(res, 200, {
         business: cfg.businessName,
+        product: PRODUCT, version: VERSION, developer: DEVELOPER,
         server: true,
+        sector: cfg.sector, sectorInfo: SECTORS[cfg.sector], night: state.night,
+        occupancy: { count: platform.occupancy.count, max: cfg.occupancyMax, inToday: platform.occupancy.inToday, outToday: platform.occupancy.outToday, peak: platform.occupancy.peak },
+        integrations: { mqtt: !!(mq && mq.connected), webhooks: webhooks.urls.length, community: !!cfg.community.topic, encrypted: cfg.secretsEncrypt },
         door: { relay: cfg.esp32Url ? 'esp32' : 'simulado', relayMs: cfg.relayMs },
         telegram: !!(cfg.telegram.token && cfg.telegram.chatId),
         armed: state.armed,
@@ -1024,6 +1581,12 @@ function createApp(cfg, opts = {}) {
       if (applies.has('doorbell')) { startDoorbell(); startPush(); }
       if (applies.has('push')) startPush();
       if (applies.has('telegram')) startTelegramPoll();
+      if (applies.has('mqtt')) startMqtt();
+      if (applies.has('webhooks')) webhooks.configure({ ...cfg.webhooks, business: cfg.businessName });
+      if (applies.has('community')) startCommunity();
+      if (applies.has('sector')) mqttState();
+      if (applies.has('vault')) { const n = migrateEnvSecrets(cfg.secretsEncrypt); addEvent({ type: 'VAULT', level: 'HIGH', message: cfg.secretsEncrypt ? `Cifrado AES-256 activado (${n} secretos del .env y datos biométricos)` : 'Cifrado en disco desactivado' }); }
+      if (applies.has('doorbell')) webhooks.configure({ ...cfg.webhooks, business: cfg.businessName });
       addEvent({ type: 'CONFIG_CHANGED', level: 'HIGH', message: `Configuración modificada: ${Object.keys(ch).map((k) => (/(PIN|PASS|TOKEN)$/.test(k) ? k + '=****' : k)).join(', ')}` });
       broadcast('config', { keys: Object.keys(ch) });
       return send(res, 200, { ok: true, saved: Object.keys(ch), camera: { connected: !!state.camHost } });
@@ -1129,7 +1692,8 @@ function createApp(cfg, opts = {}) {
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
-    if (!checkPanelAuth(req)) return send(res, 401, 'Autenticación requerida', { 'WWW-Authenticate': 'Basic realm="SVB Seguridad"' });
+    const v1Token = url.pathname.startsWith('/api/v1/') && !!platform.verifyToken(bearer(req, url.searchParams));
+    if (!v1Token && !checkPanelAuth(req)) return send(res, 401, 'Autenticación requerida', { 'WWW-Authenticate': 'Basic realm="Sistemas VB Seguridad"' });
     try {
       if (url.pathname.startsWith('/api/')) return await api(req, res, url.pathname, url.searchParams);
       if (url.pathname.startsWith('/go2rtc/')) return proxyGo2rtc(req, res, url.pathname.slice(7), url.search);
@@ -1156,35 +1720,49 @@ function createApp(cfg, opts = {}) {
   });
 
   async function start() {
+    // Con SECRETS_ENCRYPT=1, lo que el instalador escribió en texto plano en el .env se cifra al arrancar
+    if (cfg.secretsEncrypt) { try { const n = migrateEnvSecrets(true); if (n) log(`[cifrado] ${n} secretos del .env cifrados con AES-256-GCM`); } catch (e) { log('[cifrado]', e.message); } }
     await resolveCameraHost().catch((e) => log('[cámaras]', e.message));
     startGo2rtc();
     startDvrEvents();
     startDoorbell();
     startPush();
     startTelegramPoll();
-    hoursTimer = setInterval(() => { tickHours(); if (retryQ.length) flushRetry(); }, 30000);
+    startMqtt();
+    startCommunity();
+    hoursTimer = setInterval(() => { if (tickHours() !== null) mqttState(); if (retryQ.length) flushRetry(); }, 30000);
+    wdTimer = setInterval(() => watchdogTick().catch(() => {}), 20000);
     await new Promise((r) => server.listen(cfg.port, cfg.host, r));
-    log(`SVB Seguridad · ${cfg.businessName} → http://localhost:${server.address().port}`);
+    log(`${PRODUCT} v${VERSION} · ${cfg.businessName} (${SECTORS[cfg.sector].label}) → http://localhost:${server.address().port}`);
     return server;
   }
-  let hoursTimer = null;
+  let hoursTimer = null; let wdTimer = null;
   async function stop() {
     stopping = true;
-    clearInterval(hoursTimer);
+    clearInterval(hoursTimer); clearInterval(wdTimer);
+    if (mq) { if (mq.connected) mq.publish(`${cfg.mqtt.prefix}/status`, 'offline', { retain: true }); mq.stop(); }
+    if (community) community.stop();
+    platform.flush();
     if (child) child.kill();
     if (dvr) dvr.stop();
     if (bell) bell.stop();
     if (pushCtl) pushCtl.stop();
     tgRun++; if (tgCtl) tgCtl.abort();
-    sse.forEach((r) => r.end());
+    sse.forEach((r) => r.end()); sseV1.forEach((r) => r.end());
     await new Promise((r) => server.close(r));
   }
 
-  return { server, start, stop, state, go2rtcYaml, addEvent, readEvents, triggerRelay, notify, access, tickHours, flushRetry, alertAll, retryQ };
+  return { server, start, stop, state, go2rtcYaml, addEvent, readEvents, triggerRelay, notify, access, tickHours, flushRetry, alertAll, retryQ,
+    platform, engine, webhooks, handleDetection, runScene, setOccupancy, watchdogTick, migrateEnvSecrets, getMqtt: () => mq, openapi };
 }
 
 if (require.main === module) {
   loadEnv(process.env.SVB_ENV_FILE || path.join(ROOT, '.env'));
+  // Secretos cifrados en el .env ("enc:v1:…"): se descifran en memoria con la clave maestra
+  if (Object.values(process.env).some((v) => Vault.isEncrypted(v)) || process.env.SECRETS_ENCRYPT === '1') {
+    const bad = new Vault({ dataDir: process.env.DATA_DIR || path.join(ROOT, 'data') }).decryptEnv(process.env);
+    if (bad.length) console.error(`[cifrado] No se pudieron descifrar: ${bad.join(', ')} — falta data/master.key o SVB_MASTER_KEY correcta`);
+  }
   const app = createApp(readConfig());
   app.start();
   const bye = () => app.stop().finally(() => process.exit(0));

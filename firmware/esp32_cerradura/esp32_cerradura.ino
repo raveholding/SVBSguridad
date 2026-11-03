@@ -1,5 +1,5 @@
 /*
- * SVB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
+ * Sistemas VB Seguridad — Controlador de cerradura para ESP32 (Almacén Rave)
  * ------------------------------------------------------------------
  * NO hace falta editar este código: se configura desde el celular.
  *
@@ -7,7 +7,7 @@
  *  2) Al encenderlo por primera vez crea la red WiFi  "SVB-Puerta-XXXX"  (clave: svbpuerta).
  *     Conectate desde el celular: se abre la página de configuración (o entrá a http://192.168.4.1).
  *     Elegí el WiFi del local y su clave → Guardar. El ESP32 se reinicia y se conecta.
- *  3) En el panel SVB: ⚙ → Configuración → Cerradura → "Buscar y vincular cerradura".
+ *  3) En el panel Sistemas VB: ⚙ → Configuración → Cerradura → "Buscar y vincular cerradura".
  *     El panel la encuentra en la red y la vincula con una clave segura automáticamente.
  *
  *  Volver a configurar: mantener apretado el botón BOOT 5 segundos (borra WiFi y vínculo).
@@ -20,7 +20,7 @@
  *   - Sensor magnético de puerta (reed) → GPIO 27 a GND (opcional)
  *   - Pulsador de salida interior        → GPIO 25 a GND (opcional)
  *
- * API (la usa el servidor SVB):
+ * API (la usa el servidor Sistemas VB):
  *   GET  /status                       estado (puerta, vínculo, IP)
  *   POST /open?ms=3000   X-Token: …    abrir
  *   POST /pair  (body = clave)         vincular (solo sin vincular y dentro de 10 min de encendido)
@@ -86,7 +86,7 @@ background:#fff;color:#000;font-size:17px;font-weight:700}p{color:#8a8a8a;line-h
 
 void handleRoot() {
   String h = FPSTR(PAGE_HEAD);
-  h += "<h1>Cerradura SVB · configuración</h1><p>Elegí el WiFi del local. Después, en el panel SVB tocá <b>Buscar y vincular cerradura</b>.</p><form method='POST' action='/save'><label>Red WiFi</label><select name='s'>";
+  h += "<h1>Cerradura Sistemas VB · configuración</h1><p>Elegí el WiFi del local. Después, en el panel Sistemas VB tocá <b>Buscar y vincular cerradura</b>.</p><form method='POST' action='/save'><label>Red WiFi</label><select name='s'>";
   int n = WiFi.scanNetworks();
   for (int i = 0; i < n; i++) { String s = WiFi.SSID(i); s.replace("<", ""); s.replace(">", ""); h += "<option" + String(s == wifiSsid ? " selected" : "") + ">" + s + "</option>"; }
   h += "</select><label>…o escribí el nombre</label><input name='s2' placeholder='(opcional)'><label>Clave del WiFi</label><input name='p' type='password'><button>Guardar y conectar</button></form>";
@@ -100,7 +100,7 @@ void handleSave() {
   prefs.putString("ssid", s);
   prefs.putString("pass", server.arg("p"));
   String h = FPSTR(PAGE_HEAD);
-  h += "<h1>Guardado ✔</h1><p>La cerradura se reinicia y se conecta a <b>" + s + "</b>.<br>Volvé al WiFi del local y en el panel SVB tocá <b>Buscar y vincular cerradura</b>.</p></body></html>";
+  h += "<h1>Guardado ✔</h1><p>La cerradura se reinicia y se conecta a <b>" + s + "</b>.<br>Volvé al WiFi del local y en el panel Sistemas VB tocá <b>Buscar y vincular cerradura</b>.</p></body></html>";
   server.send(200, "text/html; charset=utf-8", h);
   delay(1500);
   ESP.restart();

@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title SVB Seguridad - Almacen Rave
+title Sistemas VB Seguridad - Almacen Rave
 cd /d "%~dp0"
 
 rem Comprobar que el ZIP fue extraido
@@ -23,7 +23,7 @@ if errorlevel 1 goto :nogo2rtc
 :run
 echo.
 echo  =============================================
-echo   SVB Seguridad funcionando
+echo   Sistemas VB Seguridad funcionando
 echo   Panel: http://localhost:8080
 echo   NO CIERRES ESTA VENTANA mientras uses el sistema
 echo  =============================================

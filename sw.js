@@ -1,5 +1,5 @@
-/* SVB Seguridad — Service Worker: el panel abre aunque se corte internet o el servidor. */
-const CACHE = 'svb-v5';
+/* Sistemas VB Seguridad — Service Worker: el panel abre aunque se corte internet o el servidor. */
+const CACHE = 'svb-v6';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './assets/rave-logo.jpg', './assets/icon-192.png', './assets/icon-512.png'];
 
 self.addEventListener('install', (e) => {

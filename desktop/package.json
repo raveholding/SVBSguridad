@@ -1,11 +1,11 @@
 {
   "name": "svb-seguridad-desktop",
-  "productName": "SVB Seguridad",
-  "version": "1.0.0",
-  "description": "SVB Seguridad — panel de seguridad para Windows (Almacén Rave)",
+  "productName": "Sistemas VB Seguridad",
+  "version": "2.0.0",
+  "description": "Sistemas VB Seguridad — panel de seguridad integral para Windows (Almacén Rave)",
   "main": "main.js",
   "private": true,
-  "author": "Sistema Vincular Business",
+  "author": "Vincular Business · Sistema VB <vincularbusiness@gmail.com>",
   "scripts": {
     "start": "electron .",
     "kiosk": "electron . --kiosk",
@@ -20,18 +20,55 @@
   },
   "build": {
     "appId": "com.svb.seguridad",
-    "productName": "SVB Seguridad",
-    "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js", "package.json"],
-    "extraResources": [
-      { "from": "../index.html", "to": "svb/index.html" },
-      { "from": "../manifest.webmanifest", "to": "svb/manifest.webmanifest" },
-      { "from": "../sw.js", "to": "svb/sw.js" },
-      { "from": "../assets", "to": "svb/assets" },
-      { "from": "../firmware", "to": "svb/firmware" },
-      { "from": "../server", "to": "svb/server", "filter": ["**/*", "!test/**", "!node_modules/**"] }
+    "productName": "Sistemas VB Seguridad",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
     ],
-    "win": { "target": "nsis", "icon": "../assets/icon-512.png" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "SVB Seguridad" }
+    "extraResources": [
+      {
+        "from": "../index.html",
+        "to": "svb/index.html"
+      },
+      {
+        "from": "../manifest.webmanifest",
+        "to": "svb/manifest.webmanifest"
+      },
+      {
+        "from": "../sw.js",
+        "to": "svb/sw.js"
+      },
+      {
+        "from": "../assets",
+        "to": "svb/assets"
+      },
+      {
+        "from": "../firmware",
+        "to": "svb/firmware"
+      },
+      {
+        "from": "../server",
+        "to": "svb/server",
+        "filter": [
+          "**/*",
+          "!test/**",
+          "!node_modules/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "../assets/icon-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Sistemas VB Seguridad"
+    }
   }
 }

@@ -1,15 +1,18 @@
 {
-  "name": "svb-seguridad-server",
-  "version": "1.0.0",
-  "description": "Servidor puente SVB Seguridad: panel web, cámaras Dahua (go2rtc), cerradura ESP32 y alertas Telegram",
+  "name": "sistemas-vb-seguridad-server",
+  "version": "2.0.0",
+  "description": "Sistemas VB Seguridad: servidor puente (cámaras multi-marca, analítica, cerradura, avisos, API v1, MQTT/Home Assistant). Vincular Business · vincularbusiness@gmail.com",
   "main": "server.js",
   "private": true,
   "license": "UNLICENSED",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "setup": "node scripts/get-go2rtc.js",
     "start": "node server.js",
     "discover": "node scripts/discover-cli.js",
     "test": "node --test test/*.test.js"
-  }
+  },
+  "author": "Vincular Business · Sistema VB <vincularbusiness@gmail.com>"
 }

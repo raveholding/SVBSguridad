@@ -1,6 +1,6 @@
 'use strict';
 /**
- * SVB Seguridad — App de escritorio para Windows (Electron).
+ * Sistemas VB Seguridad — App de escritorio para Windows (Electron).
  *  - Arranca el servidor puente (cámaras Dahua, cerradura, alertas) dentro de la app.
  *  - Abre el panel en modo kiosco opcional.
  *  - Expone a la página: minimizar, cerrar, kiosco, llamadas tel:, y relé por puerto serie (ESP32 por USB).
@@ -38,7 +38,7 @@ async function createWindow() {
   const url = process.env.SVB_URL || (await startServer());
   win = new BrowserWindow({
     width: 1366, height: 820, backgroundColor: '#000000', autoHideMenuBar: true,
-    kiosk: KIOSK, fullscreen: KIOSK, title: 'SVB Seguridad',
+    kiosk: KIOSK, fullscreen: KIOSK, title: 'Sistemas VB Seguridad',
     icon: path.join(ROOT, 'assets', 'icon-512.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
